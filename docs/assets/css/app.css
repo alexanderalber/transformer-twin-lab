@@ -1,0 +1,298 @@
+/* transformer-twin-lab: shared styles for the demo pages.
+   Three skins (grey is the default, light and dark stay switchable), one accent
+   colour. The ladders and the switch mechanics follow the conventions of the
+   author's personal site, trimmed to what these pages actually use.
+
+   THE ONE KNOB: the accent of the default (grey) skin lives in --accent below.
+   Swap that single value (e.g. to an orange) and the segmented controls, form
+   focus rings, links and every canvas contour follow, because the canvases
+   re-read the computed palette at runtime. */
+
+/* The page background, readable from inside a button (Pico redefines
+   --pico-background-color on buttons, so an alias declared on html is needed). */
+html {
+  --page-bg: var(--pico-background-color);
+}
+
+/* === DARK THEME (cool slate + steel blue) === */
+html[data-theme="dark"] {
+  --pico-background-color: #14181f;
+  --pico-color: #dde5ee;
+  --pico-primary: #7d9bb8;
+  --pico-primary-hover: #9db8d2;
+  --pico-muted-color: #74808f;
+  --pico-muted-border-color: #262e3a;
+  --pico-card-background-color: #1a202a;
+
+  --tool-emph:     #e1e8f0;
+  --tool-text:     #bcc5cf;
+  --tool-label:    #99a4af;
+  --tool-note:     #778390;
+  --tool-faint:    #566472;
+  --tool-border:   #374656;
+  --tool-hairline: #1a2a3a;
+  --tool-grid:     #45596d;
+  --tool-ink:      #0a1928;
+  --tool-panel:    #0a1928;
+  --tool-surface:  #111c28;
+  --tool-subtle:   #17232f;
+  --tool-shadow:   rgba(0, 0, 0, .45);
+  --tool-panel-shadow: 0 12px 28px var(--tool-shadow);
+  --tool-sig-good: #4ade80;
+  --tool-sig-warn: #facc15;
+  --tool-sig-bad:  #f87171;
+  --tool-sig-info: #38bdf8;
+}
+
+/* === LIGHT THEME === */
+html[data-theme="light"] {
+  --pico-background-color: #ffffff;
+  --pico-color: #1b2430;
+  --pico-primary: #3a6a96;
+  --pico-primary-hover: #27506f;
+  --pico-muted-color: #5d6b7c;
+  --pico-muted-border-color: #d8e0ea;
+  --pico-card-background-color: #ffffff;
+
+  --tool-emph:     #0c1c2b;
+  --tool-text:     #293746;
+  --tool-label:    #485563;
+  --tool-note:     #687481;
+  --tool-faint:    #8b96a1;
+  --tool-border:   #afb8c1;
+  --tool-hairline: #d5dce3;
+  --tool-grid:     #d5dce3;
+  --tool-ink:      #ecf3fb;
+  --tool-panel:    #ecf3fb;
+  --tool-surface:  #ffffff;
+  --tool-subtle:   #f1f5f9;
+  --tool-shadow:   transparent;
+  --tool-panel-shadow: var(--pico-box-shadow);
+  --tool-sig-good: #15803d;
+  --tool-sig-warn: #a16207;
+  --tool-sig-bad:  #b91c1c;
+  --tool-sig-info: #0369a1;
+}
+
+/* === GREY SKIN (the default here: white on mid grey, outlines instead of
+   fills, exactly one accent) ===
+   It is a skin, not a theme: the head bootstrap sets data-skin="grey" together
+   with data-theme="dark", so the dark blocks apply first and this overrides.
+   The attribute is tripled so this block wins on specificity regardless of
+   where it sits in the file. */
+html[data-skin="grey"][data-skin="grey"][data-skin="grey"] {
+  /* THE accent. The only colour on the page besides the greys. */
+  --accent: #6fe3d2;
+  --accent-hover: color-mix(in srgb, var(--accent) 72%, white);
+
+  --pico-background-color: #55595f;
+  --pico-color: #f2f4f5;
+  --pico-muted-color: #c9cfd2;
+  --pico-muted-border-color: #9aa1a6;
+  --pico-h1-color: #ffffff;
+  --pico-h2-color: #ffffff;
+  --pico-h3-color: #f2f4f5;
+  --pico-primary: var(--accent);
+  --pico-primary-background: var(--accent);
+  --pico-primary-border: var(--accent);
+  --pico-primary-underline: color-mix(in srgb, var(--accent) 50%, transparent);
+  --pico-primary-hover: var(--accent-hover);
+  --pico-primary-hover-background: var(--accent-hover);
+  --pico-primary-hover-border: var(--accent-hover);
+  --pico-primary-focus: color-mix(in srgb, var(--accent) 37%, transparent);
+  --pico-primary-inverse: #22262b;
+  --pico-card-background-color: #55595f;
+  --pico-card-border-color: #ffffff;
+  --pico-card-box-shadow: none;
+  --pico-box-shadow: none;
+  --pico-button-box-shadow: none;
+  --pico-button-hover-box-shadow: none;
+  --pico-form-element-background-color: #55595f;
+  --pico-form-element-border-color: #ffffff;
+  --pico-form-element-color: #f2f4f5;
+  --pico-form-element-placeholder-color: #b0b7bb;
+  --pico-form-element-active-background-color: #55595f;
+  --pico-form-element-active-border-color: var(--accent);
+  --pico-form-element-focus-color: var(--accent);
+
+  /* Tool ladder, compressed: separation comes from the white border, not from
+     lightness steps. */
+  --tool-emph:     #ffffff;
+  --tool-text:     #f2f4f5;
+  --tool-label:    #dfe3e5;
+  --tool-note:     #c9cfd2;
+  --tool-faint:    #b0b7bb;
+  --tool-border:   #ffffff;
+  --tool-hairline: #9aa1a6;
+  --tool-grid:     #b0b7bb;
+  --tool-ink:      #22262b;
+  --tool-panel:    #55595f;
+  --tool-surface:  #55595f;
+  --tool-subtle:   #5c6167;
+  --tool-shadow:   transparent;
+  --tool-panel-shadow: none;
+  /* Achromatic signals: the only channel left is brightness, so it goes to
+     whatever the reader must not miss. Info keeps the accent, its one job. */
+  --tool-sig-good: #b3babe;
+  --tool-sig-warn: #d9dde0;
+  --tool-sig-bad:  #ffffff;
+  --tool-sig-info: var(--accent);
+}
+
+/* === SEGMENTED CONTROL (settings switchers, incl. the theme switcher) === */
+.lang-seg {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  margin: 0;
+  background: transparent;
+  border: 1px solid var(--pico-muted-border-color);
+  cursor: pointer;
+  color: var(--pico-muted-color);
+  line-height: 1.6;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  border-radius: 4px;
+  width: auto;
+}
+/* Corners and shared borders follow adjacency, so a lone button stays fully
+   rounded and a group joins seamlessly. */
+.lang-seg:has(+ .lang-seg) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+.lang-seg + .lang-seg {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.lang-seg.active {
+  background: var(--pico-primary);
+  color: var(--page-bg);
+  border-color: var(--pico-primary);
+}
+.lang-seg:hover:not(.active):not(:disabled),
+.lang-seg:focus:not(.active):not(:disabled) {
+  background: transparent;
+  border-color: var(--pico-primary);
+  color: var(--pico-primary);
+}
+
+/* Theme switcher: sun / contrast / moon as SVG masks tinted with currentColor,
+   so they need no translation and follow every skin. */
+.theme-switcher {
+  display: flex;
+  align-items: center;
+}
+.theme-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+}
+.theme-seg::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) no-repeat center / contain;
+  mask: var(--icon) no-repeat center / contain;
+}
+.theme-seg[data-theme-set="light"] { --icon: url('../img/icons/theme-sun.svg'); }
+.theme-seg[data-theme-set="dark"]  { --icon: url('../img/icons/theme-moon.svg'); }
+.theme-seg[data-theme-set="grey"]  { --icon: url('../img/icons/theme-contrast.svg'); }
+
+/* === THEME CHANGE ANIMATION ===
+   Browsers with the View Transitions API animate two page snapshots on the
+   GPU: the old one holds still while the new one sweeps in from the top-right
+   corner, where the switcher sits. The gradient stops approximate a smoothstep
+   so the moving boundary is a soft ramp, not a clip edge. */
+::view-transition-old(root) { animation: none; }
+::view-transition-new(root) {
+  mask-image: linear-gradient(to bottom left,
+    rgb(0 0 0) 38%, rgb(0 0 0 / 0.92) 43%, rgb(0 0 0 / 0.5) 50%,
+    rgb(0 0 0 / 0.08) 57%, transparent 62%);
+  mask-size: 300% 300%;
+  mask-repeat: no-repeat;
+  animation: theme-sweep 1.2s ease-in-out both;
+}
+@keyframes theme-sweep {
+  from { mask-position: 0% 100%; }
+  to   { mask-position: 100% 0%; }
+}
+/* Fallback without the API: transition every element for half a second. On for
+   600ms via JS and never during normal browsing. */
+html.theme-morph, html.theme-morph * {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease,
+    fill 0.5s ease, stroke 0.5s ease, box-shadow 0.5s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-morph, html.theme-morph * { transition: none; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  ::view-transition-new(root) { mask-image: none; }
+}
+
+/* === PAGE LAYOUT (shared by the demo pages) === */
+.tw-head {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 14px;
+}
+/* With a title in the same row the switcher moves to the other end of it. */
+.tw-head:has(h1) {
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.tw-head h1 { margin: 0; }
+.tw-stage {
+  display: block;
+  width: 100%;
+  background: color-mix(in srgb, var(--tool-panel) 55%, transparent);
+  border: 1px solid var(--tool-border);
+  border-radius: 8px;
+  box-shadow: var(--tool-panel-shadow);
+  touch-action: none;
+  cursor: grab;
+}
+.tw-stage.dragging { cursor: grabbing; }
+.tw-controls {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 14px 2px 0;
+  font-size: 13px;
+  color: var(--tool-label);
+}
+.tw-controls label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--tool-label);
+}
+.tw-controls input {
+  width: 74px;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 14px;
+  height: auto;
+}
+.tw-read {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  font-size: 12.5px;
+  color: var(--tool-note);
+  margin: 10px 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+.tw-read b { color: var(--tool-text); font-weight: 600; }
+.tw-foot {
+  margin-top: 26px;
+  font-size: 11px;
+  color: var(--tool-faint);
+  line-height: 1.7;
+}

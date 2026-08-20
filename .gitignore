@@ -1,0 +1,6 @@
+# Whitelist: everything is ignored, published files need an explicit ! entry.
+/*
+
+!/.gitignore
+!/README.md
+!/docs/

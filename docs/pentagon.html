@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<head>
+  <meta charset="utf-8">
+  <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duval Pentagon, under measurement uncertainty</title>
+  <meta name="description" content="One DGA result on the Duval pentagon, and the region of diagnoses it could really mean.">
+  <link rel="stylesheet" href="assets/css/pico.min.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
+       A single fixed stroke colour would vanish against one of the two tab
+       bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
+       a light tab bar, white on a dark one. Same mark on all pages. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    /* Same sizing discipline as the triangle page: the layout is set, not
+       fluid, and the centre column is the width the pentagon actually draws
+       at, so the two side groups sit next to it instead of at the far edges.
+       166 + 570 + 200 + two 14px gaps is exactly --pt-w. The right column is
+       10px wider than on the triangle page because "T3-H" is the longest zone
+       name here. */
+    html { --pt-w: 964px; }
+    /* The zone boundaries are the frame of reference and have to survive a
+       beamer. --tool-grid is the right weight on the two dark themes, but in
+       light mode it is the same pale hairline the panels use and it washes out
+       when projected, so light gets its own, darker value. Read by the canvas
+       via cssVar, so it follows the theme switcher. */
+    html { --pt-zone: var(--tool-grid); }
+    html[data-theme="light"] { --pt-zone: #a3b0bd; }
+    .pt-wrap { width: 100%; max-width: var(--pt-w); margin: 0 auto; padding: 0 0 16px; }
+    body > header.tw-head {
+      width: 100%; max-width: var(--pt-w); margin-inline: auto;
+      padding: 10px 0 0; font-size: 1.3rem;
+    }
+    body > header.tw-head h1 { font-size: 1.3rem; color: var(--tool-emph); }
+    .pt-crumb { color: var(--tool-note); text-decoration: none; background: none; }
+    .pt-crumb:hover, .pt-crumb:focus-visible { color: var(--pico-primary); text-decoration: underline; }
+    .pt-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
+    /* The canvas is not a panel here: only the pentagon is a surface, drawn
+       in-canvas; outside it the page colour runs through. The cursor is set
+       from the hit test, not by the element, because the grabbable area is the
+       reachable set and not the canvas rectangle. */
+    .pt-wrap .tw-stage { background: transparent; border: none; box-shadow: none; border-radius: 0; cursor: default; }
+
+    .pt-grid { display: grid; grid-template-columns: 166px 570px 200px; gap: 14px; align-items: start; justify-content: center; }
+    .pt-col { display: flex; flex-direction: column; gap: 9px; padding-top: 62px; }
+    .pt-col h2 {
+      margin: 0 0 2px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--tool-note); line-height: 1.3;
+    }
+    /* Uppercasing a lowercase sigma turns it into a capital one, which is a
+       different quantity. This part keeps its case. */
+    .pt-col h2 .pt-cased { text-transform: none; letter-spacing: 0.03em; }
+    .pt-col h2 + h2 { margin-top: 12px; }
+    .pt-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin: 0; font-size: 15px; color: var(--tool-text); font-variant-numeric: tabular-nums;
+    }
+    .pt-row input { width: 64px; margin: 0; padding: 2px 6px; font-size: 15px; height: auto; text-align: right; }
+    /* No spinner arrows: they are too small to hit on a beamer and the value is
+       set by dragging the point anyway. */
+    .pt-row input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+    .pt-row input[type="number"]::-webkit-outer-spin-button,
+    .pt-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .pt-row .pt-unit {
+      display: inline-block; width: 26px; margin-left: 6px; text-align: left;
+      color: var(--tool-note); font-size: 12px;
+    }
+    /* The two segmented strips: variant above the pentagon, what-to-draw below
+       it, next to the sample-count slider. */
+    .pt-bar { display: flex; align-items: center; justify-content: center; gap: 10px; height: 28px; }
+    .pt-bar.pt-under { margin-top: 8px; }
+    .pt-seg-group { display: flex; }
+    /* On the light skin the muted border of an inactive segment is the same
+       pale hairline the panels use and the group loses its edges. */
+    html[data-skin="light"] .pt-wrap .lang-seg:not(.active):not(:hover):not(:focus) {
+      border-color: var(--tool-faint);
+    }
+    .pt-slider { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--tool-note); }
+    .pt-slider .pt-n { font-variant-numeric: tabular-nums; color: var(--tool-text); width: 46px; text-align: right; }
+    /* Range slider, same rules as the thermal page. Pico leaves the thumb to
+       the browser, and the browser default is a pale disc that disappears on
+       the grey skin from six metres away. Both vendor prefixes are needed:
+       they are separate pseudo-elements and a shared rule would be dropped by
+       both engines. The fill is the accent of the active skin and the ring is
+       --tool-emph, white on both dark skins and near-black on the light one,
+       so the thumb keeps a hard edge everywhere. */
+    .pt-wrap input[type="range"] {
+      appearance: none; -webkit-appearance: none; background: none; height: 20px;
+      width: 116px; margin: 0;
+    }
+    .pt-wrap input[type="range"]:focus { outline: none; }
+    .pt-wrap input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .pt-wrap input[type="range"]::-moz-range-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .pt-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px;
+      border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .pt-wrap input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .pt-wrap input[type="range"]:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+    .pt-wrap input[type="range"]:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+    .pt-diag { display: grid; grid-template-columns: 3.4em 1fr 3em; align-items: center; gap: 9px; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .pt-diag .pt-z { color: var(--tool-emph); font-weight: 600; }
+    /* A zone the measurement cannot reach keeps its row, so the list never
+       reflows, but it steps back: the labels stay a fixed scale to read the
+       bars against instead of a column of equally loud claims. */
+    .pt-diag.pt-off .pt-z, .pt-diag.pt-off .pt-p { color: var(--tool-faint); font-weight: 400; }
+    .pt-diag .pt-p { text-align: right; color: var(--tool-text); }
+    .pt-bar-track { height: 7px; border: 1px solid var(--tool-hairline); border-radius: 2px; overflow: hidden; }
+    .pt-bar-track i { display: block; height: 100%; background: var(--pico-primary); }
+    .pt-legend { margin: 8px 0 0; font-size: 12px; color: var(--tool-note); text-align: center; }
+    .pt-attrib { margin: 4px 0 0; font-size: 11px; color: var(--tool-faint); text-align: center; }
+    @media (max-width: 986px) {
+      .pt-grid { grid-template-columns: 1fr; gap: 12px; }
+      .pt-col { padding-top: 0; }
+      .pt-wrap, body > header.tw-head { padding-inline: 16px; }
+    }
+  </style>
+  <script src="assets/js/react.production.min.js"></script>
+  <script src="assets/js/react-dom.production.min.js"></script>
+  <script src="assets/js/htm.js"></script>
+</head>
+<body>
+  <header class="container tw-head">
+    <h1><a class="pt-crumb" href="index.html">twin-lab</a><span class="pt-sep">/</span>Duval Pentagon, under measurement uncertainty</h1>
+    <div class="theme-switcher">
+      <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
+    </div>
+  </header>
+  <script src="assets/js/theme.js"></script>
+
+  <main>
+    <div id="root">
+      <div class="pt-wrap"></div>
+    </div>
+  </main>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Math core: plain JS, no JSX and no DOM. Pentagon construction after
+       Duval and Lamarre 2014, zone limits as tabulated there and in CIGRE
+       TB 771.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="pentagoncore">
+  var PentagonCore = (function () {
+    'use strict';
+
+    function sum(x) { var s = 0, i; for (i = 0; i < x.length; i++) s += x[i]; return s; }
+    function close(x) {
+      var s = sum(x), out = [], i;
+      for (i = 0; i < x.length; i++) out.push(s === 0 ? NaN : x[i] / s);
+      return out;
+    }
+
+    /* ── Pentagon geometry ────────────────────────────────────────────────
+       Composition order is [H2, C2H6, CH4, C2H4, C2H2] and the axes sit at
+       90, 162, 234, 306 and 18 degrees, which is the published orientation:
+       H2 at the top, C2H6 upper left, CH4 lower left, C2H4 lower right,
+       C2H2 upper right. The axes are graduated to 40 percent, so the drawn
+       outline is the regular pentagon of circumradius 40. The vertices of
+       that outline, (0,40), (-38.04,12.36), (-23.51,-32.36), (23.51,-32.36),
+       (38.04,12.36), are the corner points the published zone tables use,
+       which is what pins this orientation and this scale. */
+    var ANGLES = [90, 162, 234, 306, 18];
+    var R_OUT = 40;
+    var AXIS = (function () {
+      var a = [], i, t;
+      for (i = 0; i < 5; i++) {
+        t = ANGLES[i] * Math.PI / 180;
+        a.push([Math.cos(t), Math.sin(t)]);
+      }
+      return a;
+    })();
+
+    /* The diagnosis point is the area centroid of the pentagon spanned by the
+       five axis points, standard signed-area formula. The vertices are already
+       in counter-clockwise order, so the area is never negative.
+       The area vanishes when no two ADJACENT gases are both present, for
+       instance for a pure gas or for a mixture of H2 and CH4 alone. There is
+       no area centroid in that case; the mean of the axis points is a
+       convention, not a result, and it is only reachable by typing an exact
+       zero, since every propagated sample has all five gases positive. */
+    function centroid(shares) {
+      var px = [], py = [], i, j, cr, a = 0, cx = 0, cy = 0;
+      for (i = 0; i < 5; i++) {
+        px.push(100 * shares[i] * AXIS[i][0]);
+        py.push(100 * shares[i] * AXIS[i][1]);
+      }
+      for (i = 0; i < 5; i++) {
+        j = (i + 1) % 5;
+        cr = px[i] * py[j] - px[j] * py[i];
+        a += cr;
+        cx += (px[i] + px[j]) * cr;
+        cy += (py[i] + py[j]) * cr;
+      }
+      if (Math.abs(a) < 1e-12) {
+        cx = 0; cy = 0;
+        for (i = 0; i < 5; i++) { cx += px[i] / 5; cy += py[i] / 5; }
+        return [cx, cy];
+      }
+      return [cx / (3 * a), cy / (3 * a)];
+    }
+
+    /* Radius of the regular pentagon outline at a given angle: the apothem
+       divided by the cosine of the angle to the nearest edge normal. The
+       normals sit halfway between the vertices, 36 degrees off ANGLES[0]. */
+    var COS36 = Math.cos(36 * Math.PI / 180);
+    function outlineR(deg, R) {
+      var d = ((deg - ANGLES[0]) % 72 + 72) % 72 - 36;
+      return R * COS36 / Math.cos(d * Math.PI / 180);
+    }
+    function onOutline(deg, R) {
+      var t = deg * Math.PI / 180, r = outlineR(deg, R);
+      return [r * Math.cos(t), r * Math.sin(t)];
+    }
+
+    /* ── The reachable set ────────────────────────────────────────────────
+       Not every point of the drawn pentagon is a possible diagnosis point.
+       Let one gas dominate and the other four go to zero: the centroid tends
+       to 100/3 percent along that gas axis, never to the 40 percent corner.
+       For a mixture of two ADJACENT gases the centroid is exactly
+       (P_i + P_j)/3, which traces the straight segment between two of those
+       limit points. So the image of the centroid map is the regular pentagon
+       of circumradius 100/3 = 33.33, sharing the corners' directions with the
+       drawn one but 17 percent smaller: the five corner regions of the
+       published pentagon cannot be reached by any gas mixture at all.
+       This is a closed form, not a fit; the numerical check is in the self
+       test. */
+    var R_REACH = 100 / 3;
+    /* Dragging is clamped a hair inside that boundary. On the boundary itself
+       one gas holds the entire sample and the log-ratio coordinates diverge;
+       at 0.5 percent inside, the extreme is about 99.7 percent of one gas,
+       which is already past anything a laboratory reports. */
+    var DRAG_R = R_REACH * 0.995;
+
+    function inRegular(x, y, R) {
+      var deg = Math.atan2(y, x) * 180 / Math.PI;
+      return Math.sqrt(x * x + y * y) <= outlineR(deg, R) + 1e-9;
+    }
+    /* Nearest point of the closed regular pentagon, used while dragging so the
+       point rides the boundary instead of sticking. */
+    function clampRegular(x, y, R) {
+      if (inRegular(x, y, R)) return [x, y];
+      var best = null, bd = Infinity, i, a, b, dx, dy, t, qx, qy, d;
+      for (i = 0; i < 5; i++) {
+        a = onOutline(ANGLES[i], R);
+        b = onOutline(ANGLES[(i + 1) % 5], R);
+        dx = b[0] - a[0]; dy = b[1] - a[1];
+        t = ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy);
+        t = Math.max(0, Math.min(1, t));
+        qx = a[0] + t * dx; qy = a[1] + t * dy;
+        d = (x - qx) * (x - qx) + (y - qy) * (y - qy);
+        if (d < bd) { bd = d; best = [qx, qy]; }
+      }
+      return best;
+    }
+
+    /* ── Zones ────────────────────────────────────────────────────────────
+       The published boundary coordinates, Duval and Lamarre 2014 and CIGRE
+       TB 771, entered as given. Two remarks on the table itself:
+
+       - It is rounded to the tenth, so the zone corners miss the exact
+         pentagon corners by a few hundredths: (38, 12) against (38.04,
+         12.36), (23.5, -32.4) against (23.51, -32.36). Those slivers are two
+         hundredths of a percent wide and no propagated point ever reaches
+         them, since the reachable set stops at 33.33. They are left alone
+         rather than silently snapped, so what stands here is what is
+         published.
+       - Two vertices are given twice with different values: the foot of the
+         T2/T3 boundary is (1, -32) under T3 and (1, -32.4) under T2, and the
+         left end of the S/T1 boundary is (-35, 3) under T1 and (-35, 3.1)
+         under S. Taken literally that leaves a wedge of the pentagon in no
+         zone at all. The second reading is used in both cases, since -32.4 is
+         the y of the whole bottom edge and 3.1 is what the same point carries
+         everywhere else it appears. The self test checks that the result
+         tiles.
+
+       PD is the same narrow sliver left of the H2 axis in both pentagons, and
+       both S polygons walk around it, exactly as the table has it. */
+
+    var PD_POLY = [[0, 33], [-1, 33], [-1, 24.5], [0, 24.5]];
+    /* Four zones are shared: PD, D1, D2 and S are the same regions in both
+       pentagons, coordinate for coordinate. Only the low-temperature corner
+       is split differently. */
+    var D1_POLY = [[0, 40], [38, 12], [32, -6.1], [4, 16], [0, 1.5]];
+    var D2_POLY = [[4, 16], [32, -6.1], [24.3, -30], [0, -3], [0, 1.5]];
+    var S_POLY = [[0, 1.5], [-35, 3.1], [-38, 12.4], [0, 40],
+                  [0, 33], [-1, 33], [-1, 24.5], [0, 24.5]];
+
+    /* The three lower-left zones, per pentagon. Pentagon 1 meets at (-6, -4)
+       and splits the bottom edge at x = 1 and x = -22.5; Pentagon 2 meets at
+       (-3.5, -3), splits at x = 2.5 and x = -21.5, and carries an extra kink
+       at (-11, -8) so its middle zone is a quadrilateral where Pentagon 1's
+       is a triangle. Four numbers, no more. */
+    var LOW_P1 = {
+      hot: [[0, -3], [24.3, -30], [23.5, -32.4], [1, -32.4], [-6, -4]],
+      mid: [[-6, -4], [1, -32.4], [-22.5, -32.4]],
+      low: [[-6, -4], [-22.5, -32.4], [-23.5, -32.4], [-35, 3.1], [0, 1.5], [0, -3]]
+    };
+    var LOW_P2 = {
+      hot: [[0, -3], [24.3, -30], [23.5, -32.4], [2.5, -32.4], [-3.5, -3]],
+      mid: [[-3.5, -3], [2.5, -32.4], [-21.5, -32.4], [-11, -8]],
+      low: [[-3.5, -3], [-11, -8], [-21.5, -32.4], [-23.5, -32.4], [-35, 3.1], [0, 1.5], [0, -3]]
+    };
+
+    function zoneSet(low, names) {
+      return [
+        { z: 'PD', polys: [PD_POLY] },
+        { z: 'D1', polys: [D1_POLY] },
+        { z: 'D2', polys: [D2_POLY] },
+        { z: names[0], polys: [low.hot] },
+        { z: names[1], polys: [low.mid] },
+        { z: names[2], polys: [low.low] },
+        { z: 'S', polys: [S_POLY] }
+      ];
+    }
+    var ZONE_SETS = {
+      p1: zoneSet(LOW_P1, ['T3', 'T2', 'T1']),
+      p2: zoneSet(LOW_P2, ['T3-H', 'C', 'O'])
+    };
+    /* Reading order for the diagnosis column, electrical faults first. */
+    var DIAG_ORDER = {
+      p1: ['D1', 'D2', 'T3', 'T2', 'T1', 'S', 'PD'],
+      p2: ['D1', 'D2', 'T3-H', 'C', 'O', 'S', 'PD']
+    };
+    /* Label anchors: the area centroid of each zone polygon, which for these
+       seven shapes happens to land inside its own zone every time, checked in
+       the self test. PD is not labelled on either pentagon: the sliver is one
+       percent wide and the label would sit on top of S. */
+    var LOW_ANCHOR_P1 = [[6.9, -20.7], [-9.2, -22.9], [-19.7, -9.3]];
+    var LOW_ANCHOR_P2 = [[8.2, -21.3], [-8.2, -21.3], [-20.0, -9.2]];
+    function labelSet(anchors, names) {
+      return [
+        { z: 'D1', p: [17.1, 16.2] },
+        { z: 'D2', p: [15.6, -6.1] },
+        { z: names[0], p: anchors[0] },
+        { z: names[1], p: anchors[1] },
+        { z: names[2], p: anchors[2] },
+        { z: 'S', p: [-14.9, 15.6] }
+      ];
+    }
+    var LABELS = {
+      p1: labelSet(LOW_ANCHOR_P1, ['T3', 'T2', 'T1']),
+      p2: labelSet(LOW_ANCHOR_P2, ['T3-H', 'C', 'O'])
+    };
+    function labelsFor(key) { return LABELS[key]; }
+
+    /* Ray casting. Points exactly on a shared edge fall to whichever zone
+       comes first in the list, which is a set of measure zero and never
+       reached by a propagated sample. */
+    function inPoly(x, y, poly) {
+      var inside = false, i, j, xi, yi, xj, yj;
+      for (i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        xi = poly[i][0]; yi = poly[i][1];
+        xj = poly[j][0]; yj = poly[j][1];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      return inside;
+    }
+    /* The zone a point falls in, or null if it falls in none. With the
+       provisional wedges that cannot happen inside the reachable set, but the
+       published polygons need not tile the pentagon, so the null path stays. */
+    function zoneAt(x, y, zones) {
+      var i, k;
+      for (i = 0; i < zones.length; i++) {
+        for (k = 0; k < zones[i].polys.length; k++) {
+          if (inPoly(x, y, zones[i].polys[k])) return zones[i].z;
+        }
+      }
+      return null;
+    }
+
+    /* ── Log-ratio coordinates ────────────────────────────────────────────
+       The error model is multiplicative: each gas carries an independent
+       lognormal factor with median 1 and relative 1-sigma s_k, so
+
+         log g = log comp + diag(s) z,   z ~ N(0, I5)
+
+       and only the ratios survive the closure. The centred log-ratio
+       coordinates u_k = log c_k - mean(log c) are the natural place to work,
+       because there the log-ratio distance between two compositions is just
+       the euclidean distance between their u vectors. They live on the
+       sum-zero hyperplane of R^5, which is four dimensional.
+       Unlike the triangle page there is no closed form for the zone
+       probabilities here: the centroid map is not linear, so the image of a
+       normal distribution is not normal and the zone integrals are not
+       Gaussian orthant integrals. Hence quadrature over four dimensions,
+       which is why propagate() below samples. */
+    function clr(c) {
+      var l = [], i, m = 0;
+      for (i = 0; i < 5; i++) { l.push(Math.log(c[i])); m += l[i]; }
+      m /= 5;
+      for (i = 0; i < 5; i++) l[i] -= m;
+      return l;
+    }
+    /* Back to shares, max-shifted before the exponential: same composition,
+       no overflow. */
+    function clrInv(u) {
+      var m = Math.max(u[0], u[1], u[2], u[3], u[4]), e = [], s = 0, i;
+      for (i = 0; i < 5; i++) { e.push(Math.exp(u[i] - m)); s += e[i]; }
+      for (i = 0; i < 5; i++) e[i] /= s;
+      return e;
+    }
+    function fromClr(u) { return centroid(clrInv(u)); }
+
+    /* ── Dragging ─────────────────────────────────────────────────────────
+       Five gases map to two coordinates, so a dragged point does not have one
+       preimage, it has a two dimensional sheet of them. The one taken is the
+       composition on that sheet with the smallest log-ratio distance to an
+       anchor:
+
+         minimise ||u - u_a||^2   subject to   F(u) = p,  sum(u) = 0
+
+       with F = centroid o clrInv. Gauss-Newton: linearise F at the current u,
+       then the minimum-norm correction from the anchor solves a 2x2 system.
+       The Jacobian is taken by forward differences along the sum-zero
+       directions e_k - 1/5, five extra centroid evaluations per step; since F
+       is invariant under adding a constant to u, every row comes out
+       sum-zero by itself, so the correction stays on the hyperplane.
+       The anchor is the composition at pointer-down and does NOT follow the
+       point. That is what makes one drag gesture a function of the cursor
+       position: drag out and back and the gas vector returns exactly to where
+       it started. With an anchor that moved along, the solution would creep
+       along the sheet and a closed mouse loop would not close. */
+    /* Central differences, not forward ones: a forward difference carries a
+       relative error of order h, which puts a floor of about 1e-3 percent
+       under the residual and stalls the iteration there. Sub-pixel on screen,
+       but it would make the self test's tolerance a fiction. Central
+       differences cost five more centroid evaluations per step and are exact
+       to about 1e-11, so the iteration runs down to the closing tolerance.
+       h = 1e-5 is near the optimum for a cubic-over-quadratic map in double
+       precision, where truncation (order h^2) meets round-off (order eps/h). */
+    /* The iteration budget is generous because it is never spent: a drag event
+       moves the target a few pixels and converges in two or three steps. It is
+       there for the cold case, a click on the far side of the pentagon, where
+       the damped step creeps for a while before the quadratic phase starts.
+       Two hundred steps are about a fifth of a millisecond. */
+    var DRAG_H = 1e-5, DRAG_ITER = 200, DRAG_TOL = 1e-10, DRAG_BACK = 14;
+
+    function resid(u, target) {
+      var F = fromClr(u);
+      return Math.max(Math.abs(F[0] - target[0]), Math.abs(F[1] - target[1]));
+    }
+
+    /* The step written above is a jump, not an increment: it lands wherever
+       the linearisation says the anchor's foot point is, which far from the
+       solution can be a composition where one gas holds everything. There the
+       Jacobian collapses and the iteration never comes back. So the step is
+       accepted only if it actually reduces the distance to the target, and
+       otherwise halved towards the current point until it does. Near the
+       solution the full step is always accepted and the quadratic convergence
+       is untouched, which is the case that matters while dragging. */
+    function gnSolve(target, uAnchor, uStart) {
+      var u = uStart.slice(), it, k, i, F, Fp, Fm, J = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      var b0, b1, m00, m01, m11, det, l0, l1, up = [], um = [], cand = [], step = [];
+      var r0 = resid(u, target), r1, a, back;
+      for (it = 0; it < DRAG_ITER; it++) {
+        if (r0 < DRAG_TOL) break;
+        F = fromClr(u);
+        for (k = 0; k < 5; k++) {
+          for (i = 0; i < 5; i++) {
+            up[i] = u[i] - DRAG_H / 5;
+            um[i] = u[i] + DRAG_H / 5;
+          }
+          up[k] += DRAG_H;
+          um[k] -= DRAG_H;
+          Fp = fromClr(up);
+          Fm = fromClr(um);
+          J[0][k] = (Fp[0] - Fm[0]) / (2 * DRAG_H);
+          J[1][k] = (Fp[1] - Fm[1]) / (2 * DRAG_H);
+        }
+        /* b = target - F(u) + J (u - u_a) */
+        b0 = target[0] - F[0]; b1 = target[1] - F[1];
+        m00 = 0; m01 = 0; m11 = 0;
+        for (k = 0; k < 5; k++) {
+          b0 += J[0][k] * (u[k] - uAnchor[k]);
+          b1 += J[1][k] * (u[k] - uAnchor[k]);
+          m00 += J[0][k] * J[0][k];
+          m01 += J[0][k] * J[1][k];
+          m11 += J[1][k] * J[1][k];
+        }
+        det = m00 * m11 - m01 * m01;
+        if (!(Math.abs(det) > 1e-14)) break;
+        l0 = (m11 * b0 - m01 * b1) / det;
+        l1 = (m00 * b1 - m01 * b0) / det;
+        for (k = 0; k < 5; k++) step[k] = uAnchor[k] + l0 * J[0][k] + l1 * J[1][k] - u[k];
+        a = 1;
+        for (back = 0; back < DRAG_BACK; back++) {
+          for (k = 0; k < 5; k++) cand[k] = u[k] + a * step[k];
+          r1 = resid(cand, target);
+          if (r1 < r0) break;
+          a *= 0.5;
+        }
+        /* The step above aims at the anchor's foot point, so it need not point
+           downhill in the residual at all, and halving it then runs into a
+           dead end. The pure feasibility step, the smallest correction that
+           closes the linearised gap, always does point downhill, so it gets
+           the iteration off the spot; the next round goes back to aiming at
+           the anchor. */
+        if (!(r1 < r0)) {
+          b0 = target[0] - F[0]; b1 = target[1] - F[1];
+          l0 = (m11 * b0 - m01 * b1) / det;
+          l1 = (m00 * b1 - m01 * b0) / det;
+          for (k = 0; k < 5; k++) step[k] = l0 * J[0][k] + l1 * J[1][k];
+          a = 1;
+          for (back = 0; back < DRAG_BACK; back++) {
+            for (k = 0; k < 5; k++) cand[k] = u[k] + a * step[k];
+            r1 = resid(cand, target);
+            if (r1 < r0) break;
+            a *= 0.5;
+          }
+        }
+        if (!(r1 < r0)) break;
+        for (k = 0; k < 5; k++) u[k] = cand[k];
+        r0 = r1;
+      }
+      return { shares: clrInv(u), u: u, ok: r0 < 1e-6, iters: it, res: r0 };
+    }
+
+    /* Moving the point a few pixels is one thing; clicking across the whole
+       pentagon is another, and the damped iteration alone still gives up on
+       some of those. The fallback walks the target in along the straight line
+       from where the point is now and solves at every waypoint, so each solve
+       is the short move the iteration is good at. Every waypoint minimises
+       against the SAME anchor, so the result is the constrained minimiser and
+       not an artefact of the path taken to it. */
+    var DRAG_STEPS = 10;
+
+    function solveDrag(target, uAnchor, uStart) {
+      var r = gnSolve(target, uAnchor, uStart), k, F0, sub, iters = r.iters;
+      if (r.ok) return r;
+      F0 = fromClr(uStart);
+      r = { u: uStart.slice() };
+      for (k = 1; k <= DRAG_STEPS; k++) {
+        sub = [F0[0] + (target[0] - F0[0]) * k / DRAG_STEPS,
+               F0[1] + (target[1] - F0[1]) * k / DRAG_STEPS];
+        r = gnSolve(sub, uAnchor, r.u);
+        iters += r.iters;
+      }
+      r.iters = iters;
+      return r;
+    }
+
+    /* ── Deterministic sampling ───────────────────────────────────────────
+       Halton points in five dimensions, shifted by a fixed offset per axis
+       (Cranley-Patterson with the randomisation frozen into constants). Two
+       consequences, both wanted: the numbers are a function of the input, so
+       they do not shimmer while the point is dragged and there is no seed to
+       choose; and the points fill the space more evenly than pseudo-random
+       ones, so a given count buys more accuracy. The first 64 points are
+       skipped, they are the ones that still sit on a coarse grid. */
+    var BASES = [2, 3, 5, 7, 11];
+    var SHIFT = [0.41421356, 0.73205081, 0.23606798, 0.64575131, 0.31662479];
+    var HALTON_SKIP = 64;
+
+    function radicalInverse(i, base) {
+      var f = 1 / base, r = 0;
+      while (i > 0) {
+        r += f * (i % base);
+        i = Math.floor(i / base);
+        f /= base;
+      }
+      return r;
+    }
+
+    /* Acklam's rational approximation of the inverse standard normal CDF,
+       relative error below 1.15e-9 over the whole range. Used instead of
+       Box-Muller because a Halton point run through a pair-wise transform
+       loses the low-discrepancy structure that is the point of using it. */
+    var AK_A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    var AK_B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    var AK_C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    var AK_D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    var AK_LOW = 0.02425;
+
+    function normInv(p) {
+      var q, r;
+      if (p < 1e-12) p = 1e-12;
+      if (p > 1 - 1e-12) p = 1 - 1e-12;
+      if (p < AK_LOW) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((AK_C[0] * q + AK_C[1]) * q + AK_C[2]) * q + AK_C[3]) * q + AK_C[4]) * q + AK_C[5]) /
+          ((((AK_D[0] * q + AK_D[1]) * q + AK_D[2]) * q + AK_D[3]) * q + 1);
+      }
+      if (p > 1 - AK_LOW) {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((AK_C[0] * q + AK_C[1]) * q + AK_C[2]) * q + AK_C[3]) * q + AK_C[4]) * q + AK_C[5]) /
+          ((((AK_D[0] * q + AK_D[1]) * q + AK_D[2]) * q + AK_D[3]) * q + 1);
+      }
+      q = p - 0.5; r = q * q;
+      return (((((AK_A[0] * r + AK_A[1]) * r + AK_A[2]) * r + AK_A[3]) * r + AK_A[4]) * r + AK_A[5]) * q /
+        (((((AK_B[0] * r + AK_B[1]) * r + AK_B[2]) * r + AK_B[3]) * r + AK_B[4]) * r + 1);
+    }
+
+    /* Push the measurement through the error model: n compositions, each one
+       mapped to its centroid and classified. Returns the zone tally, the
+       fraction that landed in no zone at all, and the point coordinates for
+       the cloud. */
+    function propagate(comp, sigmas, n, zones) {
+      var lg = [], i, k, tally = {}, out = 0, z;
+      var pts = new Float32Array(2 * n);
+      var l = [0, 0, 0, 0, 0], sh = [0, 0, 0, 0, 0], m, s, c;
+      for (i = 0; i < 5; i++) lg.push(Math.log(comp[i]));
+      for (i = 0; i < zones.length; i++) tally[zones[i].z] = 0;
+      for (i = 0; i < n; i++) {
+        m = -Infinity;
+        for (k = 0; k < 5; k++) {
+          l[k] = lg[k] + sigmas[k] * normInv(
+            (radicalInverse(HALTON_SKIP + i, BASES[k]) + SHIFT[k]) % 1
+          );
+          if (l[k] > m) m = l[k];
+        }
+        s = 0;
+        for (k = 0; k < 5; k++) { sh[k] = Math.exp(l[k] - m); s += sh[k]; }
+        for (k = 0; k < 5; k++) sh[k] /= s;
+        c = centroid(sh);
+        pts[2 * i] = c[0]; pts[2 * i + 1] = c[1];
+        z = zoneAt(c[0], c[1], zones);
+        if (z === null) out++; else tally[z]++;
+      }
+      for (z in tally) if (Object.prototype.hasOwnProperty.call(tally, z)) tally[z] /= n;
+      return { p: tally, out: out / n, pts: pts, n: n };
+    }
+
+    /* ── Density and contours ─────────────────────────────────────────────
+       The coverage regions cannot be drawn in closed form the way they are on
+       the triangle page, where the 95 percent curve is the exact image of a
+       circle. Here they are estimated: histogram the propagated points on a
+       grid over their own bounding box, smooth once, take the level that
+       encloses the mass fraction, and trace it. What is drawn is therefore a
+       contour of an ESTIMATE, and it moves a little with the sample count.
+       The tallies in the diagnosis column do not: they count points, not
+       cells. */
+    function density(pts, n, nx, ny, box) {
+      var v = new Float64Array(nx * ny), i, gx, gy;
+      var sx = nx / (box[2] - box[0]), sy = ny / (box[3] - box[1]);
+      for (i = 0; i < n; i++) {
+        gx = Math.floor((pts[2 * i] - box[0]) * sx);
+        gy = Math.floor((pts[2 * i + 1] - box[1]) * sy);
+        if (gx < 0 || gy < 0 || gx >= nx || gy >= ny) continue;
+        v[gy * nx + gx] += 1;
+      }
+      return v;
+    }
+    /* One 3x3 box-blur pass, edges clamped. */
+    function blur3(v, nx, ny) {
+      var out = new Float64Array(nx * ny), i, j, di, dj, ii, jj, s, c;
+      for (j = 0; j < ny; j++) {
+        for (i = 0; i < nx; i++) {
+          s = 0; c = 0;
+          for (dj = -1; dj <= 1; dj++) {
+            jj = j + dj;
+            if (jj < 0 || jj >= ny) continue;
+            for (di = -1; di <= 1; di++) {
+              ii = i + di;
+              if (ii < 0 || ii >= nx) continue;
+              s += v[jj * nx + ii]; c++;
+            }
+          }
+          out[j * nx + i] = s / c;
+        }
+      }
+      return out;
+    }
+    /* Density level that encloses the given mass fraction: sort the smoothed
+       cell values, walk down from the densest cell until the fraction is in. */
+    function hdrLevel(v, frac) {
+      var arr = Array.prototype.slice.call(v).filter(function (x) { return x > 0; });
+      arr.sort(function (a, b) { return b - a; });
+      var total = 0, i, acc = 0;
+      for (i = 0; i < arr.length; i++) total += arr[i];
+      for (i = 0; i < arr.length; i++) {
+        acc += arr[i];
+        if (acc >= frac * total) return arr[i];
+      }
+      return arr.length ? arr[arr.length - 1] : 0;
+    }
+    /* Marching squares over a grid of values; segments come back in
+       fractional grid coordinates. */
+    var CASES = [
+      [], [[3, 2]], [[2, 1]], [[3, 1]], [[0, 1]], [[3, 2], [0, 1]], [[0, 2]], [[3, 0]],
+      [[0, 3]], [[0, 2]], [[0, 1], [3, 2]], [[0, 1]], [[3, 1]], [[2, 1]], [[3, 2]], []
+    ];
+    function contours(v, nx, ny, levels) {
+      var out = [], i, j, k, tl, tr, br, bl, lo, hi, idx, lv, pts, cs, c, e;
+      for (k = 0; k < levels.length; k++) out.push([]);
+      for (j = 0; j < ny - 1; j++) {
+        for (i = 0; i < nx - 1; i++) {
+          tl = v[j * nx + i]; tr = v[j * nx + i + 1];
+          br = v[(j + 1) * nx + i + 1]; bl = v[(j + 1) * nx + i];
+          lo = Math.min(tl, tr, br, bl); hi = Math.max(tl, tr, br, bl);
+          for (k = 0; k < levels.length; k++) {
+            lv = levels[k];
+            if (lv <= lo || lv > hi) continue;
+            idx = (tl > lv ? 8 : 0) | (tr > lv ? 4 : 0) | (br > lv ? 2 : 0) | (bl > lv ? 1 : 0);
+            cs = CASES[idx];
+            if (!cs.length) continue;
+            pts = [
+              [i + (lv - tl) / (tr - tl), j],
+              [i + 1, j + (lv - tr) / (br - tr)],
+              [i + (lv - bl) / (br - bl), j + 1],
+              [i, j + (lv - tl) / (bl - tl)]
+            ];
+            for (c = 0; c < cs.length; c++) {
+              e = cs[c];
+              out[k].push([pts[e[0]][0], pts[e[0]][1], pts[e[1]][0], pts[e[1]][1]]);
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    /* The coverage curves in pentagon coordinates, one list of segments per
+       requested mass fraction. */
+    var GRID_N = 128, GRID_MIN = 48, GRID_PAD = 0.18;
+    function coverage(pts, n, fracs) {
+      /* The grid is tied to the sample count, so a cell always holds enough
+         points to mean something. A fixed 128 squares would be mostly empty
+         cells at 2000 samples and the contour would come out as lace. */
+      var g = Math.max(GRID_MIN, Math.min(GRID_N, Math.round(Math.sqrt(n) / 2)));
+      var i, x, y, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (i = 0; i < n; i++) {
+        x = pts[2 * i]; y = pts[2 * i + 1];
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+      var w = x1 - x0, h = y1 - y0;
+      if (!(w > 1e-6) || !(h > 1e-6)) return null;
+      var box = [x0 - GRID_PAD * w, y0 - GRID_PAD * h, x1 + GRID_PAD * w, y1 + GRID_PAD * h];
+      var v = blur3(density(pts, n, g, g, box), g, g);
+      var levels = fracs.map(function (f) { return hdrLevel(v, f); });
+      var segs = contours(v, g, g, levels);
+      var sx = (box[2] - box[0]) / g, sy = (box[3] - box[1]) / g;
+      /* Grid coordinates back to percent, cell centres. */
+      return segs.map(function (list) {
+        return list.map(function (s) {
+          return [
+            box[0] + (s[0] + 0.5) * sx, box[1] + (s[1] + 0.5) * sy,
+            box[0] + (s[2] + 0.5) * sx, box[1] + (s[3] + 0.5) * sy
+          ];
+        });
+      });
+    }
+
+    return {
+      sum: sum, close: close,
+      ANGLES: ANGLES, AXIS: AXIS, R_OUT: R_OUT, R_REACH: R_REACH, DRAG_R: DRAG_R,
+      centroid: centroid, outlineR: outlineR, onOutline: onOutline,
+      inRegular: inRegular, clampRegular: clampRegular,
+      ZONE_SETS: ZONE_SETS, DIAG_ORDER: DIAG_ORDER,
+      PD_POLY: PD_POLY, labelsFor: labelsFor, inPoly: inPoly, zoneAt: zoneAt,
+      clr: clr, clrInv: clrInv, fromClr: fromClr, solveDrag: solveDrag,
+      radicalInverse: radicalInverse, normInv: normInv, propagate: propagate,
+      density: density, blur3: blur3, hdrLevel: hdrLevel, contours: contours,
+      coverage: coverage
+    };
+  })();
+  if (typeof window !== 'undefined') window.PentagonCore = PentagonCore;
+  </script>
+
+  <script id="app">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+    const html = htm.bind(React.createElement);
+    const C = PentagonCore;
+
+    /* Canvas code cannot read var(--) itself, so the palette lives in mutable
+       bindings, re-read on `themechange` (see assets/js/theme.js). */
+    const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const COL = {};
+    function readPalette() {
+      COL.emph = cssVar('--tool-emph');
+      COL.text = cssVar('--tool-text');
+      COL.label = cssVar('--tool-label');
+      COL.note = cssVar('--tool-note');
+      COL.faint = cssVar('--tool-faint');
+      COL.border = cssVar('--tool-border');
+      COL.zone = cssVar('--pt-zone');
+      COL.ink = cssVar('--tool-panel');
+      COL.subtle = cssVar('--tool-subtle');
+      COL.accent = cssVar('--pico-primary');
+    }
+    readPalette();
+
+    const GASES = ['H₂', 'C₂H₆', 'CH₄', 'C₂H₄', 'C₂H₂'];
+
+    /* An aged unit with more than one thing going on: every gas present, C2H4
+       leading, real C2H2 underneath. Read off the nominal point it is a D2 on
+       both pentagons, a high-energy discharge, and nothing about that single
+       letter suggests a second opinion. Propagated at 25 percent it is D2
+       44.5 against T3 41.8, an arc against overheating above 700 C, which are
+       two different repairs on two different outage schedules. The margin
+       between them is smaller than the width of the laboratory's error bar.
+       That gap between the letter and the distribution is the page. */
+    const START_GAS = [150, 60, 120, 170, 55];
+    /* 25 percent relative on every gas is the upper end of what round-robin
+       exercises report for laboratory DGA at these concentrations, and it is
+       the value the talk quotes. */
+    const START_SIG = [25, 25, 25, 25, 25];
+
+    /* Sample counts the slider steps through. 20000 is the default: below it
+       the contours wobble visibly, above it nothing on screen changes and the
+       recompute starts to be felt. The 500 at the bottom is deliberate and
+       looks as thin as it is: it is there to show what a handful of draws
+       does and does not tell you. */
+    const TRIALS = [500, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
+    const TRIALS_DEFAULT = 4;
+    /* While the point is dragged the count drops to this step, so the numbers
+       keep up with the cursor; the full count is computed again on release. */
+    const DRAG_TRIALS = 5000;
+    /* Drawing 200000 single pixels costs more than computing them. The cloud
+       shows a prefix of the sequence, which is itself a valid low-discrepancy
+       set, so it looks like the whole thing; the tallies use every point. */
+    const CLOUD_MAX = 20000;
+
+    const COVERAGE = [{ p: 0.95, alpha: 0.6 }, { p: 0.5, alpha: 0.95 }];
+    const PAD = 34;
+    const CANVAS_H = 520;
+
+    function Seg({ items, value, onChange }) {
+      return html`<div class="pt-seg-group">
+        ${items.map((it) => html`<button
+          key=${it.v}
+          class=${'lang-seg' + (it.v === value ? ' active' : '')}
+          onClick=${() => onChange(it.v)}>${it.t}</button>`)}
+      </div>`;
+    }
+
+    function Pentagon({ shares, setShares, res, show, zones, labels, height, onDragState }) {
+      const cvRef = useRef(null);
+      const geo = useRef({ s: 1, cx: 0, cy: 0 });
+      const drag = useRef(null);
+      const [, setBump] = useState(0);
+
+      useEffect(() => {
+        const on = () => { readPalette(); setBump((b) => b + 1); };
+        window.addEventListener('resize', on);
+        window.addEventListener('themechange', on);
+        return () => {
+          window.removeEventListener('resize', on);
+          window.removeEventListener('themechange', on);
+        };
+      }, []);
+
+      /* No dependency array: the canvas is redrawn on every render, which is
+         what a dragged point needs and cheap enough at this size. */
+      useEffect(() => {
+        const cv = cvRef.current;
+        if (!cv) return;
+        readPalette();
+        const dpr = window.devicePixelRatio || 1;
+        const w = cv.clientWidth, h = height;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+          cv.width = Math.round(w * dpr);
+          cv.height = Math.round(h * dpr);
+        }
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        /* Fit the drawn pentagon into the box, then keep its bounding box
+           centred rather than the origin: the outline reaches 40 upwards but
+           only 32.4 downwards. */
+        const corners = C.ANGLES.map((a) => C.onOutline(a, C.R_OUT));
+        const xs = corners.map((p) => p[0]), ys = corners.map((p) => p[1]);
+        const bx0 = Math.min(...xs), bx1 = Math.max(...xs);
+        const by0 = Math.min(...ys), by1 = Math.max(...ys);
+        const s = Math.min((w - 2 * PAD) / (bx1 - bx0), (h - 2 * PAD) / (by1 - by0));
+        const cx = w / 2 - s * (bx0 + bx1) / 2;
+        const cy = h / 2 + s * (by0 + by1) / 2;
+        geo.current = { s, cx, cy };
+        const toPx = (x, y) => [cx + s * x, cy - s * y];
+        const path = (pts, closeIt) => {
+          ctx.beginPath();
+          pts.forEach((p, i) => {
+            const q = toPx(p[0], p[1]);
+            if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+          });
+          if (closeIt) ctx.closePath();
+        };
+
+        /* The pentagon is the only surface on the canvas. */
+        path(corners, true);
+        ctx.fillStyle = COL.subtle;
+        ctx.globalAlpha = 0.5;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        /* Zone boundaries. Every wedge shares its two rays with a neighbour,
+           so drawing all outlines paints each interior line twice; at alpha
+           0.9 and width 1 that is invisible and keeps the drawing list and
+           the classifier the same data. */
+        ctx.strokeStyle = COL.zone;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.9;
+        zones.forEach((zn) => zn.polys.forEach((p) => { path(p, true); ctx.stroke(); }));
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = COL.label;
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        labels.forEach((l) => {
+          const q = toPx(l.p[0], l.p[1]);
+          ctx.fillText(l.z, q[0], q[1]);
+        });
+
+        /* The reachable set, dashed. Everything outside it is drawing, not
+           diagnosis: no gas mixture maps there. */
+        ctx.save();
+        ctx.setLineDash([3, 4]);
+        ctx.strokeStyle = COL.zone;
+        ctx.globalAlpha = 0.75;
+        path(C.ANGLES.map((a) => C.onOutline(a, C.R_REACH)), true);
+        ctx.stroke();
+        ctx.restore();
+
+        if (res && show === 'cloud') {
+          const nDraw = Math.min(res.n, CLOUD_MAX);
+          ctx.fillStyle = COL.accent;
+          ctx.globalAlpha = nDraw > 8000 ? 0.16 : 0.3;
+          for (let i = 0; i < nDraw; i++) {
+            const q = toPx(res.pts[2 * i], res.pts[2 * i + 1]);
+            ctx.fillRect(q[0] - 0.6, q[1] - 0.6, 1.2, 1.2);
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        if (res && res.curves && show === 'contour') {
+          ctx.strokeStyle = COL.accent;
+          ctx.lineWidth = 1.6;
+          res.curves.forEach((segs, k) => {
+            ctx.globalAlpha = COVERAGE[k].alpha;
+            ctx.beginPath();
+            segs.forEach((sg) => {
+              const a = toPx(sg[0], sg[1]), b = toPx(sg[2], sg[3]);
+              ctx.moveTo(a[0], a[1]);
+              ctx.lineTo(b[0], b[1]);
+            });
+            ctx.stroke();
+          });
+          ctx.globalAlpha = 1;
+        }
+
+        /* Gas labels outside the corners. */
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        const al = [
+          ['center', 'bottom', 0, -8],
+          ['right', 'middle', -7, 0],
+          ['right', 'middle', -7, 4],
+          ['left', 'middle', 7, 4],
+          ['left', 'middle', 7, 0]
+        ];
+        corners.forEach((p, i) => {
+          const q = toPx(p[0], p[1]);
+          ctx.textAlign = al[i][0];
+          ctx.textBaseline = al[i][1];
+          ctx.fillText(GASES[i], q[0] + al[i][2], q[1] + al[i][3]);
+        });
+
+        /* The measurement itself, last so nothing draws over it. */
+        const c = C.centroid(shares);
+        const q = toPx(c[0], c[1]);
+        ctx.beginPath();
+        ctx.arc(q[0], q[1], 6, 0, 2 * Math.PI);
+        ctx.strokeStyle = COL.ink;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = COL.emph;
+        ctx.fill();
+      });
+
+      const at = (ev) => {
+        const cv = cvRef.current;
+        const r = cv.getBoundingClientRect();
+        const { s, cx, cy } = geo.current;
+        const x = (ev.clientX - r.left - cx) / s;
+        const y = (cy - (ev.clientY - r.top)) / s;
+        return { x, y, inside: C.inRegular(x, y, C.R_REACH) };
+      };
+
+      const onMove = (ev) => {
+        const cv = cvRef.current;
+        const p = at(ev);
+        if (!drag.current) {
+          cv.style.cursor = p.inside ? 'grab' : 'default';
+          return;
+        }
+        const t = C.clampRegular(p.x, p.y, C.DRAG_R);
+        const sol = C.solveDrag(t, drag.current.anchor, drag.current.u);
+        if (sol.ok) {
+          drag.current.u = sol.u;
+          setShares(sol.shares);
+        }
+      };
+      const onDown = (ev) => {
+        const p = at(ev);
+        if (!p.inside) return;
+        const u = C.clr(shares);
+        drag.current = { anchor: u, u: u.slice() };
+        onDragState(true);
+        cvRef.current.setPointerCapture(ev.pointerId);
+        cvRef.current.style.cursor = 'grabbing';
+        onMove(ev);
+      };
+      const onUp = (ev) => {
+        if (!drag.current) return;
+        drag.current = null;
+        onDragState(false);
+        try { cvRef.current.releasePointerCapture(ev.pointerId); } catch (e) { /* already gone */ }
+        cvRef.current.style.cursor = at(ev).inside ? 'grab' : 'default';
+      };
+
+      return html`<div class="tw-stage" style=${{ height: height + 'px' }}>
+        <canvas
+          ref=${cvRef}
+          style=${{ width: '100%', height: height + 'px', display: 'block', touchAction: 'none' }}
+          onPointerMove=${onMove}
+          onPointerDown=${onDown}
+          onPointerUp=${onUp}
+          onPointerCancel=${onUp}/>
+      </div>`;
+    }
+
+    /* Enough digits to place the point, few enough to stay readable on a
+       beamer. Trailing zeros go, so a clean 48 does not become 48.0. Same
+       function as on the triangle page: rounding coarser than this quantises
+       the drag into visible steps. */
+    function fmtGas(v) {
+      if (!isFinite(v) || v <= 0) return '0';
+      const a = Math.abs(v);
+      return String(Number(v.toFixed(a >= 10 ? 1 : a >= 1 ? 2 : 3)));
+    }
+
+    function App() {
+      const [gas, setGas] = useState(START_GAS.map(String));
+      const [sig, setSig] = useState(START_SIG.slice());
+      const [variant, setVariant] = useState('p1');
+      const [show, setShow] = useState('cloud');
+      const [trials, setTrials] = useState(TRIALS_DEFAULT);
+      const [dragging, setDragging] = useState(false);
+      const [, setThemeBump] = useState(0);
+
+      useEffect(() => {
+        const on = () => setThemeBump((b) => b + 1);
+        window.addEventListener('themechange', on);
+        return () => window.removeEventListener('themechange', on);
+      }, []);
+
+      const zones = C.ZONE_SETS[variant];
+      const labels = useMemo(() => C.labelsFor(variant), [variant]);
+      const order = C.DIAG_ORDER[variant];
+
+      /* A gas at exactly zero has no logarithm and collapses the pentagon, so
+         the working value has a floor of 0.01 ppm, which is two orders below
+         any reported detection limit. */
+      const nums = useMemo(
+        () => gas.map((g) => Math.max(0.01, isFinite(parseFloat(g)) ? parseFloat(g) : 0)),
+        [gas]
+      );
+      const total = useMemo(() => C.sum(nums), [nums]);
+      const shares = useMemo(() => C.close(nums), [nums]);
+      const point = useMemo(() => C.centroid(shares), [shares]);
+      const nominal = useMemo(() => C.zoneAt(point[0], point[1], zones), [point, zones]);
+
+      const n = dragging ? DRAG_TRIALS : TRIALS[trials];
+      const sigmas = useMemo(
+        () => sig.map((v) => Math.min(60, Math.max(0, v)) / 100),
+        [sig]
+      );
+      const anySig = sigmas.some((s) => s > 0);
+
+      const res = useMemo(() => {
+        if (!anySig) return null;
+        const r = C.propagate(shares, sigmas, n, zones);
+        r.curves = C.coverage(r.pts, r.n, COVERAGE.map((c) => c.p));
+        return r;
+      }, [shares, sigmas, n, zones, anySig]);
+
+      const probs = useMemo(() => {
+        if (res) return order.map((z) => ({ z, p: res.p[z] || 0 }));
+        return order.map((z) => ({ z, p: z === nominal ? 1 : 0 }));
+      }, [res, order, nominal]);
+      const outside = res ? res.out : (nominal === null ? 1 : 0);
+
+      const setSigAt = (i, v) => setSig((s) => s.map((x, k) => (k === i ? v : x)));
+      const setGasAt = (i, v) => setGas((g) => g.map((x, k) => (k === i ? v : x)));
+      /* Dragging sets ratios, not levels: the ppm sum stays where the user put
+         it, exactly as on the triangle page. */
+      const setShares = useCallback((sh) => {
+        setGas(sh.map((v) => fmtGas(v * total)));
+      }, [total]);
+
+      return html`<div class="pt-wrap">
+        <div class="pt-grid">
+          <div class="pt-col">
+            <h2>relative uncertainty <span class="pt-cased">(1σ)</span></h2>
+            ${GASES.map((g, i) => html`<label class="pt-row" key=${'s' + i}>
+              <span>${g}</span>
+              <span>
+                <input
+                  type="number" min="0" max="60" step="1" value=${sig[i]}
+                  onChange=${(e) => setSigAt(i, parseFloat(e.target.value) || 0)}/>
+                <span class="pt-unit">%</span>
+              </span>
+            </label>`)}
+            <h2>sample</h2>
+            ${GASES.map((g, i) => html`<label class="pt-row" key=${'g' + i}>
+              <span>${g}</span>
+              <span>
+                <input
+                  type="number" min="0" step="1" value=${gas[i]}
+                  onChange=${(e) => setGasAt(i, e.target.value)}/>
+                <span class="pt-unit">ppm</span>
+              </span>
+            </label>`)}
+          </div>
+
+          <div>
+            <div class="pt-bar">
+              <${Seg}
+                items=${[{ v: 'p1', t: 'Pentagon 1' }, { v: 'p2', t: 'Pentagon 2' }]}
+                value=${variant} onChange=${setVariant}/>
+            </div>
+            <${Pentagon}
+              shares=${shares} setShares=${setShares} res=${res} show=${show}
+              zones=${zones} labels=${labels} height=${CANVAS_H}
+              onDragState=${setDragging}/>
+            <div class="pt-bar pt-under">
+              <${Seg}
+                items=${[{ v: 'cloud', t: 'cloud' }, { v: 'contour', t: 'contours' }]}
+                value=${show} onChange=${setShow}/>
+              <span class="pt-slider">
+                <input
+                  type="range" min="0" max=${TRIALS.length - 1} step="1" value=${trials}
+                  aria-label="number of samples"
+                  onChange=${(e) => setTrials(parseInt(e.target.value, 10))}/>
+                <span class="pt-n">${TRIALS[trials] >= 1000 ? (TRIALS[trials] / 1000) + 'k' : TRIALS[trials]}</span>
+                <span>samples</span>
+              </span>
+            </div>
+            <p class="pt-legend">
+              dashed: the set of points a gas mixture can reach at all.
+              ${show === 'cloud'
+                ? ' dots: the measurement drawn again under its own uncertainty.'
+                : ' solid: 50 and 95 percent of those draws.'}
+            </p>
+            <p class="pt-attrib">pentagon after Duval and Lamarre 2014, zone limits as in CIGRE TB 771</p>
+          </div>
+
+          <div class="pt-col">
+            <h2>diagnosis</h2>
+            ${probs.map((r) => html`<div
+              class=${'pt-diag' + (r.p < 0.005 ? ' pt-off' : '')} key=${r.z}>
+              <span class="pt-z">${r.z}</span>
+              <span class="pt-bar-track"><i style=${{ width: (100 * r.p).toFixed(1) + '%' }}></i></span>
+              <span class="pt-p">${(100 * r.p).toFixed(1)}</span>
+            </div>`)}
+            ${outside > 0 ? html`<div class="pt-diag">
+              <span class="pt-z">outside</span>
+              <span class="pt-bar-track"><i style=${{ width: (100 * outside).toFixed(1) + '%' }}></i></span>
+              <span class="pt-p">${(100 * outside).toFixed(1)}</span>
+            </div>` : null}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+  </script>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Self test. In the browser it is behind #selftest and reports to the
+       console; extracted to Node together with the core block above it runs
+       unconditionally, which is the way this file gets checked. Nothing here
+       touches the DOM.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="selftest">
+  (function () {
+    'use strict';
+    if (typeof location !== 'undefined' && location.hash !== '#selftest') return;
+    var C = PentagonCore;
+    var fails = 0, t0 = Date.now();
+    function pass(name, ok, detail) {
+      if (!ok) fails++;
+      console.log((ok ? 'pass  ' : 'FAIL  ') + name + (detail == null ? '' : '   ' + detail));
+    }
+    function close5(a) {
+      var s = 0, i;
+      for (i = 0; i < a.length; i++) s += a[i];
+      return a.map(function (v) { return v / s; });
+    }
+    function maxAbs(a) { return Math.max.apply(null, a.map(Math.abs)); }
+    /* One deterministic stream for every random draw below, so a failure is
+       always the same failure. mulberry32 and not a textbook linear
+       congruential generator: the plain LCG has a coarse lattice structure in
+       higher dimensions, and drawing five numbers per sample for the
+       comparison in test 12 walks straight into it. Measured against a run
+       with a better generator it put the reference off by 0.4 percentage
+       points, which is six times its own sampling noise and would have been
+       read as a bias in the quasi-random points. */
+    var seed = 20260820 >>> 0;
+    function rnd() {
+      seed = (seed + 0x6D2B79F5) >>> 0;
+      var t = seed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+
+    var SAMPLE = close5([150, 60, 120, 170, 55]);
+    var SIG = [0.25, 0.25, 0.25, 0.25, 0.25];
+
+    /* 1 The centroid of five equal shares is the centre. */
+    var c0 = C.centroid([0.2, 0.2, 0.2, 0.2, 0.2]);
+    pass('equal shares sit at the origin', Math.abs(c0[0]) < 1e-12 && Math.abs(c0[1]) < 1e-12);
+
+    /* 2 One gas alone lands at 100/3 on its own axis, not at the 40 percent
+         corner, which is the claim the dashed pentagon rests on. */
+    var k, v, p, want, off = 0;
+    for (k = 0; k < 5; k++) {
+      v = [1e-9, 1e-9, 1e-9, 1e-9, 1e-9]; v[k] = 1;
+      p = C.centroid(close5(v));
+      want = [C.R_REACH * C.AXIS[k][0], C.R_REACH * C.AXIS[k][1]];
+      off = Math.max(off, Math.abs(p[0] - want[0]), Math.abs(p[1] - want[1]));
+    }
+    pass('a pure gas lands at 100/3 on its axis', off < 1e-5, 'worst ' + off.toExponential(2));
+
+    /* 3 Two adjacent gases give exactly (P_i + P_j)/3, the straight edge of
+         the reachable pentagon. */
+    var sh = close5([0.3, 0.7, 0, 0, 0]);
+    p = C.centroid(sh);
+    pass('two adjacent gases give (P_i + P_j)/3',
+      Math.abs(p[0] - (100 * sh[0] * C.AXIS[0][0] + 100 * sh[1] * C.AXIS[1][0]) / 3) < 1e-12 &&
+      Math.abs(p[1] - (100 * sh[0] * C.AXIS[0][1] + 100 * sh[1] * C.AXIS[1][1]) / 3) < 1e-12);
+
+    /* 4 Only the ratios matter: ten times the sample is the same point. */
+    var a = C.centroid(SAMPLE), b = C.centroid(close5(SAMPLE.map(function (x) { return 10 * x; })));
+    pass('the centroid is scale invariant', Math.abs(a[0] - b[0]) < 1e-12 && Math.abs(a[1] - b[1]) < 1e-12);
+
+    /* 5 clr and back. */
+    var rt = C.clrInv(C.clr(SAMPLE));
+    pass('clrInv(clr(c)) = c', maxAbs(rt.map(function (x, i) { return x - SAMPLE[i]; })) < 1e-15);
+
+    /* 6 Nothing maps outside the reachable pentagon. */
+    var worst = 0, i, q, r, lim;
+    for (i = 0; i < 60000; i++) {
+      v = [];
+      for (k = 0; k < 5; k++) v.push(Math.exp(-6 + 12 * rnd()));
+      q = C.centroid(close5(v));
+      r = Math.sqrt(q[0] * q[0] + q[1] * q[1]);
+      lim = C.outlineR(Math.atan2(q[1], q[0]) * 180 / Math.PI, C.R_REACH);
+      if (r / lim > worst) worst = r / lim;
+    }
+    pass('no mixture maps outside the reachable pentagon', worst <= 1 + 1e-9,
+      'largest radius, as a fraction of the boundary: ' + worst.toFixed(6));
+
+    /* 7 Dragging: every target inside the drag region is hit, and a gesture
+         out and back returns the gas vector it started from. 0.01 percent
+         units is a twentieth of a pixel at the size this draws. */
+    var uA = C.clr(SAMPLE), home = C.centroid(SAMPLE);
+    var miss = 0, loop = 0, ang, rr, t, sol, got, back;
+    for (i = 0; i < 200; i++) {
+      ang = 360 * rnd();
+      rr = C.outlineR(ang, C.DRAG_R) * Math.sqrt(rnd());
+      t = [rr * Math.cos(ang * Math.PI / 180), rr * Math.sin(ang * Math.PI / 180)];
+      sol = C.solveDrag(t, uA, uA);
+      got = C.centroid(sol.shares);
+      miss = Math.max(miss, Math.abs(got[0] - t[0]), Math.abs(got[1] - t[1]));
+      back = C.solveDrag(home, uA, sol.u);
+      loop = Math.max(loop, maxAbs(back.shares.map(function (x, j) { return x - SAMPLE[j]; })));
+    }
+    pass('solveDrag hits 200 targets', miss < 0.01, 'worst miss ' + miss.toExponential(2) + ' percent units');
+    pass('a drag out and back closes', loop < 1e-9, 'worst drift ' + loop.toExponential(2));
+
+    /* 8 The zones of each variant tile the REACHABLE pentagon without overlap.
+         Not the drawn one: the published table is rounded to the tenth, so the
+         zone corners miss the exact 40 percent corners by a few hundredths and
+         leave hairline slivers out there. Nothing can land in them, so the
+         claim worth testing is about the part of the plane a gas mixture can
+         actually reach.
+         The grid is offset so it never lands exactly on a shared edge, where
+         ray casting belongs to neither side. */
+    [['p1', C.ZONE_SETS.p1, C.labelsFor('p1')],
+     ['p2', C.ZONE_SETS.p2, C.labelsFor('p2')]].forEach(function (entry) {
+      var key = entry[0], zs = entry[1], lbs = entry[2];
+      var dbl = 0, none = 0, tot = 0, x, y, hit, zi, pk;
+      for (y = -32.037; y <= 40; y += 0.5) {
+        for (x = -37.981; x <= 38; x += 0.5) {
+          if (!C.inRegular(x, y, C.R_REACH)) continue;
+          tot++; hit = 0;
+          for (zi = 0; zi < zs.length; zi++) {
+            for (pk = 0; pk < zs[zi].polys.length; pk++) {
+              if (C.inPoly(x, y, zs[zi].polys[pk])) { hit++; break; }
+            }
+          }
+          if (hit > 1) dbl++;
+          if (hit === 0) none++;
+        }
+      }
+      pass(key + ': zones do not overlap', dbl === 0, dbl + ' of ' + tot + ' points in two zones');
+      pass(key + ': zones cover the reachable pentagon', none === 0, none + ' of ' + tot + ' points in no zone');
+      /* The label anchors are placed by hand, so check they are where they
+         claim to be. A label in the wrong zone is a lie on a projector. */
+      if (!lbs) return;
+      var wrong = lbs.filter(function (l) {
+        return C.zoneAt(l.p[0], l.p[1], zs) !== l.z;
+      });
+      pass(key + ': every label sits in its own zone', wrong.length === 0,
+        wrong.map(function (l) { return l.z; }).join(' '));
+    });
+
+    /* 9 The inverse normal against tabulated quantiles. */
+    var Q = [[0.5, 0], [0.975, 1.959963985], [0.99, 2.326347874], [0.001, -3.090232306], [0.25, -0.674489750]];
+    var qw = 0;
+    for (i = 0; i < Q.length; i++) qw = Math.max(qw, Math.abs(C.normInv(Q[i][0]) - Q[i][1]));
+    pass('normInv matches the tables', qw < 1e-6, 'worst ' + qw.toExponential(2));
+
+    /* 10 With no uncertainty every sample is the measurement itself. */
+    var zs1 = C.ZONE_SETS.p1;
+    var nom = C.zoneAt(home[0], home[1], zs1);
+    var r0 = C.propagate(SAMPLE, [0, 0, 0, 0, 0], 1000, zs1);
+    pass('zero uncertainty puts all mass in the nominal zone',
+      Math.abs(r0.p[nom] - 1) < 1e-12, 'nominal ' + nom);
+
+    /* 11 The tallies add up, and the sample count no longer changes them. */
+    var rA = C.propagate(SAMPLE, SIG, 20000, zs1);
+    var rB = C.propagate(SAMPLE, SIG, 200000, zs1);
+    var s = 0, z;
+    for (z in rA.p) if (Object.prototype.hasOwnProperty.call(rA.p, z)) s += rA.p[z];
+    pass('probabilities and the outside share add to 1', Math.abs(s + rA.out - 1) < 1e-12);
+    var d = 0, dz = '';
+    for (z in rA.p) {
+      if (Math.abs(rA.p[z] - rB.p[z]) > d) { d = Math.abs(rA.p[z] - rB.p[z]); dz = z; }
+    }
+    pass('20k and 200k agree to 0.5 points', d < 0.005, (100 * d).toFixed(3) + ' points at ' + dz);
+
+    /* 12 The quasi-random points against ordinary Monte Carlo, which is the
+          check that the low-discrepancy sequence is not quietly biased. Half a
+          million draws carry about 0.07 points of noise of their own, so the
+          tolerance is 0.3 and not tighter. */
+    var N = 500000, lg = SAMPLE.map(Math.log), ref = {}, spare = null;
+    function gauss() {
+      if (spare !== null) { var g = spare; spare = null; return g; }
+      var u1; do { u1 = rnd(); } while (u1 <= 1e-12);
+      var u2 = rnd(), rad = Math.sqrt(-2 * Math.log(u1)), th = 2 * Math.PI * u2;
+      spare = rad * Math.sin(th);
+      return rad * Math.cos(th);
+    }
+    for (i = 0; i < zs1.length; i++) ref[zs1[i].z] = 0;
+    var g5 = [0, 0, 0, 0, 0], ssum, pc, zz;
+    for (i = 0; i < N; i++) {
+      ssum = 0;
+      for (k = 0; k < 5; k++) { g5[k] = Math.exp(lg[k] + SIG[k] * gauss()); ssum += g5[k]; }
+      for (k = 0; k < 5; k++) g5[k] /= ssum;
+      pc = C.centroid(g5);
+      zz = C.zoneAt(pc[0], pc[1], zs1);
+      if (zz !== null) ref[zz]++;
+    }
+    d = 0; dz = '';
+    for (z in ref) {
+      ref[z] /= N;
+      if (Math.abs(ref[z] - rB.p[z]) > d) { d = Math.abs(ref[z] - rB.p[z]); dz = z; }
+    }
+    pass('quasi-random agrees with 500k plain draws', d < 0.003,
+      (100 * d).toFixed(3) + ' points at ' + dz);
+
+    /* 13 The contours come out as two closed-ish sets of segments. */
+    var cv = C.coverage(rA.pts, rA.n, [0.95, 0.5]);
+    pass('coverage returns two curves',
+      !!cv && cv.length === 2 && cv[0].length > 20 && cv[1].length > 20,
+      cv ? cv[0].length + ' and ' + cv[1].length + ' segments' : 'null');
+
+    console.log(fails ? fails + ' FAILED' : 'all green', '(' + (Date.now() - t0) + ' ms)');
+  })();
+  </script>
+</body>
+</html>

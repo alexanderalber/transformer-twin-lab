@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<head>
+  <meta charset="utf-8">
+  <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>transformer-twin-lab</title>
+  <meta name="description" content="Interactive demos on uncertainty in transformer digital twins.">
+  <link rel="stylesheet" href="assets/css/pico.min.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
+       A single fixed stroke colour would vanish against one of the two tab
+       bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
+       a light tab bar, white on a dark one. Same mark on all three pages. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="container tw-head">
+    <div class="theme-switcher">
+      <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
+    </div>
+  </header>
+  <script src="assets/js/theme.js"></script>
+
+  <main class="container" style="max-width:760px">
+    <hgroup style="margin-top:2rem">
+      <h1>transformer-twin-lab</h1>
+      <p style="color:var(--tool-label)">Interactive demos on uncertainty in transformer digital twins.</p>
+    </hgroup>
+    <ul>
+      <li><a href="duval.html">Duval Triangle 1, under measurement uncertainty</a></li>
+      <li><a href="pentagon.html">Duval Pentagon 1 and 2, under measurement uncertainty</a></li>
+      <li><a href="thermal.html">Thermal mini-twin, IEC 60076-7, top-oil and hot-spot under load and uncertainty</a></li>
+    </ul>
+  </main>
+  <footer class="container tw-foot" style="max-width:760px">
+    Sources: IEC 60599 and CIGRE TB 771 (Duval Triangle 1 fault zones); Duval and Lamarre 2014
+    and CIGRE TB 771 (Duval Pentagon 1 and 2); IEC 60076-7 (loading guide);
+    IEC 60076-2 (temperature-rise limits); CIGRE TB 738 (aging under moisture); Lundgaard et al. 2004
+    (aging kinetics); Parton and Logan 1981 (diurnal temperature shape).
+    Everything runs locally in your browser, nothing is uploaded.
+    <br/>
+    Copyright 2026 Alexander Alber, all rights reserved. Free to use and to link to;
+    please ask before reusing the code. A personal project in a CIGRE JWG A2/D2.65
+    context, not affiliated with any employer.
+    Vendored libraries keep their own licences, see
+    <a href="assets/THIRD-PARTY.md">THIRD-PARTY.md</a>.
+  </footer>
+</body>
+</html>

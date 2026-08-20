@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<head>
+  <meta charset="utf-8">
+  <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duval Triangle 1, under measurement uncertainty</title>
+  <meta name="description" content="One DGA result on the Duval triangle, and the region of diagnoses it could really mean.">
+  <link rel="stylesheet" href="assets/css/pico.min.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
+       A single fixed stroke colour would vanish against one of the two tab
+       bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
+       a light tab bar, white on a dark one. Same mark on all three pages. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    /* Target is a 1080p laptop screen, so the layout is sized rather than
+       fluid: the centre column is the width the triangle actually draws at
+       (height 500 minus padding, times sqrt(2)), which lets the two side
+       groups sit close to it instead of at the far edges of the viewport. */
+    /* One width for the whole page: the header row and the three columns share
+       it, so the title lines up with the left group and the theme switcher
+       with the right one. */
+    html { --dv-w: 954px; }
+    /* The zone boundaries are the frame of reference and have to survive a
+       beamer. --tool-grid is the right weight on the two dark themes, but in
+       light mode it is the same pale hairline the panels use and it washes out
+       when projected, so light gets its own, darker value. Read by the canvas
+       via cssVar, so it follows the theme switcher. */
+    html { --dv-zone: var(--tool-grid); }
+    html[data-theme="light"] { --dv-zone: #a3b0bd; }
+    .dv-wrap { width: 100%; max-width: var(--dv-w); margin: 0 auto; padding: 0 0 16px; }
+    body > header.tw-head {
+      width: 100%; max-width: var(--dv-w); margin-inline: auto;
+      padding: 10px 0 0; font-size: 1.3rem;
+    }
+    body > header.tw-head h1 { font-size: 1.3rem; color: var(--tool-emph); }
+    /* Breadcrumb back to the overview: quieter than the page title, so the
+       title still reads as the title. */
+    .dv-crumb { color: var(--tool-note); text-decoration: none; background: none; }
+    .dv-crumb:hover, .dv-crumb:focus-visible { color: var(--pico-primary); text-decoration: underline; }
+    .dv-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
+    /* The canvas is not a panel here: only the triangle is a surface, drawn
+       in-canvas; outside it the page colour runs through. */
+    /* The cursor is set from the hit test, not by the element, because the
+       grabbable area is the triangle and not the canvas rectangle. */
+    .dv-wrap .tw-stage { background: transparent; border: none; box-shadow: none; border-radius: 0; cursor: default; }
+
+    /* The boxes first, then the triangle, then the diagnosis: left to right is
+       cause to effect. The attribution is the only thing under the triangle. */
+    /* 166 + 570 + 190 + two 14px gaps is exactly --dv-w, so the columns line up
+       with the header row above them. The centre column cannot be narrower than
+       570: at height 500 the triangle draws 499 px wide plus 2 x 34 px padding,
+       and below that the column, not the height, would be what limits the
+       triangle. */
+    .dv-grid { display: grid; grid-template-columns: 166px 570px 190px; gap: 14px; align-items: start; justify-content: center; }
+    .dv-col { display: flex; flex-direction: column; gap: 9px; padding-top: 62px; }
+    .dv-col h2 {
+      margin: 0 0 2px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--tool-note); line-height: 1.3;
+    }
+    /* Uppercasing a lowercase sigma turns it into a capital one, which is a
+       different quantity. This part keeps its case. */
+    .dv-col h2 .dv-cased { text-transform: none; letter-spacing: 0.03em; }
+    .dv-col h2 + h2 { margin-top: 12px; }
+    .dv-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin: 0; font-size: 15px; color: var(--tool-text); font-variant-numeric: tabular-nums;
+    }
+    .dv-row input { width: 64px; margin: 0; padding: 2px 6px; font-size: 15px; height: auto; text-align: right; }
+    /* No spinner arrows: they are too small to hit on a beamer and the value is
+       set by dragging the point anyway. */
+    .dv-row input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+    .dv-row input[type="number"]::-webkit-outer-spin-button,
+    .dv-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    /* Just wide enough for "ppm", so the unit reads as belonging to the box
+       rather than as a column of its own. Both groups use the same slot width,
+       which is what lines their boxes up. */
+    .dv-row .dv-unit {
+      display: inline-block; width: 26px; margin-left: 6px; text-align: left;
+      color: var(--tool-note); font-size: 12px;
+    }
+    .dv-diag { display: grid; grid-template-columns: 2.4em 1fr 3em; align-items: center; gap: 9px; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .dv-diag .dv-z { color: var(--tool-emph); font-weight: 600; }
+    /* A zone the measurement cannot reach keeps its row, so the list never
+       reflows, but it steps back: the seven labels stay a fixed scale to read
+       the bars against instead of seven equally loud claims. */
+    .dv-diag.dv-off .dv-z, .dv-diag.dv-off .dv-p { color: var(--tool-faint); font-weight: 400; }
+    .dv-diag .dv-p { text-align: right; color: var(--tool-text); }
+    .dv-bar { height: 7px; border: 1px solid var(--tool-hairline); border-radius: 2px; overflow: hidden; }
+    .dv-bar i { display: block; height: 100%; background: var(--pico-primary); }
+    .dv-legend { margin: 8px 0 0; font-size: 12px; color: var(--tool-note); text-align: center; }
+    .dv-attrib { margin: 4px 0 0; font-size: 11px; color: var(--tool-faint); text-align: center; }
+    /* Below the design width the fixed columns would overflow, so fall back to
+       a single column. Not the case this page is built for. */
+    @media (max-width: 976px) {
+      .dv-grid { grid-template-columns: 1fr; gap: 12px; }
+      .dv-col { padding-top: 0; }
+      .dv-wrap, body > header.tw-head { padding-inline: 16px; }
+    }
+  </style>
+  <script src="assets/js/react.production.min.js"></script>
+  <script src="assets/js/react-dom.production.min.js"></script>
+  <script src="assets/js/htm.js"></script>
+</head>
+<body>
+  <header class="container tw-head">
+    <h1><a class="dv-crumb" href="index.html">twin-lab</a><span class="dv-sep">/</span>Duval Triangle 1, under measurement uncertainty</h1>
+    <div class="theme-switcher">
+      <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
+    </div>
+  </header>
+  <script src="assets/js/theme.js"></script>
+
+  <main>
+    <div id="root">
+      <div class="dv-wrap"></div>
+    </div>
+  </main>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Math core: plain JS, no JSX and no DOM. Ternary geometry follows the
+       author's compositional-distance page; zone limits are Duval Triangle 1
+       as tabulated in IEC 60599 and CIGRE TB 771.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="duvalcore">
+  var DuvalCore = (function () {
+    'use strict';
+
+    function sum(x) { var s = 0, i; for (i = 0; i < x.length; i++) s += x[i]; return s; }
+    function close(x) {
+      var s = sum(x), out = [], i;
+      for (i = 0; i < x.length; i++) out.push(s === 0 ? NaN : x[i] / s);
+      return out;
+    }
+
+    /* Composition order is [CH4, C2H4, C2H2]; vertex 0 is the top (CH4),
+       vertex 1 bottom-RIGHT (C2H4), vertex 2 bottom-LEFT (C2H2), which is the
+       canonical Duval orientation (T3 in the right corner, D1 in the left).
+       Side length is sqrt(2), inherited from the compositional-distance
+       geometry. */
+    var TRI = [[0, Math.sqrt(6) / 2], [Math.SQRT2 / 2, 0], [-Math.SQRT2 / 2, 0]];
+
+    function ternaryXY(x) {
+      var c = close(x);
+      return {
+        x: c[0] * TRI[0][0] + c[1] * TRI[1][0] + c[2] * TRI[2][0],
+        y: c[0] * TRI[0][1] + c[1] * TRI[1][1] + c[2] * TRI[2][1]
+      };
+    }
+    function ternaryComp(X, Y) {
+      var a = Y / TRI[0][1], rest = 1 - a, half = X / Math.SQRT2;
+      return [a, rest / 2 + half, rest / 2 - half];
+    }
+    function ternaryClamp(X, Y, floor) {
+      var c = ternaryComp(X, Y), f = floor == null ? 5e-4 : floor, i;
+      for (i = 0; i < 3; i++) c[i] = Math.max(f, c[i]);
+      return close(c);
+    }
+
+    /* Duval Triangle 1 fault zones. Limits in percent of the gas triplet:
+       PD  CH4 >= 98
+       T1  C2H2 < 4,  C2H4 < 20
+       T2  C2H2 < 4,  20 <= C2H4 < 50
+       T3  C2H2 < 15, C2H4 >= 50
+       D1  C2H2 >= 13, C2H4 < 23
+       D2  C2H2 >= 13 and C2H4 < 40, or C2H2 >= 29
+       DT  the remainder. */
+    function zoneOf(c) {
+      var m = 100 * c[0], e = 100 * c[1], a = 100 * c[2];
+      if (m >= 98) return 'PD';
+      if (a < 4 && e < 20) return 'T1';
+      if (a < 4 && e < 50) return 'T2';
+      if (a < 15 && e >= 50) return 'T3';
+      if (a >= 13 && e < 23) return 'D1';
+      if (a >= 29 || (a >= 13 && e < 40)) return 'D2';
+      return 'DT';
+    }
+    var ZONES = ['PD', 'T1', 'T2', 'T3', 'DT', 'D1', 'D2'];
+
+    /* Zone boundary polylines, points as [CH4, C2H4, C2H2] in percent. */
+    var SEGMENTS = [
+      [[98, 2, 0], [98, 0, 2]],
+      [[96, 0, 4], [46, 50, 4]],
+      [[80, 20, 0], [76, 20, 4]],
+      [[50, 50, 0], [46, 50, 4], [35, 50, 15]],
+      [[35, 50, 15], [0, 85, 15]],
+      [[87, 0, 13], [64, 23, 13], [47, 40, 13]],
+      [[64, 23, 13], [0, 23, 77]],
+      [[47, 40, 13], [31, 40, 29]],
+      [[31, 40, 29], [0, 71, 29]]
+    ];
+
+    /* Label anchors, inside their zone. PD is not labelled: the zone is a
+       sliver at the apex and any label would sit on top of its neighbours. */
+    var LABELS = [
+      { z: 'T1', c: [86, 12, 2] },
+      { z: 'T2', c: [63, 35, 2] },
+      { z: 'T3', c: [28, 62, 10] },
+      { z: 'DT', c: [55, 36, 9] },
+      { z: 'D1', c: [40, 12, 48] },
+      { z: 'D2', c: [25, 32, 43] }
+    ];
+
+    /* ── Log-ratio geometry ───────────────────────────────────────────────
+       The error model is multiplicative: each gas carries an independent
+       lognormal factor with median 1 and relative 1-sigma s_k, so
+
+         log g = log comp + diag(s) z,   z ~ N(0, I3)
+
+       Coordinates are the orthonormal log-ratio pair
+         y1 = log(x1/x2) / sqrt(2)
+         y2 = log(x1 x2 / x3^2) / sqrt(6)
+       which is a linear map of log g. The uncertainty is therefore exactly
+       bivariate normal in y, with no simulation and no approximation:
+         V = B diag(s^2) B',  B the 2x3 matrix of the two rows above.
+       Everything the page draws or counts follows from (y0, V). */
+    var R2 = Math.SQRT2, R6 = Math.sqrt(6);
+
+    function ilr(c) {
+      var l0 = Math.log(c[0]), l1 = Math.log(c[1]), l2 = Math.log(c[2]);
+      return [(l0 - l1) / R2, (l0 + l1 - 2 * l2) / R6];
+    }
+    /* Back to shares. The three logs are shifted by their max before the
+       exponential, which is the same composition and cannot overflow. */
+    function ilrInv(y) {
+      var a = y[0] / R2, b = y[1] / R6;
+      var l = [a + b, -a + b, -2 * b];
+      var m = Math.max(l[0], l[1], l[2]);
+      var e0 = Math.exp(l[0] - m), e1 = Math.exp(l[1] - m), e2 = Math.exp(l[2] - m);
+      var s = e0 + e1 + e2;
+      return [e0 / s, e1 / s, e2 / s];
+    }
+
+    /* V = B diag(s^2) B', written out. */
+    function ilrCov(s) {
+      var a = s[0] * s[0], b = s[1] * s[1], c = s[2] * s[2];
+      return [(a + b) / 2, (a - b) / Math.sqrt(12), (a + b + 4 * c) / 6];
+    }
+
+    /* Lower Cholesky factor of [[v0, v1], [v1, v2]], as [l00, l10, l11].
+       A zero leading variance means s1 = s2 = 0, which forces v1 = 0 as well,
+       so dropping the first column is the correct degenerate factor and not a
+       silent repair of bad input. */
+    function chol2(v) {
+      var a = v[0] > 0 ? Math.sqrt(v[0]) : 0;
+      var b = a > 0 ? v[1] / a : 0;
+      var r = v[2] - b * b;
+      return [a, b, r > 0 ? Math.sqrt(r) : 0];
+    }
+
+    /* Radius of the region holding the given probability mass: for a bivariate
+       normal, |z|^2 is chi-squared with 2 degrees of freedom, so
+       P(|z| < r) = 1 - exp(-r^2/2). */
+    function coverageRadius(p) { return Math.sqrt(-2 * Math.log(1 - p)); }
+
+    /* The exact coverage region, as a closed curve of compositions: a circle
+       of radius r in the standardised coordinates, mapped through L and back
+       through the closure. In the triangle this is not an ellipse, it is the
+       image of one, which is why it hugs a nearby edge on one side and reaches
+       further on the other. */
+    function coverageCurve(y0, L, r, n) {
+      var out = [], i, t, u, v;
+      for (i = 0; i < n; i++) {
+        t = 2 * Math.PI * i / n;
+        u = r * Math.cos(t); v = r * Math.sin(t);
+        out.push(ilrInv([y0[0] + L[0] * u, y0[1] + L[1] * u + L[2] * v]));
+      }
+      return out;
+    }
+
+    /* Zone probabilities by quadrature instead of sampling: a square lattice
+       in the standardised coordinates, cut at radius QUAD_R, each node
+       weighted with the normal density and classified by its zone. The result
+       is a deterministic function of the input, so the numbers move smoothly
+       while the point is dragged. The mass outside the cut is exp(-R^2/2),
+       4.0e-5 at R = 4.5, and the sum is renormalised anyway.
+       The error is first order in the step and comes only from the cells that
+       a zone boundary crosses. At QUAD_H = 0.035 the lattice holds about 52000
+       nodes and agrees with a 4e6-draw simulation to within 0.03 percentage
+       points, which is the noise of that simulation, so the numbers shown are
+       exact at the displayed resolution. */
+    var QUAD_R = 4.5, QUAD_H = 0.035;
+
+    function zoneProbs(comp, sigmas) {
+      var y0 = ilr(comp), L = chol2(ilrCov(sigmas));
+      var tally = {}, i, j, u, v, q, w, wsum = 0, k;
+      for (k = 0; k < ZONES.length; k++) tally[ZONES[k]] = 0;
+      var m = Math.ceil(QUAD_R / QUAD_H), rr = QUAD_R * QUAD_R, n = 0;
+      for (j = -m; j <= m; j++) {
+        v = j * QUAD_H;
+        for (i = -m; i <= m; i++) {
+          u = i * QUAD_H;
+          q = u * u + v * v;
+          if (q > rr) continue;
+          w = Math.exp(-0.5 * q);
+          tally[zoneOf(ilrInv([y0[0] + L[0] * u, y0[1] + L[1] * u + L[2] * v]))] += w;
+          wsum += w; n++;
+        }
+      }
+      for (k = 0; k < ZONES.length; k++) tally[ZONES[k]] /= wsum;
+      return { p: tally, nodes: n, y0: y0, L: L };
+    }
+
+    return {
+      close: close, TRI: TRI, ternaryXY: ternaryXY, ternaryComp: ternaryComp,
+      ternaryClamp: ternaryClamp, zoneOf: zoneOf, ZONES: ZONES,
+      SEGMENTS: SEGMENTS, LABELS: LABELS,
+      ilr: ilr, ilrInv: ilrInv, ilrCov: ilrCov, chol2: chol2,
+      coverageRadius: coverageRadius, coverageCurve: coverageCurve,
+      zoneProbs: zoneProbs
+    };
+  })();
+  if (typeof window !== 'undefined') window.DuvalCore = DuvalCore;
+  </script>
+
+  <script id="app">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+    const html = htm.bind(React.createElement);
+    const C = DuvalCore;
+
+    /* Canvas code cannot read var(--) itself, so the palette lives in mutable
+       bindings, re-read on `themechange` (see assets/js/theme.js). */
+    const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const COL = {};
+    function readPalette() {
+      Object.assign(COL, {
+        emph: cssVar('--tool-emph'), text: cssVar('--tool-text'),
+        label: cssVar('--tool-label'), note: cssVar('--tool-note'),
+        faint: cssVar('--tool-faint'), border: cssVar('--tool-border'),
+        zone: cssVar('--dv-zone'), ink: cssVar('--tool-panel'),
+        subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary')
+      });
+    }
+    readPalette();
+
+    const GASES = ['CH₄', 'C₂H₄', 'C₂H₂'];
+
+    /* The sample the page opens on, in ppm, together with the relative 1-sigma
+       it is measured with.
+
+       On the uncertainty. IEC 60599 does not distinguish between gases: it
+       gives one figure for all of them, 15 % as long as a gas is well above
+       ten times the detection limit. The three values are therefore equal, and
+       the contour is a circle of constant compositional distance. Per-gas
+       differences do exist, but they are an effect of the detection limit, and
+       the opening sample stays far above it, where that effect is not the
+       story. The 25 % the page starts at is above the IEC figure on purpose:
+       it is the order of magnitude reported for an online monitor in service,
+       and it is where the diagnosis visibly stops being a single answer. No
+       instrument is named and none is meant.
+
+       On the amounts. Plausible levels for a unit with a real fault, several
+       hundred ppm in total, well clear of the range where the triangle should
+       not be applied in the first place. They are not a measured case and not
+       taken from a standard. */
+    const START_GAS = [260, 215, 25];
+    const START_SIG = [25, 25, 25];
+    /* Reading order of the diagnosis list. Not the order of C.ZONES, which is
+       the order the zone test is written in: this one runs from the discharges
+       down through the mixed zone to the thermal faults and ends on PD, which
+       is roughly how the triangle reads from left to right. */
+    const DIAG_ORDER = ['D1', 'D2', 'DT', 'T3', 'T2', 'T1', 'PD'];
+
+    /* The two coverage levels, outer first so the inner one draws on top. */
+    const COVERAGE = [{ p: 0.95, alpha: 0.65 }, { p: 0.5, alpha: 0.95 }];
+    /* Points per curve: at 500 px across the triangle, 128 segments are well
+       under a pixel each, so the curve reads as smooth. */
+    const CURVE_N = 128;
+
+    function Triangle({ comp, setComp, unc, height }) {
+      const cvRef = useRef(null);
+      const geo = useRef(null);
+      const [drag, setDrag] = useState(false);
+      const [, bump] = useState(0);
+
+      useEffect(() => {
+        const on = () => bump((n) => n + 1);
+        window.addEventListener('resize', on);
+        window.addEventListener('themechange', on);
+        return () => { window.removeEventListener('resize', on); window.removeEventListener('themechange', on); };
+      }, []);
+
+      useEffect(() => {
+        const cv = cvRef.current;
+        if (!cv) return;
+        // Re-read here rather than relying on a listener elsewhere: whoever
+        // triggers the redraw, the colours are the ones in effect right now.
+        readPalette();
+        const rect = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(rect.width)), h = height;
+        cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        const pad = 34;
+        const s = Math.min((w - 2 * pad) / Math.SQRT2, (h - 2 * pad) / (Math.sqrt(6) / 2));
+        const cx = w / 2, cy = h / 2 + s * Math.sqrt(6) / 4;
+        const toPx = (c) => {
+          const p = C.ternaryXY(c);
+          return [cx + s * p.x, cy - s * p.y];
+        };
+        geo.current = { s, cx, cy };
+
+        // The canvas itself is invisible; only the triangle is a surface. Its
+        // fill is one subtle step off the page, everything outside stays page.
+        const corners = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(toPx);
+        const triPath = () => {
+          ctx.beginPath();
+          ctx.moveTo(corners[0][0], corners[0][1]);
+          ctx.lineTo(corners[1][0], corners[1][1]);
+          ctx.lineTo(corners[2][0], corners[2][1]);
+          ctx.closePath();
+        };
+        ctx.save();
+        ctx.fillStyle = COL.subtle;
+        triPath();
+        ctx.fill();
+        ctx.restore();
+
+        // Zone boundaries, the frame of reference.
+        ctx.save();
+        ctx.strokeStyle = COL.zone;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.9;
+        for (const seg of C.SEGMENTS) {
+          ctx.beginPath();
+          seg.forEach((c, i) => {
+            const p = toPx(c);
+            if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+          });
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Zone labels.
+        ctx.save();
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.fillStyle = COL.label;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const L of C.LABELS) {
+          const p = toPx(L.c);
+          ctx.fillText(L.z, p[0], p[1]);
+        }
+        ctx.restore();
+
+        // Uncertainty contours, drawn from the closed form: each curve is a
+        // circle in log-ratio coordinates, so it is exact and reproducible
+        // rather than an estimate that would wobble with the draw. Compositions
+        // stay strictly positive, so the curve cannot leave the triangle.
+        if (unc) {
+          ctx.save();
+          ctx.strokeStyle = COL.accent;
+          ctx.lineWidth = 1.6;
+          for (const cu of unc.curves) {
+            ctx.globalAlpha = cu.alpha;
+            ctx.beginPath();
+            cu.pts.forEach((c, i) => {
+              const q = toPx(c);
+              if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+            });
+            ctx.closePath();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Triangle edges and corner labels, on top.
+        ctx.save();
+        ctx.strokeStyle = COL.border;
+        ctx.lineWidth = 1.5;
+        triPath();
+        ctx.stroke();
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.fillStyle = COL.text;
+        const al = [['center', 'bottom', 0, -8], ['left', 'top', 4, 8], ['right', 'top', -4, 8]];
+        for (let i = 0; i < 3; i++) {
+          ctx.textAlign = al[i][0]; ctx.textBaseline = al[i][1];
+          ctx.fillText(GASES[i], corners[i][0] + al[i][2], corners[i][1] + al[i][3]);
+        }
+        ctx.restore();
+
+        // The nominal point.
+        const p = toPx(comp);
+        ctx.save();
+        ctx.strokeStyle = COL.ink;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p[0], p[1], 6, 0, 2 * Math.PI); ctx.stroke();
+        ctx.fillStyle = COL.emph;
+        ctx.beginPath(); ctx.arc(p[0], p[1], 6, 0, 2 * Math.PI); ctx.fill();
+        ctx.restore();
+      });
+
+      /* Pointer position as a raw ternary triple. Outside the triangle at least
+         one component comes back negative, which is the hit test: the canvas is
+         a rectangle, the target is not. */
+      const at = (ev) => {
+        const cv = cvRef.current, g = geo.current;
+        if (!cv || !g) return null;
+        const rect = cv.getBoundingClientRect();
+        const X = (ev.clientX - rect.left - g.cx) / g.s;
+        const Y = (g.cy - (ev.clientY - rect.top)) / g.s;
+        return { X, Y, inside: C.ternaryComp(X, Y).every((v) => v >= 0) };
+      };
+
+      const onMove = useCallback((ev) => {
+        const r = at(ev);
+        if (!r) return;
+        if (drag) {
+          /* Once the drag is running the pointer may leave the triangle; the
+             point then rides the edge instead of being dropped. */
+          setComp(C.ternaryClamp(r.X, r.Y, 1e-3));
+        } else if (cvRef.current) {
+          cvRef.current.style.cursor = r.inside ? 'grab' : 'default';
+        }
+      }, [drag, setComp]);
+
+      const onDown = useCallback((ev) => {
+        const r = at(ev);
+        if (!r || !r.inside) return;
+        ev.currentTarget.setPointerCapture(ev.pointerId);
+        ev.currentTarget.style.cursor = 'grabbing';
+        setDrag(true);
+        setComp(C.ternaryClamp(r.X, r.Y, 1e-3));
+      }, [setComp]);
+
+      const onUp = useCallback((ev) => {
+        setDrag(false);
+        if (cvRef.current) cvRef.current.style.cursor = 'default';
+      }, []);
+
+      return html`
+        <canvas ref=${cvRef} className="tw-stage"
+          style=${{ height: height + 'px' }}
+          onPointerDown=${onDown}
+          onPointerMove=${onMove}
+          onPointerUp=${onUp}
+          onPointerCancel=${onUp}
+          onPointerLeave=${(e) => { if (!drag && cvRef.current) cvRef.current.style.cursor = 'default'; }} />
+      `;
+    }
+
+    /* Enough digits to place the point, few enough to stay readable on a
+       beamer. Trailing zeros go, so a clean 48 does not become 48.0. */
+    function fmtGas(v) {
+      if (!isFinite(v) || v <= 0) return '0';
+      const a = Math.abs(v);
+      return String(Number(v.toFixed(a >= 10 ? 1 : a >= 1 ? 2 : 3)));
+    }
+
+    function App() {
+      /* The sample lives as three raw concentrations, held as the strings that
+         are in the boxes, so half-typed input survives a render. The triangle
+         only ever sees their ratio; the sum is free and is whatever the user
+         last entered. The boxes are labelled ppm, so the page opens on a real
+         sample rather than on a triple summing to 100, which would read as per
+         cent and invite the objection. */
+      const [gas, setGas] = useState(START_GAS.map(String));
+      const [sig, setSig] = useState(START_SIG.slice());
+      const [, themeBump] = useState(0);
+
+      useEffect(() => {
+        const on = () => { readPalette(); themeBump((n) => n + 1); };
+        window.addEventListener('themechange', on);
+        return () => window.removeEventListener('themechange', on);
+      }, []);
+
+      const nums = useMemo(() => gas.map((v) => {
+        const n = parseFloat(v);
+        return isFinite(n) && n > 0 ? n : 0;
+      }), [gas]);
+      const total = nums[0] + nums[1] + nums[2];
+      /* All three boxes empty or zero: there is no ratio to show, so the point
+         sits in the centroid rather than at NaN. */
+      const comp = useMemo(() => (total > 0 ? C.close(nums) : [1 / 3, 1 / 3, 1 / 3]), [nums, total]);
+
+      /* Both the contours and the zone probabilities come out of the same
+         closed-form description of the uncertainty, so what is drawn and what
+         is counted cannot disagree. */
+      const unc = useMemo(() => {
+        const s = sig.map((v) => Math.max(0, Math.min(60, Number(v) || 0)) / 100);
+        if (s.every((v) => v === 0)) return null;
+        const q = C.zoneProbs(comp, s);
+        return {
+          p: q.p,
+          curves: COVERAGE.map((cv) => ({
+            alpha: cv.alpha,
+            pts: C.coverageCurve(q.y0, q.L, C.coverageRadius(cv.p), CURVE_N)
+          }))
+        };
+      }, [comp, sig]);
+
+      const shares = comp;
+      const nominalZone = C.zoneOf(shares);
+      /* All seven zones, always, in the fixed order of DIAG_ORDER: the rows do
+         not move when the sliders do, so what the eye follows is the length of
+         a bar and not a list re-sorting itself. An empty row is a statement
+         too: that zone is out of reach of this measurement. */
+      const probs = DIAG_ORDER.map((z) => ({
+        z, p: unc ? unc.p[z] : (z === nominalZone ? 1 : 0)
+      }));
+
+      const setSigAt = (i, v) => { const o = sig.slice(); o[i] = v; setSig(o); };
+      const setGasAt = (i, v) => { const o = gas.slice(); o[i] = v; setGas(o); };
+
+      /* Dragging the point sets a ratio, not amounts. The sum currently in the
+         boxes is kept, so a sample entered as ppm stays in ppm. */
+      const setFromPoint = useCallback((c) => {
+        setGas((prev) => {
+          let t = 0;
+          for (let i = 0; i < 3; i++) { const n = parseFloat(prev[i]); if (isFinite(n) && n > 0) t += n; }
+          if (t <= 0) t = 100;
+          return [fmtGas(c[0] * t), fmtGas(c[1] * t), fmtGas(c[2] * t)];
+        });
+      }, []);
+
+      return html`
+        <div className="dv-wrap">
+          <div className="dv-grid">
+            <div className="dv-col">
+              <h2>relative uncertainty <span className="dv-cased">(1σ)</span></h2>
+              ${GASES.map((g, i) => html`
+                <label key=${g} className="dv-row">
+                  <span>${g}</span>
+                  <span>
+                    <input type="number" min="0" max="60" step="1" value=${sig[i]}
+                      onChange=${(e) => setSigAt(i, e.target.value)} />
+                    <span className="dv-unit">%</span>
+                  </span>
+                </label>
+              `)}
+              <h2>sample</h2>
+              ${GASES.map((g, i) => html`
+                <label key=${'s' + g} className="dv-row">
+                  <span>${g}</span>
+                  <span>
+                    <input type="number" min="0" step="any" value=${gas[i]}
+                      onChange=${(e) => setGasAt(i, e.target.value)} />
+                    <span className="dv-unit">ppm</span>
+                  </span>
+                </label>
+              `)}
+            </div>
+
+            <div>
+              <${Triangle} comp=${comp} setComp=${setFromPoint} unc=${unc} height=${500} />
+              <p className="dv-legend">inner contour holds 50% of coverage, outer contour 95%</p>
+              <p className="dv-attrib">based on an idea by Tony McGrail</p>
+            </div>
+
+            <div className="dv-col">
+              <h2>diagnosis</h2>
+              ${probs.map((e) => html`
+                <div key=${e.z} className=${'dv-diag' + (e.p < 0.005 ? ' dv-off' : '')}>
+                  <span className="dv-z">${e.z}</span>
+                  <span className="dv-bar"><i style=${{ width: (100 * e.p).toFixed(1) + '%' }} /></span>
+                  <span className="dv-p">${(100 * e.p).toFixed(0)} %</span>
+                </div>
+              `)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+  </script>
+
+</body>
+</html>
