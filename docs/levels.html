@@ -167,6 +167,15 @@
     .lv-act .lv-actnote {
       font-size: 15px; color: var(--tool-note); font-variant-numeric: tabular-nums;
     }
+    /* Pause and play are drawn, not typed. The Geometric Shapes glyphs that
+       stood here render as heavy filled boxes in most interface fonts, so the
+       pause read as two bricks. Two inline SVG marks instead: same metrics on
+       every machine, and the fixed min-width keeps the row from shifting when
+       the bars swap for the triangle. */
+    .lv-act button.lv-playbtn {
+      min-width: 74px; padding: 7px 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
 
     /* Chart and event log side by side. min-width: 0 is what stops the chart
        from refusing to shrink below the intrinsic width of its content, which
@@ -195,15 +204,8 @@
     .lv-logb b { color: var(--tool-emph); font-weight: 600; }
     .lv-logempty { color: var(--tool-faint); }
 
-    /* The controller in three lines, under the chart it produced. */
-    .lv-rules {
-      margin: 10px 2px 0; font-size: 13.5px; line-height: 1.55;
-      color: var(--tool-note);
-    }
-    .lv-rules b { color: var(--tool-label); font-weight: 600; }
-
-    /* Colour key under the chart. A line swatch for a curve, a filled block
-       for a band. */
+    /* Colour key under the chart. A line swatch for a curve, a dashed one for
+       a forecast, a filled block for a band. */
     .lv-legend {
       display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px;
       margin: 8px 2px 0; font-size: 13.5px; color: var(--tool-note);
@@ -213,72 +215,61 @@
       display: inline-block; width: 18px; height: 0; vertical-align: middle;
       border-top: 3px solid currentColor; margin-right: 7px;
     }
+    .lv-legend i.lv-dash { border-top-style: dashed; opacity: 0.75; }
     .lv-legend i.lv-sw {
       height: 11px; border-top: none; border-radius: 2px;
       background: currentColor; opacity: 0.42; vertical-align: -1px;
     }
 
-    /* Three clickable scenario cards, level 4's only interaction. A plain
-       button rather than a div with a click handler, so the card is a real
-       control: focusable, reachable by keyboard, announced as a button. */
-    .lv-cards {
-      display: flex; flex-wrap: wrap; gap: 14px; margin: 2px 2px 16px;
+    /* The premise of level 4, one sentence, set as a lead: it is the whole
+       briefing and everything under it is the answer to it. */
+    .lv-lead {
+      margin: 2px 2px 14px; max-width: 100ch;
+      font-size: 1.2rem; line-height: 1.4; color: var(--tool-emph);
     }
-    .lv-card {
-      flex: 1 1 250px; min-width: 210px; text-align: left;
-      display: block; margin: 0; padding: 14px 16px;
-      border: 1px solid var(--tool-hairline); border-radius: 8px;
-      background: var(--tool-subtle); color: inherit; font: inherit;
+
+    /* The three dispatch windows as a segmented control. Same recipe as
+       .lang-seg in app.css, which is the house pattern for choosing a
+       SETTING, scaled up for a projector: the three labels are the only
+       interaction on the tab and they carry clock times, so tabular figures
+       and no wrapping. */
+    .lv-seg { display: flex; flex-wrap: wrap; gap: 0; margin: 0 2px 14px; }
+    /* flex: 0 0 auto is not decoration: the row carries role="group", and Pico
+       gives the children of a group flex: 1, which would stretch three
+       switches across the whole page width. */
+    .lv-seg button {
+      flex: 0 0 auto; width: auto; margin: 0; padding: 8px 22px;
+      font-size: 1.02rem; font-weight: 600; line-height: 1.3;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+      background: transparent; color: var(--tool-label);
+      border: 1px solid var(--tool-border); border-radius: 5px;
       cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
-    .lv-card:hover, .lv-card:focus-visible {
-      border-color: var(--tool-border); background: var(--tool-panel);
+    .lv-seg button:has(+ button) {
+      border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none;
     }
-    /* The selected card, the one the chart is drawing at full strength. */
-    .lv-card.active {
-      border-color: var(--pico-primary); background: var(--tool-panel);
-      box-shadow: 0 0 0 1px var(--pico-primary);
+    .lv-seg button + button {
+      border-top-left-radius: 0; border-bottom-left-radius: 0;
     }
-    .lv-card .lv-cardlabel {
-      display: block; font-size: 15.5px; font-weight: 600; color: var(--tool-emph);
+    .lv-seg button.active,
+    .lv-seg button.active:hover,
+    .lv-seg button.active:focus {
+      background: var(--pico-primary); color: var(--page-bg); border-color: var(--pico-primary);
     }
-    .lv-card .lv-cardwin {
-      display: block; font-size: 13px; color: var(--tool-note); margin: 2px 0 10px;
+    .lv-seg button:hover:not(.active), .lv-seg button:focus:not(.active) {
+      background: transparent; color: var(--pico-primary); border-color: var(--pico-primary);
     }
-    .lv-card .lv-cardnums {
-      display: flex; gap: 24px; margin-bottom: 10px;
+
+    /* The result of the selected window, one line under the chart, set like a
+       caption rather than like a dashboard. */
+    .lv-result {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 22px;
+      margin: 10px 2px 0; font-size: 15px; color: var(--tool-note);
+      font-variant-numeric: tabular-nums;
     }
-    .lv-card .lv-cardnums .lv-k {
-      display: block; font-size: 12px; color: var(--tool-label);
-    }
-    .lv-card .lv-cardnums .lv-v {
-      display: block; font-size: 23px; font-weight: 600; line-height: 1.2;
-      color: var(--tool-text); font-variant-numeric: tabular-nums;
-    }
-    .lv-card .lv-cardnums .lv-u {
-      margin-left: 3px; font-size: 13px; font-weight: 400; color: var(--tool-note);
-    }
-    /* One pill per card: over the limit, feasible, or the recommendation.
-       Coloured with the same tint recipe as the rest of app.css, at low
-       opacity so the pill reads as a label and not an alert box. */
-    .lv-badge {
-      display: inline-block; padding: 3px 11px; border-radius: 999px;
-      font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
-      border: 1px solid transparent;
-    }
-    .lv-badge-bad {
-      color: var(--tool-sig-bad);
-      background: color-mix(in srgb, var(--tool-sig-bad) 16%, transparent);
-      border-color: color-mix(in srgb, var(--tool-sig-bad) 40%, transparent);
-    }
-    .lv-badge-ok {
-      color: var(--tool-note); background: var(--tool-subtle); border-color: var(--tool-hairline);
-    }
-    .lv-badge-rec {
-      color: var(--tool-sig-good);
-      background: color-mix(in srgb, var(--tool-sig-good) 18%, transparent);
-      border-color: color-mix(in srgb, var(--tool-sig-good) 45%, transparent);
-    }
+    .lv-result b { font-weight: 600; color: var(--tool-text); }
+    .lv-result .lv-verdict { font-weight: 600; }
 
     /* Each tab's module gets a frame, and its title rides ON the frame the
        way a fieldset legend does, taken over unchanged from the thermal
@@ -317,7 +308,6 @@
     @media (max-width: 980px) {
       .lv-split { flex-direction: column; }
       .lv-log { flex: 1 1 auto; width: 100%; height: 240px; }
-      .lv-cards { flex-direction: column; }
     }
   </style>
   <script src="assets/js/react.production.min.js"></script>
@@ -412,19 +402,70 @@
       dtMin: 2,            // integration step, min. Fastest tau is k22*tauW = 14 min
       warmMin: 1440,       // 24 h warm-up before t = 0, so t = 0 is not a transient
       seed: 20260820,      // fixed, so nothing on the page shimmers between reloads
-      noiseK: 0.5,         // top-oil sensor noise, 1 sigma, K
+      /* Top-oil sensor noise, 1 sigma, K. The error is CORRELATED, not white:
+         a thermometer pocket in oil has a time constant of its own, and so has
+         the transmitter behind it, so the error wanders over half an hour
+         instead of being redrawn every two minutes. See arNoiseFactory.
+         Everything below follows from that and is measured, not derived. */
+      noiseK: 0.9,
+      noiseTauMin: 30,     // correlation time of the sensor noise, min
       smoothMin: 30,       // trailing mean on the residual, min
-      residSigma: 3,       // band half-width in sigma of the smoothed residual
+      /* Standard deviation of the 30 min smoothed residual per kelvin of sensor
+         sigma, healthy plant. For WHITE noise this would be the textbook
+         1/sqrt(15) = 0.258 of a 15-sample mean. Correlated noise does not
+         average out anything like as well: measured over 25 seeds times 48 h of
+         the healthy stream it is 0.884, three and a half times as wide. An
+         analytic band here would be wrong by that factor and the tab would
+         flag a healthy plant every few hours. */
+      residSmPerSigma: 0.884,
+      /* Band half-width in sigma of the smoothed residual. Three sigma is the
+         reflex and it is too tight for a correlated process: measured over 400
+         seeds times 48 h of healthy stream, 3 sigma raises a false alarm in
+         6 % of the runs, 3.5 sigma in 0.25 %. The excursions of a process with
+         a memory are not independent samples, so the tail costs more than the
+         Gaussian table suggests. */
+      residSigma: 3.5,
       residRun: 3,         // samples outside the band before flagging
       /* The three samples are read half a smoothing window apart, so together
          they span a full window and are not three looks at the same 30 min.
          Three ADJACENT samples of a 30 min trailing mean at dt = 2 min are
-         correlated at 0.93 and buy almost no evidence: measured over 200
-         noise seeds that rule raises a false alarm in 35 % of 48 h runs, the
-         spaced one in 0.5 %, and it still flags the cooling fault 70 to 95 min
-         after onset, inside the 2 h the tab claims. */
+         correlated at 0.93 and buy almost no evidence. */
       residSpread: 0.5,    // sample spacing as a fraction of the smoothing window
-      faultScale: 1.25,    // cooling fault: rated top-oil rise 45 K -> 56.25 K
+      /* Coming back out of the alarm is not the same test as going into it:
+         dead band plus dwell time, which is what any alarm system worth the
+         name does. The residual has to be back inside residDeadFrac of the
+         band AND stay there for residDwellMin before the status returns to OK.
+         Both numbers are measured, not chosen for looks. With the plain
+         threshold the verdict flickered: a 25 % cooling loss is nearly
+         invisible at the 0.50 pu night trough, so the smoothed residual of a
+         plant that is still faulted sags to about 1.2 band there and dips under
+         it on some seeds, and the tab called such a plant healthy for a couple
+         of hours every night.
+         Measured over 40 seeds times 60 h with the fault running: inside half
+         the band the residual of a faulted plant never lands at all, not once,
+         and even at a much looser three quarters of the band the longest spell
+         is 32 min. The hour of dwell is therefore roughly twice the worst
+         excursion seen under a deliberately weakened dead band, which is the
+         margin that makes this a rule and not a fitted constant.
+         The cost is on the way back: after a real repair the alarm drops after
+         323 min on average and 518 min at worst, measured over 20 seeds. At
+         1200x that is half a minute on stage. */
+      residDeadFrac: 0.5,  // inner dead band, as a fraction of the band
+      residDwellMin: 60,   // how long the residual must stay in it, min
+      /* The cooling fault: rated top-oil rise 45 K -> 56.25 K, faded in
+         linearly over 2 h. Fouled radiators, which is the ordinary way a unit
+         loses cooling, not a catastrophic one.
+         It is a subtle fault by design, and with a sensor error that wanders by
+         a kelvin over half an hour it takes longer than it used to to prove:
+         the band is 2.8 K wide instead of 0.4 K, so the residual has to climb
+         seven times as far before three spaced samples clear it. Measured over
+         all 24 onset hours, the flag arrives after 172 min on average and after
+         254 min at worst, that worst case being an onset at the 06:00 load
+         trough. That is the honest cost of low-frequency sensor noise and it is
+         left standing rather than bought off with an implausibly large fault:
+         at 1200x even the worst case is thirteen seconds on stage, and the
+         residual settles at four to five times the band. */
+      faultScale: 1.25,
       faultBlendMin: 120,  // the fault fades in linearly over 2 h, no step
       ensembleN: 100,      // forecast members
       fcstHours: 48,       // forecast horizon, h
@@ -437,7 +478,46 @@
       limitTargetC: 105,   // controller: steady-state hot spot the limiter aims at, C
       limitOffC: 100,      // controller: hot spot at which the limiter releases, C
       tripC: 140,          // controller: latched trip, IEC long-time emergency limit, C
-      ctrlMin: 10          // controller tick, min. Nothing decides faster than this
+      ctrlMin: 10,         // controller tick, min. Nothing decides faster than this
+      /* How far the controller integrates the model forward at every tick.
+         Measured, not felt. The relevant time constant of the plant is
+         k11 * tauO = 105 min on ONAN and 75 min on ONAF; the winding part
+         (k22 * tauW = 14 min) is an order of magnitude faster and does not set
+         the horizon. Sweeping the closed loop over 30 to 180 min on the same
+         heat wave gives peak hot spot, curtailed energy, ageing, and the mean
+         error of the forecast at the far end of the horizon:
+            30 min   108.1 C   1.74 pu h   1.79 d   0.60 K
+            45 min   105.1 C   1.73 pu h   1.79 d   0.88 K
+            60 min   105.1 C   1.74 pu h   1.77 d   1.23 K
+            90 min   105.1 C   1.77 pu h   1.74 d   1.94 K
+           120 min   105.0 C   1.79 pu h   1.73 d   2.48 K
+           180 min   105.1 C   1.82 pu h   1.71 d   3.42 K
+         Three readings. Thirty minutes is too short: the loop overshoots its
+         own 105 C target by three kelvin, because the tank remembers heat for
+         longer than that. From 45 min on the peak is held and everything
+         further is bought by acting earlier, which costs a little energy and
+         saves a little paper. And the forecast decays with lead time at about
+         2 K per hour of it, so a horizon of a quarter of a day would have the
+         loop curtailing against weather it does not know.
+         90 min sits in the flat part of the peak, stays under the ONAN oil
+         time constant of 105 min, and pays 2 K of forecast error for it. */
+      horizonMin: 90,
+      /* The controller does not get to see the weather. It gets a forecast of
+         the ambient temperature that is FCST_BIAS_K too cold and FCST_LAG_MIN
+         behind the real diurnal rise, both deterministic, both adverse: during
+         the morning rise, which is the part of the day the loop is judged on,
+         a forecast that is cold and late makes the loop act later and less than
+         it should. The load, by contrast, is a schedule and is known exactly:
+         that is the honest split, because a dispatcher does know tomorrow's
+         programme and nobody knows tomorrow's air to a tenth of a kelvin.
+         1.4 K and half an hour is the order of magnitude of a good short-range
+         2 m temperature forecast, not a worst case. */
+      fcstBiasK: -1.4,
+      fcstLagMin: 30,
+      /* The loop will not curtail below this on a temperature argument. If
+         0.30 pu is not enough to hold the predicted peak, the problem is not a
+         load problem any more and the trip is the function that owns it. */
+      capFloorPu: 0.30
     };
 
     /* ── Ageing ───────────────────────────────────────────────────────────
@@ -483,6 +563,185 @@
         spare = r * Math.sin(t);
         return r * Math.cos(t);
       };
+    }
+
+    /* Correlated sensor noise, AR(1). A top-oil thermometer does not deliver a
+       fresh independent error every two minutes: the pocket, the oil around it
+       and the transmitter all have time constants, so the error wanders. The
+       process is x <- phi x + sqrt(1 - phi^2) g with phi = exp(-dt/tau), which
+       is the exactly sampled Ornstein-Uhlenbeck process: unit variance at every
+       lag and autocorrelation exp(-lag/tau). Started from the stationary
+       distribution, so there is no burn-in transient at t = 0. */
+    function arNoiseFactory(rnd, tauMin, dtMin) {
+      var gauss = gaussFactory(rnd);
+      var phi = tauMin > 0 ? Math.exp(-dtMin / tauMin) : 0;
+      var s = Math.sqrt(Math.max(0, 1 - phi * phi));
+      var x = gauss();
+      return function () { var v = x; x = phi * x + s * gauss(); return v; };
+    }
+
+    /* ── Weather texture ──────────────────────────────────────────────────
+       Smooth value noise: random nodes NOISE_STEP minutes apart, smoothstep
+       between them. A pure function of tMin, so the drivers stay evaluable out
+       of order, which the warm-up and the ensemble both rely on. The node
+       spacing is what makes this weather rather than sensor noise: a few hours,
+       so it reads as a passing cloud bank and not as a jittering thermometer. */
+    var NOISE_N = 2048;
+    var NOISE_STEP = 190;   // min per node, about three hours
+    var NOISE = (function () {
+      var rnd = mulberry32(20260821), a = new Float64Array(NOISE_N), i;
+      for (i = 0; i < NOISE_N; i++) a[i] = rnd() * 2 - 1;
+      return a;
+    })();
+    function valueNoise(tMin) {
+      var u = tMin / NOISE_STEP, i0 = Math.floor(u), f = u - i0;
+      var s = f * f * (3 - 2 * f);
+      var a = NOISE[((i0 % NOISE_N) + NOISE_N) % NOISE_N];
+      var b = NOISE[(((i0 + 1) % NOISE_N) + NOISE_N) % NOISE_N];
+      return a + (b - a) * s;
+    }
+
+    /* ── Diurnal air temperature, Parton and Logan (1981) ─────────────────
+       Source: Parton, W.J. and Logan, J.A. (1981), "A model for diurnal
+       variation in soil and air temperature", Agricultural Meteorology
+       23:205-216. Taken over from the thermal mini-twin page, reduced to the
+       one thing this page needs: a single fixed day length, because there is no
+       season and no latitude here, only one repeating demo day.
+
+       A day of air temperature is not a cosine. The shape is a truncated sine
+       through the daylight hours whose peak lags solar noon, and an exponential
+       decay through the night towards the next morning's minimum. Air warms
+       faster than it cools: the minimum sits just before sunrise, the maximum
+       in the early afternoon, and the two are not half a day apart. That
+       asymmetry is the point. The load peak of this demo day sits at 19:00, on
+       the falling side of the air curve, and a cosine puts the air two to three
+       kelvin away from where it really is at that hour.
+
+       PL_A  hours by which the daily maximum lags solar noon
+       PL_B  night-time decay coefficient, per night length
+       PL_C  hours by which the minimum lags sunrise; negative, the coldest
+             moment is about ten minutes BEFORE sunrise, because the ground
+             keeps radiating until the direct beam arrives. */
+    var PL_A = 1.86;
+    var PL_B = 2.20;
+    var PL_C = -0.17;
+    var PL_DAY_LEN = 14;    // h of daylight, one fixed demo day, no season here
+
+    /* The piecewise construction matches its two branches in VALUE at sunset
+       and at the morning minimum, never in SLOPE, so it has a corner at each.
+       A corner in the forcing is not something a real day has, and it repeats
+       every cycle, so it would be a periodic artefact rather than a one-off.
+       The fix keeps the paper's TIMING, which is the validated part, and
+       replaces the piecewise evaluation: the normalised shape is projected onto
+       a Fourier series over the 24 h period and each coefficient is multiplied
+       by exp(-(k omega sigma)^2/2), which is exactly a convolution with a
+       Gaussian of width sigma in time. The result is periodic and smooth by
+       construction, corners and the midnight wrap together. */
+    var PL_OMEGA = 2 * Math.PI / 24;   // rad per hour
+    var PL_SIGMA_H = 0.30;             // mollifier width, hours
+    var PL_TAPER_CUTOFF = 4.5;
+    var PL_PROJ_N = 2880;              // projection samples, 30 s
+
+    /* Normalised shape, argument in hours since the daily minimum: 0 at the
+       minimum, 1 at the daylight peak. */
+    function plShapeFactory(dayLen, a, b) {
+      var nightLen = 24 - dayLen;
+      var k = Math.PI / (dayLen + 2 * a);
+      var gSunset = Math.sin(k * dayLen);
+      /* The raw night branch does not return to the minimum at the next
+         sunrise, it leaves a step of gSunset*exp(-b). Renormalising the decay
+         to (e^-x - e^-b)/(1 - e^-b) keeps the shape and the time constant and
+         forces exact closure, so no spurious impulse is injected every cycle. */
+      var expNegB = Math.exp(-b);
+      var scale = gSunset / (1 - expNegB);
+      var invNight = 1 / nightLen;
+      return function (m) {
+        m = m - 24 * Math.floor(m / 24);
+        if (m <= dayLen) return Math.sin(k * m);
+        return scale * (Math.exp(-b * (m - dayLen) * invNight) - expNegB);
+      };
+    }
+
+    /* Project a 24 h periodic shape onto cos and sin and apply the taper. The
+       harmonics are stepped by a rotation recurrence, so there is one cos and
+       one sin per sample and none per harmonic. */
+    function plHarmonics(shape, sigma) {
+      var K = Math.max(2, Math.ceil(PL_TAPER_CUTOFF / (PL_OMEGA * sigma)));
+      var N = PL_PROJ_N;
+      var a = new Float64Array(K + 1), b = new Float64Array(K + 1);
+      var dth = 2 * Math.PI / N;
+      var cD = Math.cos(dth), sD = Math.sin(dth);
+      var cB = 1, sB = 0, i, k, ck, sk, cn, sn, v, x, taper;
+      for (i = 0; i < N; i++) {
+        v = shape(24 * i / N);
+        a[0] += v;
+        ck = 1; sk = 0;
+        for (k = 1; k <= K; k++) {
+          cn = ck * cB - sk * sB; sn = sk * cB + ck * sB;
+          ck = cn; sk = sn;
+          a[k] += v * ck; b[k] += v * sk;
+        }
+        cn = cB * cD - sB * sD; sn = sB * cD + cB * sD;
+        cB = cn; sB = sn;
+      }
+      a[0] /= N;
+      for (k = 1; k <= K; k++) {
+        x = k * PL_OMEGA * sigma;
+        taper = Math.exp(-0.5 * x * x) * 2 / N;
+        a[k] *= taper; b[k] *= taper;
+      }
+      return { a: a, b: b, K: K };
+    }
+
+    function plHarmonicValue(h, m) {
+      var th = PL_OMEGA * m;
+      var cB = Math.cos(th), sB = Math.sin(th);
+      var a = h.a, b = h.b, K = h.K;
+      var s = a[0], ck = 1, sk = 0, cn, sn, k;
+      for (k = 1; k <= K; k++) {
+        cn = ck * cB - sk * sB; sn = sk * cB + ck * sB;
+        ck = cn; sk = sn;
+        s += a[k] * ck + b[k] * sk;
+      }
+      return s;
+    }
+
+    /* Fifty-odd harmonics per call would be fine once a day and is not fine at
+       a quarter of a million driver evaluations per forecast, so the shape is
+       tabulated once at load, one entry per minute of the day, and read back
+       linearly. The row is normalised to mean 0 and peak-to-peak 1, which is
+       what keeps the stated daily mean the daily mean and the stated amplitude
+       the half swing, whatever the shape does in between. */
+    var PL_TIME_N = 1440;
+    var PL_TAB = (function () {
+      var tab = new Float64Array(PL_TIME_N);
+      var harm = plHarmonics(plShapeFactory(PL_DAY_LEN, PL_A, PL_B), PL_SIGMA_H);
+      var i, v, sum = 0, mn = Infinity, mx = -Infinity;
+      for (i = 0; i < PL_TIME_N; i++) {
+        v = plHarmonicValue(harm, 24 * i / PL_TIME_N);
+        tab[i] = v; sum += v;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+      sum /= PL_TIME_N;
+      var span = mx - mn;
+      if (!(span > 1e-12)) span = 1;
+      for (i = 0; i < PL_TIME_N; i++) tab[i] = (tab[i] - sum) / span;
+      return tab;
+    })();
+
+    /* Zero-mean, unit peak-to-peak diurnal shape at a clock hour. Sunrise is
+       taken symmetric about noon: the demo has no longitude and no equation of
+       time, and neither changes the shape, only the clock it is drawn on. */
+    var PL_T0 = 12 - 0.5 * PL_DAY_LEN + PL_C;   // clock time of the daily minimum
+    function plShapeZ(hour) {
+      var m = hour - PL_T0;
+      m -= 24 * Math.floor(m / 24);
+      var u = m / 24 * PL_TIME_N;
+      var c0 = Math.floor(u), fc = u - c0;
+      c0 = ((c0 % PL_TIME_N) + PL_TIME_N) % PL_TIME_N;
+      var c1 = c0 + 1 === PL_TIME_N ? 0 : c0 + 1;
+      return PL_TAB[c0] + (PL_TAB[c1] - PL_TAB[c0]) * fc;
     }
 
     /* ── Thermal model, IEC 60076-7 difference equations ──────────────────
@@ -594,23 +853,34 @@
     }
 
     /* ── Drivers ──────────────────────────────────────────────────────────
-       One demo day, repeated. Both drivers are plain cosines: the point of this
-       page is the five capability levels, not a meteorological model, and a
-       cosine is the shape a presenter can read off the axis while talking.
-       tMin is minutes from midnight of day 0 and may be negative (warm-up). */
-    var AMB_PEAK_MIN = 15 * 60;    // ambient peaks at 15:00
+       One demo day, repeated. tMin is minutes from midnight of day 0 and may be
+       negative (warm-up).
+       The load is a plain cosine: the point of this page is the five capability
+       levels, not a load-flow study, and a cosine is a shape a presenter can
+       read off the axis while talking. The ambient is not, because the whole
+       page hangs on WHEN the air is warm relative to when the load is heavy,
+       and a cosine gets that wrong by hours. */
     var LOAD_PEAK_MIN = 19 * 60;   // load peaks at 19:00, the domestic evening
 
-    /* Ambient temperature in C. Demo day: 22 C mean, 7 K amplitude, so 15 C at
-       night and 29 C in the afternoon. Heat wave: 30 C mean, 8 K amplitude, so
-       22 C at night and 38 C in the afternoon. */
+    /* Ambient temperature in C, as the Parton-Logan day above plus a slow
+       weather texture. Demo day: 22 C mean, 7 K half swing, so about 15 C
+       shortly before sunrise and 29 C in the early afternoon. Heat wave: 30 C
+       mean, 8 K half swing. The texture is another 1.5 K of drift on a scale of
+       hours, which is what stops two consecutive demo days from being the same
+       day twice. It is part of the DRIVER, not of the measurement: the twin
+       sees the same air the plant does, so it never shows up in the residual of
+       level 2. */
+    var WEATHER_K = 1.5;
+
     function ambientAt(tMin, opts) {
       opts = opts || {};
       var mean = opts.heatwave ? 30 : 22;
       var amp = opts.heatwave ? 8 : 7;
       if (opts.ambMean != null) mean = opts.ambMean;
       if (opts.ambAmp != null) amp = opts.ambAmp;
-      var v = mean + amp * Math.cos(2 * Math.PI * (tMin - AMB_PEAK_MIN) / DAY_MIN);
+      var wx = opts.weatherK == null ? WEATHER_K : opts.weatherK;
+      var hour = (tMin - DAY_MIN * Math.floor(tMin / DAY_MIN)) / 60;
+      var v = mean + 2 * amp * plShapeZ(hour) + wx * valueNoise(tMin);
       if (opts.ambTrendPerDay) v += opts.ambTrendPerDay * tMin / DAY_MIN;
       if (opts.ambOffset) v += opts.ambOffset;
       return v;
@@ -621,6 +891,15 @@
        opts.ramp overrides the cosine with a piecewise-linear profile given as
        [[tMin, K], ...] knots, clamped at both ends. opts.peakScale scales the
        amplitude only, so the daily mean stays put and only the peak moves.
+       opts.loadBlendMin eases a CHANGED profile in instead of applying it from
+       the first minute: over the first opts.loadBlendMin minutes after t = 0
+       the mean and the amplitude slide from the profile the past ran on
+       (opts.loadFromMean, opts.loadFromAmp, both defaulting to the demo day)
+       to the stated one, on a smoothstep. Without it a forecast that assumes a
+       different peak load starts with a step in K at t = 0, and a step in K is
+       an overshoot in the hot spot within a winding time constant: the history
+       ends at one load and the forecast begins at another, which is an artefact
+       of the slider and not a property of the day.
        opts.windows is the contingency form: a list of [t0, t1] minute pairs
        during which the load is held at opts.windowK instead of following the
        cosine, faded in and out over WINDOW_RAMP_MIN so that nothing steps.
@@ -646,6 +925,14 @@
       var mean = opts.loadMean == null ? 0.75 : opts.loadMean;
       var amp = opts.loadAmp == null ? 0.25 : opts.loadAmp;
       if (opts.peakScale != null) amp *= opts.peakScale;
+      if (opts.loadBlendMin > 0) {
+        var m0 = opts.loadFromMean == null ? 0.75 : opts.loadFromMean;
+        var a0 = opts.loadFromAmp == null ? 0.25 : opts.loadFromAmp;
+        var uB = tMin <= 0 ? 0 : tMin >= opts.loadBlendMin ? 1 : tMin / opts.loadBlendMin;
+        var sB = uB * uB * (3 - 2 * uB);
+        mean = m0 + sB * (mean - m0);
+        amp = a0 + sB * (amp - a0);
+      }
       var K = mean + amp * Math.cos(2 * Math.PI * (tMin - LOAD_PEAK_MIN) / DAY_MIN);
       if (opts.windows) {
         var w = opts.windows, g = 0, a, b, f;
@@ -702,11 +989,20 @@
        steps); the twin never does, because the twin does not know about it.
        Level 1 is what the two top-oil traces look like. Level 2 is their
        difference: the residual, a trailing 30 min mean of it, and a band at
-       DEMO.residSigma sigma of that mean. Sigma of a k-sample mean of white
-       sensor noise is noiseK / sqrt(k), so the band is analytic and does not
-       have to be estimated from the very data it is meant to judge.
+       DEMO.residSigma sigma of that mean, sized by residBand below.
        hours is the logged horizon; opts.faultAtMin is the fault onset in
        minutes from t = 0, or null for a healthy run. */
+
+    /* Half-width of the residual band. Not analytic: the sensor error is
+       correlated on the same scale as the smoothing window, so the textbook
+       sigma/sqrt(k) of a k-sample mean does not apply. DEMO.residSmPerSigma is
+       the measured ratio, see there. */
+    function residBand(noiseK, opts) {
+      opts = opts || {};
+      var mult = opts.residSigma == null ? DEMO.residSigma : opts.residSigma;
+      var per = opts.residSmPerSigma == null ? DEMO.residSmPerSigma : opts.residSmPerSigma;
+      return mult * per * noiseK;
+    }
     function simPlant(hours, opts) {
       opts = opts || {};
       var dt = DEMO.dtMin;
@@ -715,8 +1011,10 @@
       var scale = opts.faultScale == null ? DEMO.faultScale : opts.faultScale;
       var blend = opts.faultBlendMin == null ? DEMO.faultBlendMin : opts.faultBlendMin;
       var noiseK = opts.noiseK == null ? DEMO.noiseK : opts.noiseK;
+      var noiseTau = opts.noiseTauMin == null ? DEMO.noiseTauMin : opts.noiseTauMin;
       var Pnom = params();
-      var gauss = gaussFactory(mulberry32(opts.seed == null ? DEMO.seed : opts.seed));
+      var noise = arNoiseFactory(mulberry32(opts.seed == null ? DEMO.seed : opts.seed),
+        noiseTau, dt);
 
       function faultFac(tMin) {
         if (faultAt == null || tMin <= faultAt) return 1;
@@ -755,7 +1053,7 @@
         t[i] = tm; load[i] = K; amb[i] = A;
         thOtrue[i] = stT.thetaO; thHtrue[i] = stT.thetaH;
         thOtwin[i] = stW.thetaO; thHtwin[i] = stW.thetaH;
-        thOmeas[i] = stT.thetaO + noiseK * gauss();
+        thOmeas[i] = stT.thetaO + noiseK * noise();
         resid[i] = thOmeas[i] - thOtwin[i];
       }
 
@@ -769,7 +1067,7 @@
         if (i >= w) acc -= resid[i - w];
         residSm[i] = acc / Math.min(i + 1, w);
       }
-      var band = DEMO.residSigma * noiseK / Math.sqrt(w);
+      var band = residBand(noiseK, opts);
 
       var stride = Math.max(1, Math.round(DEMO.residSpread * w));
       var flagIdx = -1, j, hit;
@@ -822,6 +1120,7 @@
       var winMin = opts.windowMin == null ? LIVE_WINDOW_MIN : opts.windowMin;
       var cap = Math.max(2, Math.round(winMin / dt));
       var noiseK = opts.noiseK == null ? DEMO.noiseK : opts.noiseK;
+      var noiseTau = opts.noiseTauMin == null ? DEMO.noiseTauMin : opts.noiseTauMin;
       var fScale = opts.faultScale == null ? DEMO.faultScale : opts.faultScale;
       var fBlend = opts.faultBlendMin == null ? DEMO.faultBlendMin : opts.faultBlendMin;
       var seed = opts.seed == null ? DEMO.seed : opts.seed;
@@ -831,7 +1130,9 @@
          fault; the plant object is the one whose dThOr is moved. */
       var Pnom = params(), Ptrue = params();
       var w = Math.max(1, Math.round(DEMO.smoothMin / dt));
-      var band = DEMO.residSigma * noiseK / Math.sqrt(w);
+      var band = residBand(noiseK, opts);
+      var deadFrac = opts.residDeadFrac == null ? DEMO.residDeadFrac : opts.residDeadFrac;
+      var dwellMin = opts.residDwellMin == null ? DEMO.residDwellMin : opts.residDwellMin;
       var stride = Math.max(1, Math.round(DEMO.residSpread * w));
       var hLen = (DEMO.residRun - 1) * stride + 1;
 
@@ -843,11 +1144,14 @@
       };
       var at = 0, count = 0;
 
-      var tNow = 0, prevK = 0, prevA = 0, stT = null, stW = null, gauss = null;
+      var tNow = 0, prevK = 0, prevA = 0, stT = null, stW = null, noise = null;
       var smBuf = null, smAcc = 0, smN = 0, smAt = 0;
       var hist = null, hAt = 0, hN = 0;
       var facFrom = 1, facTo = 1, facT0 = null, faultOn = false;
       var status = 'OK', onsetMin = null, flagMin = null, clearMin = null;
+      /* When the residual first came back inside the inner dead band, or null
+         if it is not in there now. The alarm drops when this is dwellMin old. */
+      var calmSince = null;
 
       /* The blend factor at the present simulated time. Reading it from the
          current time rather than storing it per step is what keeps a toggle
@@ -868,7 +1172,7 @@
 
       /* One sample: measure, difference, smooth, judge, store. */
       function push(K, A) {
-        var meas = stT.thetaO + noiseK * gauss();
+        var meas = stT.thetaO + noiseK * noise();
         var r = meas - stW.thetaO;
 
         if (smN === w) smAcc -= smBuf[smAt]; else smN++;
@@ -888,9 +1192,27 @@
             if (Math.abs(hist[q]) <= band) { outside = false; break; }
           }
           if (status === 'OK') {
-            if (outside) { status = 'FLAGGED'; flagMin = tNow; }
-          } else if (Math.abs(sm) <= band) {
-            status = 'OK'; flagMin = null;
+            if (outside) { status = 'FLAGGED'; flagMin = tNow; calmSince = null; }
+          } else {
+            /* Coming back is not the same test as going out. Standard alarm
+               practice, dead band plus dwell time: the residual has to be back
+               inside HALF the band, and stay there for dwellMin, before the
+               alarm is dropped. Both halves earn their keep here.
+               The dead band is what stops an alarm from chattering on the very
+               threshold that raised it. The dwell time is what carries the
+               verdict through the night: a cooling fault is nearly invisible at
+               the 0.50 pu load trough, so the residual of a plant that is still
+               faulted sags towards the band in the small hours and comes back
+               up with the morning load. Without the dwell the tab would report
+               the plant healthy for a couple of hours every night while the
+               fault is still running, which is a false negative dressed up as a
+               recovery. */
+            if (Math.abs(sm) <= deadFrac * band) {
+              if (calmSince == null) calmSince = tNow;
+            } else calmSince = null;
+            if (calmSince != null && tNow - calmSince >= dwellMin) {
+              status = 'OK'; flagMin = null; calmSince = null;
+            }
           }
         }
 
@@ -916,11 +1238,11 @@
       function reset() {
         var tA = -(cap - 1) * dt;
         at = 0; count = 0;
-        gauss = gaussFactory(mulberry32(seed));
+        noise = arNoiseFactory(mulberry32(seed), noiseTau, dt);
         smBuf = new Float64Array(w); smAcc = 0; smN = 0; smAt = 0;
         hist = new Float64Array(hLen); hAt = 0; hN = 0;
         facFrom = 1; facTo = 1; facT0 = null; faultOn = false;
-        status = 'OK'; onsetMin = null; flagMin = null; clearMin = null;
+        status = 'OK'; onsetMin = null; flagMin = null; clearMin = null; calmSince = null;
         Ptrue.dThOr = IEC.dThOr;
         stT = warmUp(Pnom, dopts, dt, DEMO.warmMin, tA);
         stW = copyState(stT);
@@ -956,7 +1278,18 @@
           for (i = 0; i < m; i++) advance();
         },
         /* Inject or clear at the present simulated time. Never moves time,
-           never clears the ring. */
+           never clears the ring, and may be called as often and as erratically
+           as a presenter can press a button.
+           The blend always starts from facNow(), so a press in the middle of a
+           blend bends the parameter from where it stands: the plant temperature
+           has no step in it no matter how the button is worked.
+           Injecting also opens a new EPISODE. The onset moves to now and the
+           flag of the previous episode is dropped, because "flagged 40 min
+           after onset" has to refer to the onset that is on the screen. The
+           detector itself is not reset: its history of smoothed residuals is
+           the data, not the verdict, so if the residual is still outside the
+           band from the last episode the status comes straight back, which is
+           exactly what "the status follows the residual" means. */
         setFault: function (on) {
           on = !!on;
           if (on === faultOn) return;
@@ -964,8 +1297,10 @@
           facTo = on ? fScale : 1;
           facT0 = tNow;
           faultOn = on;
-          if (on) { onsetMin = tNow; clearMin = null; }
-          else clearMin = tNow;
+          if (on) {
+            onsetMin = tNow; clearMin = null;
+            flagMin = null; status = 'OK'; calmSince = null;
+          } else clearMin = tNow;
         },
         reset: reset
       };
@@ -986,7 +1321,14 @@
        so the slider on the tab moves the evening peak and nothing else.
        opts.loadMean and opts.loadAmp are passed through to the driver for
        callers that would rather state the daily profile outright than scale
-       the default one; both default to the demo day, 0.75 pu and 0.25 pu. */
+       the default one; both default to the demo day, 0.75 pu and 0.25 pu.
+       Whatever profile is asked for, it is eased in over the first
+       FCST_BLEND_MIN of the horizon (see loadAt): the plant does not learn
+       tomorrow's peak at midnight and jump to it, and without the blend every
+       slider position but the nominal one starts the forecast with a step in
+       load and a hot-spot overshoot that is pure artefact. */
+    var FCST_BLEND_MIN = 360;      // 6 h, about two oil time constants
+
     function forecast(peakScale, opts) {
       opts = opts || {};
       peakScale = peakScale == null ? 1 : peakScale;
@@ -994,7 +1336,11 @@
       var dt = opts.dtMin == null ? 5 : opts.dtMin;
       var nH = Math.round(DEMO.histHours * 60 / dt) + 1;
       var nF = Math.round(DEMO.fcstHours * 60 / dt) + 1;
-      var base = { peakScale: peakScale };
+      /* opts.blendMin exists for the self test, which has to be able to look at
+         the same forecast without the ramp to show what the ramp removes. The
+         page never passes it. */
+      var blendMin = opts.blendMin == null ? FCST_BLEND_MIN : opts.blendMin;
+      var base = { peakScale: peakScale, loadBlendMin: blendMin };
       if (opts.loadMean != null) base.loadMean = opts.loadMean;
       if (opts.loadAmp != null) base.loadAmp = opts.loadAmp;
       var Pnom = params();
@@ -1045,6 +1391,10 @@
         var mo = {
           peakScale: peakScale * (1 + 0.06 * gauss()),
           loadMean: base.loadMean, loadAmp: base.loadAmp,
+          /* The blend is part of the day, not part of the draw: a member that
+             disagrees about tomorrow's peak still starts from the load the
+             plant is on right now. */
+          loadBlendMin: base.loadBlendMin,
           ambOffset: 1.5 * gauss(),
           ambTrendPerDay: 1.5 * gauss()
         };
@@ -1089,56 +1439,67 @@
     }
 
     /* ── Level 4: prescriptive ────────────────────────────────────────────
-       The premise: the neighbouring transformer is lost, and 1.3 pu has to be
-       carried for 4 h some time in the next 24 h. WHAT is carried is fixed;
-       only WHEN is open. All three options therefore serve exactly the same
-       energy, 1.30 pu times 4 h, and the whole difference between them is the
-       state of the tank and the ambient at the moment the load arrives:
-         A  run now      07:00 to 11:00
-         B  wait         00:00 to 04:00
-         C  split it     07:00 to 09:00 and 00:00 to 02:00
-       Each option is integrated over 36 h from midnight, which covers B's
-       window and leaves the tank time to come back down, and is scored on peak
-       hot spot, feasibility against the IEC 60076-7 Table 5 normal cyclic
-       limit of 120 C, and ageing consumed, the latter as equivalent
-       normal-ageing days, integral of 2^((thetaH - 98)/6) over 24 h. The
+       The premise: the neighbouring transformer is lost, and 1.30 pu has to be
+       carried for 4 h some time in the next 24 h. WHAT is carried is fixed and
+       so is how long: only the START of the four hours is open. All three
+       options therefore serve exactly the same energy, 1.30 pu times 4 h, and
+       every difference between them comes from the state of the tank and of
+       the air at the moment the load arrives:
+         early      04:00 to 08:00
+         afternoon  15:00 to 19:00
+         night      22:00 to 02:00
+       Each option is integrated over 36 h from midnight, which covers the
+       night window and leaves the tank time to come back down, and is scored
+       on peak hot spot, feasibility against the IEC 60076-7 Table 5 normal
+       cyclic limit of 120 C, and ageing consumed, the latter as equivalent
+       normal-ageing days, the integral of 2^((thetaH - 98)/6) over 24 h. The
        recommendation is the feasible option with the least ageing.
        Same kilowatt hours, different paper: that is the point of the tab.
 
-       Two results here are worth knowing before reading the numbers.
-       First, waiting for the cool hours buys much less than it sounds like it
-       should. The tank low-passes the ambient with tauO = 210 min, which
-       attenuates a 24 h swing to about 0.74 of its amplitude and delays it by
-       roughly 42 degrees, so the effective ambient at 02:00 is nowhere near
-       the 15 C the thermometer shows. Option B wins about 2.7 K on the peak,
-       not the 10 K the raw ambient curve suggests.
-       Second, splitting wins on a different mechanism entirely: a 2 h window
-       does not reach steady state. With k11*tauO = 105 min the oil is still
-       climbing when the window ends, which is why C peaks below B even though
-       half of C sits in A's warm morning slot. */
+       The base case, the same day with no transfer at all, is computed
+       alongside and returned with the options. It is what the unit would have
+       done anyway, and it is the only way to see on the chart how much of the
+       curve is the contingency and how much is Tuesday.
+
+       Two results are worth knowing before reading the numbers. Both are
+       measured on this model, over a sweep of all 24 start hours at daily
+       means of 20, 21, 22, 23 and 24 C (numbers below at 20 C, the mean this
+       tab runs on).
+
+       First, what decides is the tank, not the thermometer. The oil low-passes
+       the ambient with tauO = 210 min, which attenuates a 24 h swing to about
+       0.74 of its amplitude and delays it by roughly 42 degrees, so the air
+       temperature at the window is a poor predictor of the peak. The hot spot
+       AT THE START of the window is a good one: 63 C at 04:00 against 88 C at
+       22:00, and the mean hot spot during the four hours follows it, 107.6 C
+       against 115.3 C. Six kelvin is one doubling of the ageing rate, which is
+       where the whole margin between the two feasible options comes from.
+       Second, the room is narrow. At 1.30 pu the ONAN steady state is about
+       ambient + 103 K, so at a 22 C daily mean, the ordinary demo day of tabs
+       1 to 3, every window from 06:00 onwards is already over the 120 C line
+       and there is nothing left to decide. At 20 C the picture separates:
+       feasible from 23:00 through 06:00, over the limit for the rest of the
+       day, best at 04:00. */
     var CONT_K = 1.30;             // pu, fixed by the premise, not a tuning knob
     var CONT_HOURS = 36;           // integration window from midnight, h
-    /* The contingency day is the ordinary demo day of tabs 1 to 3, 22 C mean,
-       and not a warmer one invented for this tab. At 1.30 pu the ONAN steady
-       state is about ambient + 103 K, so the whole family of options sits
-       within a few kelvin of the 120 C line: at a 23 C daily mean every option
-       including the night one is already over it, and there is nothing left to
-       decide. 22 C is the warmest mean at which the tab has an answer. */
-    var CONT_AMB_MEAN = 22;
+    /* A cooler day than tabs 1 to 3, and the warmest at which this tab has a
+       story: see the sweep above. Below 20 C the afternoon stops failing;
+       above it, the morning stops passing. */
+    var CONT_AMB_MEAN = 20;
 
+    /* Windows in minutes from midnight. The night option runs across midnight
+       into the second simulated day, which is why the horizon is 36 h and not
+       24 h. Measured at CONT_AMB_MEAN, 1.30 pu, over 36 h:
+         04:00 to 08:00   peak 117.0 C, 0.98 d   feasible, recommended
+         15:00 to 19:00   peak 125.4 C, 2.87 d   over the limit
+         22:00 to 02:00   peak 119.0 C, 1.62 d   feasible
+       The base case, no transfer, peaks at 93.7 C and consumes 0.15 d. The
+       recommendation therefore ages the paper 40 % less than the other
+       feasible option and roughly a third as fast as the afternoon. */
     var SCENARIO_DEFS = [
-      {
-        id: 'A', name: 'Run now', label: '1.30 pu, 07:00 to 11:00',
-        windows: [[7 * 60, 11 * 60]]
-      },
-      {
-        id: 'B', name: 'Shift to night', label: '1.30 pu, 00:00 to 04:00',
-        windows: [[24 * 60, 28 * 60]]
-      },
-      {
-        id: 'C', name: 'Split', label: '1.30 pu, 07:00 to 09:00 and 00:00 to 02:00',
-        windows: [[7 * 60, 9 * 60], [24 * 60, 26 * 60]]
-      }
+      { id: 'early', label: '04:00 - 08:00', windows: [[4 * 60, 8 * 60]] },
+      { id: 'afternoon', label: '15:00 - 19:00', windows: [[15 * 60, 19 * 60]] },
+      { id: 'night', label: '22:00 - 02:00', windows: [[22 * 60, 26 * 60]] }
     ];
 
     function scenarios(opts) {
@@ -1149,8 +1510,11 @@
       var windowK = opts.windowK == null ? CONT_K : opts.windowK;
       var Pnom = params();
       var n = Math.round(CONT_HOURS * 60 / dt) + 1;
-      var out = SCENARIO_DEFS.map(function (d) {
-        var o = { ambMean: ambMean, windows: d.windows, windowK: windowK };
+
+      /* One 36 h run on the given transfer windows, from a tank warmed up on
+         the same day. An empty window list is the base case. */
+      function runOne(windows) {
+        var o = { ambMean: ambMean, windows: windows, windowK: windowK };
         var st = warmUp(Pnom, o, dt);
         var t = new Float64Array(n), thH = new Float64Array(n), thO = new Float64Array(n);
         var load = new Float64Array(n);
@@ -1172,76 +1536,256 @@
              asserted from the definition because it is the claim the whole tab
              rests on: same job, different hour. */
           inW = false;
-          for (k = 0; k < d.windows.length; k++) {
-            if (tm >= d.windows[k][0] && tm < d.windows[k][1]) { inW = true; break; }
+          for (k = 0; k < windows.length; k++) {
+            if (tm >= windows[k][0] && tm < windows[k][1]) { inW = true; break; }
           }
           if (inW) served += load[i] * dt / 60;
           if (thH[i] > peak) { peak = thH[i]; peakAt = tm; }
         }
         return {
-          id: d.id, name: d.name, label: d.label, windows: d.windows, K: windowK,
           t: t, dtMin: dt, thH: thH, thO: thO, load: load,
           peak: peak, peakAtMin: peakAt,
-          agingDays: agingDaysOf(thH, dt),
-          servedPuH: served,
-          feasible: peak <= limit,
-          recommended: false
+          agingDays: agingDaysOf(thH, dt), servedPuH: served
         };
+      }
+
+      var options = SCENARIO_DEFS.map(function (d) {
+        var r = runOne(d.windows);
+        r.id = d.id; r.label = d.label; r.windows = d.windows; r.K = windowK;
+        r.feasible = r.peak <= limit;
+        r.recommended = false;
+        return r;
       });
       /* Recommend the feasible option that consumes the least insulation
          life. Feasibility first, because a cheaper option that breaks the
          120 C limit is not an option. */
       var best = null, i;
-      for (i = 0; i < out.length; i++) {
-        if (out[i].feasible && (best === null || out[i].agingDays < best.agingDays)) best = out[i];
+      for (i = 0; i < options.length; i++) {
+        if (options[i].feasible &&
+          (best === null || options[i].agingDays < best.agingDays)) best = options[i];
       }
       if (best) best.recommended = true;
-      return out;
+      var base = runOne([]);
+      base.id = 'base'; base.label = 'no transfer'; base.windows = [];
+      return {
+        options: options, base: base, limitC: limit, K: windowK,
+        hours: CONT_HOURS, dtMin: dt, ambMean: ambMean
+      };
     }
 
     /* ── Level 5: autonomous ──────────────────────────────────────────────
-       A two-day heat wave, closed loop. Every DEMO.ctrlMin the controller
-       looks at the hot spot and acts, in this order of escalation:
+       A two-day heat wave, closed loop, and the twin sitting INSIDE the loop:
+       every DEMO.ctrlMin the controller integrates the same IEC 60076-7 model
+       forward over DEMO.horizonMin on the known load schedule and an imperfect
+       ambient forecast, and then acts on the hot spot it PREDICTS rather than
+       on the one it measures. That is the whole difference between this tab
+       and a thermostat, which is a machine that also switches at a threshold
+       and needs no model at all to do it.
+       The order of escalation is unchanged:
          1  cooling stage, hysteresis 95 C on / 85 C off. Cheap and reversible,
-            so it goes first.
-         2  load limiter, armed at 110 C, released at 100 C. While armed the
-            served load is capped at the value whose STEADY-STATE hot spot is
-            DEMO.limitTargetC at the present ambient and cooling stage, found
-            by bisection. Aiming at a steady state rather than at the present
-            temperature is what stops the limiter from hunting.
+            so it goes first. Both thresholds are read off ONE predicted
+            trajectory, the one the unit would follow with the fans OFF: it
+            would cross 95 C, so start them; it would stay under 85 C for the
+            whole horizon even without them, so stop them.
+         2  load cap, armed at 110 C, released at 100 C, both on the predicted
+            trajectory with the cap lifted. While armed the served load is
+            capped at the value that holds the PREDICTED peak at
+            DEMO.limitTargetC, found by bisection over the forward integration.
+            The reactive version of this aimed the steady state of the present
+            ambient at the same number, which is a fair rule and arrives late:
+            by the time the hot spot is at 110 C the oil already carries the
+            energy that will take it past 115 C.
          3  trip, latched at 140 C, the IEC 60076-7 Table 5 long-time emergency
-            limit. It never fires in the demo day; it is in here because a loop
-            without a last resort is not a loop you would connect.
+            limit, and REACTIVE on the measured value on purpose. A protection
+            function that waits for a forecast is a protection function that
+            can be talked out of operating by a model error; prediction may
+            bring an action forward, it may not hold one back.
+       opts.predictive = false runs the same plant with the old threshold
+       controller, which is what makes the gain measurable rather than claimed.
        Everything is precomputed. The tab replays the arrays. */
+
+    /* The demand of the two heat-wave days, as [minute, pu] knots of one day,
+       repeated. A morning pickup rather than a cosine: 0.85 pu at 10:00 rising
+       to 1.35 pu by 13:00, held to 20:00, released overnight. 0.17 pu/h is an
+       ordinary industrial morning and not a trap built for the demo, but it is
+       three times the slope of the cosine day of the other tabs, and that is
+       what a controller with no forecast has no answer to: on this ramp the
+       hot spot passes the fan threshold while it is still climbing hard. */
+    var AUTO_DAY = [[0, 0.80], [360, 0.75], [600, 0.85], [780, 1.35],
+                    [1200, 1.35], [1380, 0.85]];
+
+    function autoDemand(d0, d1) {
+      var r = [], d, i;
+      for (d = d0; d <= d1; d++) {
+        for (i = 0; i < AUTO_DAY.length; i++) {
+          r.push([AUTO_DAY[i][0] + d * DAY_MIN, AUTO_DAY[i][1]]);
+        }
+      }
+      return r;
+    }
+
+    /* The ambient the CONTROLLER believes in, as opposed to ambientAt, which is
+       the air the plant actually stands in. Cold and late, see DEMO.fcstBiasK
+       and DEMO.fcstLagMin. */
+    function ambientForecast(tMin, o) {
+      return ambientAt(tMin - DEMO.fcstLagMin, o) + DEMO.fcstBiasK;
+    }
+
+    /* Integrate the model forward from a COPY of the present state. The load is
+       the schedule, capped at Kcap for the whole horizon, because that is what
+       the controller would actually hold; the ambient is the forecast, errors
+       and all. Returns the predicted hot spot at every step. */
+    function predictAhead(st0, P, tNow, horizonMin, Kcap, o, dt) {
+      var stp = copyState(st0);
+      var m = Math.max(1, Math.round(horizonMin / dt));
+      var out = new Float64Array(m), j, tm;
+      for (j = 0; j < m; j++) {
+        tm = tNow + j * dt;
+        stepThermal(stp, Math.min(loadAt(tm, o), Kcap), ambientForecast(tm, o), dt, P,
+          Math.min(loadAt(tm + dt, o), Kcap), ambientForecast(tm + dt, o));
+        out[j] = stp.thetaH;
+      }
+      return out;
+    }
+
+    function peakOf(a) {
+      var v = -Infinity, at = 0, j;
+      for (j = 0; j < a.length; j++) if (a[j] > v) { v = a[j]; at = j; }
+      return { v: v, j: at };
+    }
+
+    /* The largest cap whose predicted peak stays at or under targetC. Bisection
+       over the forward integration: the predicted peak is monotone in the cap,
+       and 18 halvings of [capFloor, 2.5] pu land well inside the width of a
+       tap. Floored, see DEMO.capFloorPu. */
+    function capForForecast(st0, P, tNow, horizonMin, o, dt, targetC) {
+      var lo = DEMO.capFloorPu, hi = 2.5, mid, j;
+      if (peakOf(predictAhead(st0, P, tNow, horizonMin, hi, o, dt)).v <= targetC) return hi;
+      for (j = 0; j < 18; j++) {
+        mid = 0.5 * (lo + hi);
+        if (peakOf(predictAhead(st0, P, tNow, horizonMin, mid, o, dt)).v <= targetC) lo = mid;
+        else hi = mid;
+      }
+      return lo;
+    }
+
     function autoRun(opts) {
       opts = opts || {};
+      var predictive = opts.predictive !== false;
       var dt = DEMO.dtMin;
+      var hzn = opts.horizonMin == null ? DEMO.horizonMin : opts.horizonMin;
       var hours = opts.hours == null ? 48 : opts.hours;
       var n = Math.round(hours * 60 / dt) + 1;
-      var o = { heatwave: true, loadMean: 1.00, loadAmp: 0.35 };
+      var o = { heatwave: true, ramp: autoDemand(-2, 3) };
       var Pan = params(), Paf = paramsFan();
+      /* The three load-cap thresholds, shiftable together. Only the selftest
+         uses the shift: a reactive loop that is asked to DELIVER the peak the
+         predictive one delivers has to be set lower than 110/105/100, because
+         it always overshoots its own arming threshold, and the comparison of
+         the two at equal peak is the comparison that means something. */
+      var shift = opts.thrShiftC || 0;
+      var armC = DEMO.limitOnC + shift;
+      var tgtC = DEMO.limitTargetC + shift;
+      var offC = DEMO.limitOffC + shift;
       var ctrlEvery = Math.max(1, Math.round(DEMO.ctrlMin / dt));
 
       var fans = false, limited = false, tripped = false;
       var Kmax = Infinity;
-
-      /* Warm-up with the controller running, so t = 0 inherits a settled
-         cooling stage instead of switching in the first minute of the plot. */
       var P = Pan;
+      var events = [];
+
+      function log(tMin, sense, decide, act) {
+        events.push({ tMin: tMin, sense: sense, decide: decide, act: act });
+      }
+
+      /* "hot spot 88.4 C, forecast 96.1 C in 40 min": what the loop had in
+         front of it when it decided, measured value and prediction side by
+         side, so the log can be read against the chart. */
+      function sense(st, pk) {
+        return 'hot spot ' + st.thetaH.toFixed(1) + ' C, forecast ' +
+          pk.v.toFixed(1) + ' C in ' + ((pk.j + 1) * dt) + ' min';
+      }
+
+      /* One controller tick. Mutates fans, limited, tripped, Kmax and P, and
+         returns the trajectory it expects to follow from here, which is what
+         the chart draws at the cursor. doLog is off during the warm-up. */
+      function control(st, tm, doLog) {
+        var A = ambientAt(tm, o);
+        var was = fans, wasLim = limited, pk, pkFree;
+
+        /* Trip first and on the measured temperature, see the header. */
+        if (!tripped && st.thetaH >= DEMO.tripC) {
+          tripped = true;
+          if (doLog) {
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
+              'above the 140 C emergency limit, measured, not predicted',
+              'trip, load to zero, latched');
+          }
+        }
+
+        if (!predictive) {
+          if (!fans && st.thetaH >= DEMO.fanOnC) fans = true;
+          else if (fans && st.thetaH <= DEMO.fanOffC) fans = false;
+          if (doLog && fans !== was) {
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
+              fans ? 'above the 95 C fan-on threshold' : 'below the 85 C fan-off threshold',
+              fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
+          }
+          P = fans ? Paf : Pan;
+          if (!limited && st.thetaH >= armC) limited = true;
+          else if (limited && st.thetaH <= offC) limited = false;
+          Kmax = limited ? kForHotspot(tgtC, A, P) : Infinity;
+          if (doLog && limited !== wasLim) {
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
+              limited ? 'above the ' + armC + ' C limiter threshold'
+                : 'below the ' + offC + ' C release threshold',
+              limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu' : 'load limit released');
+          }
+          return predictAhead(st, P, tm, hzn, Kmax, o, dt);
+        }
+
+        /* Cooling stage, on the trajectory the unit would follow with the fans
+           off. Both thresholds on the same predicted quantity, so the 10 K
+           hysteresis means what it meant before. */
+        pk = peakOf(predictAhead(st, Pan, tm, hzn, Kmax, o, dt));
+        if (!fans && pk.v >= DEMO.fanOnC) fans = true;
+        else if (fans && pk.v <= DEMO.fanOffC) fans = false;
+        if (doLog && fans !== was) {
+          log(tm, sense(st, pk),
+            fans ? 'predicted to cross the ' + DEMO.fanOnC + ' C fan threshold within ' +
+              hzn + ' min'
+              : 'predicted to stay under the ' + DEMO.fanOffC +
+                ' C fan-off threshold without fans',
+            fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
+        }
+        P = fans ? Paf : Pan;
+
+        /* Load cap, on the trajectory with no cap at all: that is the question
+           the arming threshold asks. */
+        pkFree = peakOf(predictAhead(st, P, tm, hzn, Infinity, o, dt));
+        if (!limited && pkFree.v >= armC) limited = true;
+        else if (limited && pkFree.v <= offC) limited = false;
+        Kmax = limited ? capForForecast(st, P, tm, hzn, o, dt, tgtC) : Infinity;
+        if (doLog && limited !== wasLim) {
+          log(tm, sense(st, pkFree),
+            limited ? 'predicted to cross the ' + armC + ' C cap threshold within ' +
+              hzn + ' min'
+              : 'predicted peak below the ' + offC + ' C release threshold',
+            limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu, forecast peak held at ' +
+              tgtC + ' C'
+              : 'load cap released');
+        }
+        return predictAhead(st, P, tm, hzn, Kmax, o, dt);
+      }
+
+      /* Warm-up with the controller already running, so t = 0 inherits a
+         settled cooling stage instead of switching in the first minute of the
+         plot. Nothing is logged and nothing is stored here. */
       var st = initState(loadAt(-DEMO.warmMin, o), ambientAt(-DEMO.warmMin, o), P);
       var tm, K, Ks, A, i, c = 0;
       for (tm = -DEMO.warmMin; tm < 0; tm += dt) {
         A = ambientAt(tm, o);
-        if (c % ctrlEvery === 0) {
-          if (st.thetaH != null) {
-            if (!fans && st.thetaH >= DEMO.fanOnC) fans = true;
-            else if (fans && st.thetaH <= DEMO.fanOffC) fans = false;
-            P = fans ? Paf : Pan;
-            if (!limited && st.thetaH >= DEMO.limitOnC) limited = true;
-            else if (limited && st.thetaH <= DEMO.limitOffC) limited = false;
-            Kmax = limited ? kForHotspot(DEMO.limitTargetC, A, P) : Infinity;
-          }
-        }
+        if (c % ctrlEvery === 0 && st.thetaH != null) control(st, tm, false);
         c++;
         K = loadAt(tm, o); Ks = Math.min(K, Kmax);
         stepThermal(st, Ks, A, dt, P, Math.min(loadAt(tm + dt, o), Kmax), ambientAt(tm + dt, o));
@@ -1249,12 +1793,12 @@
 
       var t = new Float64Array(n), thH = new Float64Array(n), thO = new Float64Array(n);
       var Kdem = new Float64Array(n), Kserved = new Float64Array(n), amb = new Float64Array(n);
-      var stage = new Array(n), events = [];
-      var prevKs = null;
-
-      function log(tMin, sense, decide, act) {
-        events.push({ tMin: tMin, sense: sense, decide: decide, act: act });
-      }
+      var stage = new Array(n);
+      /* One predicted trajectory per controller tick, and for every sample the
+         tick it belongs to, so the chart can draw the look-ahead the loop had
+         at the cursor. 288 ticks times 45 samples, which is nothing. */
+      var preds = [], predIdx = new Int32Array(n), predDtMin = dt;
+      var prevKs = null, curPred = -1;
 
       c = 0;
       for (i = 0; i < n; i++) {
@@ -1268,30 +1812,26 @@
         }
 
         if (c % ctrlEvery === 0) {
-          var was = fans, wasLim = limited;
-          if (!tripped && st.thetaH >= DEMO.tripC) {
-            tripped = true;
-            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C', 'above the 140 C emergency limit',
-              'trip, load to zero, latched');
-          }
-          if (!fans && st.thetaH >= DEMO.fanOnC) fans = true;
-          else if (fans && st.thetaH <= DEMO.fanOffC) fans = false;
-          if (fans !== was) {
-            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
-              fans ? 'above the 95 C fan-on threshold' : 'below the 85 C fan-off threshold',
-              fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
-          }
-          P = fans ? Paf : Pan;
-          if (!limited && st.thetaH >= DEMO.limitOnC) limited = true;
-          else if (limited && st.thetaH <= DEMO.limitOffC) limited = false;
-          Kmax = limited ? kForHotspot(DEMO.limitTargetC, A, P) : Infinity;
-          if (limited !== wasLim) {
-            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
-              limited ? 'above the 110 C limiter threshold' : 'below the 100 C release threshold',
-              limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu' : 'load limit released');
+          preds.push({ tMin: tm, h: control(st, tm, true) });
+          curPred = preds.length - 1;
+          /* The handover line. The warm-up ran the same loop over the previous
+             evening, so t = 0 can legitimately start with the fans already
+             turning, and a tab that shows ONAF next to "0 decisions" reads like
+             a contradiction. Switching the fans off at t = 0 to make the count
+             tidy would be the dishonest fix, because it would be a state the
+             plant was never in; saying out loud what was inherited is the other
+             one. It is a real tick with a real forecast, it simply decided that
+             nothing had to change. */
+          if (i === 0) {
+            var p0 = peakOf(preds[0].h);
+            log(0, sense(st, p0),
+              'forecast peak under the ' + armC + ' C cap threshold, no change due',
+              'carried over from the night: cooling stage ' + (fans ? 'ONAF' : 'ONAN') +
+              ', no load cap');
           }
         }
         c++;
+        predIdx[i] = curPred;
 
         K = loadAt(tm, o);
         Ks = tripped ? 0 : Math.min(K, Kmax);
@@ -1302,10 +1842,17 @@
         prevKs = { K: Ks, A: A, P: P };
       }
 
+      /* Curtailed energy in pu hours: the whole cost of the loop, in the unit
+         the dispatcher is billed in. */
+      var curtailed = 0;
+      for (i = 0; i < n; i++) curtailed += (Kdem[i] - Kserved[i]) * dt / 60;
+
       return {
         t: t, dtMin: dt, thH: thH, thO: thO, amb: amb,
         Kdem: Kdem, Kserved: Kserved, stage: stage, events: events,
-        agingDays: agingDaysOf(thH, dt), tripped: tripped
+        preds: preds, predIdx: predIdx, predDtMin: predDtMin,
+        horizonMin: hzn, predictive: predictive,
+        agingDays: agingDaysOf(thH, dt), curtailedPuH: curtailed, tripped: tripped
       };
     }
 
@@ -1315,8 +1862,10 @@
       steadyState: steadyState, initState: initState, stepThermal: stepThermal,
       copyState: copyState, warmUp: warmUp, kForHotspot: kForHotspot,
       agingRate: agingRate, agingDaysOf: agingDaysOf,
-      mulberry32: mulberry32, gaussFactory: gaussFactory,
+      mulberry32: mulberry32, gaussFactory: gaussFactory, arNoiseFactory: arNoiseFactory,
+      valueNoise: valueNoise, plShapeZ: plShapeZ, residBand: residBand,
       ambientAt: ambientAt, loadAt: loadAt,
+      ambientForecast: ambientForecast, predictAhead: predictAhead,
       simPlant: simPlant, makeLive: makeLive, LIVE_WINDOW_MIN: LIVE_WINDOW_MIN,
       forecast: forecast, scenarios: scenarios, autoRun: autoRun
     };
@@ -1541,7 +2090,7 @@
         <div className="lv-legend">
           ${items.map((it) => html`
             <span key=${it.label} style=${{ color: it.color }}>
-              <i className=${it.band ? 'lv-sw' : ''}></i>
+              <i className=${it.band ? 'lv-sw' : it.dash ? 'lv-dash' : ''}></i>
               <span style=${{ color: 'var(--tool-note)' }}>${it.label}</span>
             </span>
           `)}
@@ -1557,6 +2106,27 @@
             onChange=${(e) => onChange(parseFloat(e.target.value))} />
           <span className="lv-ctlval">${format(value)}</span>
         </div>
+      `;
+    }
+
+    /* The one control of the descriptive tab. The button carries the ACTION,
+       not the state: a running strip shows the pause bars, a paused one the
+       play triangle, which is the convention every media player has taught the
+       room already. Both marks are inline SVG rather than font glyphs, so they
+       keep their proportions everywhere and neither turns into a colour emoji.
+       The word is in the aria-label, where a screen reader can reach it. */
+    function PlayButton({ running, onClick }) {
+      const mark = running
+        ? html`<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"
+            aria-hidden="true"><rect x="3.6" y="2.4" width="3.4" height="11.2" rx="1.3"/>
+            <rect x="9" y="2.4" width="3.4" height="11.2" rx="1.3"/></svg>`
+        : html`<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"
+            stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"
+            aria-hidden="true"><path d="M5 3.6 12.4 8 5 12.4Z"/></svg>`;
+      return html`
+        <button type="button" className=${'lv-playbtn' + (running ? ' secondary' : '')}
+          aria-label=${running ? 'pause' : 'resume'} title=${running ? 'pause' : 'resume'}
+          onClick=${onClick}>${mark}</button>
       `;
     }
 
@@ -1584,7 +2154,7 @@
       {
         id: 'diagnostic', label: 'Diagnostic',
         title: 'Level 2, why it is happening',
-        body: 'The difference between the two traces, smoothed over 30 min, against a band at three sigma of the sensor noise. Cooling degrades and the residual walks out of the band.'
+        body: 'The difference between the two traces, smoothed over 30 min, against a band measured on the healthy plant. Cooling degrades and the residual walks out of the band.'
       },
       {
         id: 'predictive', label: 'Predictive',
@@ -1594,7 +2164,7 @@
       {
         id: 'prescriptive', label: 'Prescriptive',
         title: 'Level 4, what to do about it',
-        body: 'Three contingency dispatches, each scored on peak hot spot, feasibility against the 120 C cyclic limit, and days of insulation life consumed.'
+        body: 'The same 4 h transfer offered at three different hours, scored on peak hot spot, feasibility against the 120 C cyclic limit, and days of insulation life consumed.'
       },
       {
         id: 'autonomous', label: 'Autonomous',
@@ -1612,9 +2182,10 @@
        48 h, so the chart is full from the first frame, and leaving the tab
        unmounts the instance rather than leaving a frame request running
        behind a hidden canvas. */
-    const LIVE_RATE = 10;          // simulated minutes per second of wall clock, 600x
+    const LIVE_RATE = 20;          // simulated minutes per second of wall clock, 1200x
+    const LIVE_RATE_LABEL = '1200x';
     const LIVE_MAX_STEPS = 240;    // per frame, 8 h of simulated time, a backgrounded tab
-    const LIVE_TILE_MS = 100;      // how often the readouts are allowed to change
+    const LIVE_TILE_MS = 100;      // how often the text beside the strip may change
     const LIVE_TICK_MIN = 6 * 60;  // x axis tick and grid spacing
 
     function nowMs() {
@@ -1740,12 +2311,53 @@
       ctx.restore();
     }
 
+    /* Labels at the right-hand end of the curves, the way a strip recorder
+       writes the current value next to the pen. This is what replaces the row
+       of number tiles that used to sit over the chart: the same figures, but
+       standing on the line they belong to instead of in a separate row the eye
+       has to match up again.
+       `items` is [{ y, text, color, bold }] in canvas coordinates. Labels are
+       pushed apart to LABEL_MIN_DY so that two curves crossing each other do
+       not print on top of one another, which is the one thing that would make
+       the row unreadable at exactly the moment it matters. */
+    const LABEL_MIN_DY = 17;
+
+    function edgeLabels(ctx, x, items, yT, yB) {
+      const list = items.slice().sort((a, b) => a.y - b.y);
+      let prev = -Infinity;
+      list.forEach((it) => {
+        let y = Math.max(yT + 7, Math.min(yB - 5, it.y));
+        if (y - prev < LABEL_MIN_DY) y = prev + LABEL_MIN_DY;
+        prev = y;
+        it.yLab = y;
+      });
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      list.forEach((it) => {
+        ctx.fillStyle = it.color;
+        /* A dot on the curve and, where the label had to be nudged, a short
+           leader from the dot to it. */
+        ctx.beginPath(); ctx.arc(x, it.y, it.bold ? 4.5 : 3.5, 0, 2 * Math.PI); ctx.fill();
+        if (Math.abs(it.yLab - it.y) > 1.5) {
+          ctx.globalAlpha = 0.5;
+          ctx.strokeStyle = it.color;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x + 4, it.y); ctx.lineTo(x + 9, it.yLab); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        ctx.font = (it.bold ? '600 15px' : '14px') + ' system-ui, sans-serif';
+        ctx.fillText(it.text, x + 10, it.yLab);
+      });
+      ctx.restore();
+    }
+
     /* ── Level 1: descriptive ─────────────────────────────────────────────
        The trailing forty-eight hours of the demo plant on one canvas, in two
        lanes: the temperatures on top, the load factor underneath, sharing the
-       x axis. The window walks, the readouts follow the right-hand edge, and
-       the only control is Pause, for the moment on stage when the sentence
-       matters more than the animation.
+       x axis. The window walks, every curve writes its present value at the
+       right-hand edge, and the only control is Pause, for the moment on stage
+       when the sentence matters more than the animation.
        Three of the four traces are things a substation actually has. The
        fourth, the hot spot, is the one the tab is about, and it exists only
        because a model computed it.
@@ -1754,9 +2366,9 @@
        page. */
     const D1_H = 470;
     const D1 = {
-      /* padR leaves room for the half of the last clock label that sits past
-         the end of the axis. */
-      padL: 74, padR: 44,
+      /* padR holds the value labels at the ends of the curves, plus the half
+         of the last clock label that sits past the end of the axis. */
+      padL: 74, padR: 112,
       tT: 16, tB: 330,      // temperature lane
       sep: 342,
       kT: 356, kB: 440,     // load lane
@@ -1786,9 +2398,8 @@
         return niceRange(lo, hi, 5);
       }, []);
 
-      /* The chart follows every frame, the numbers ten times a second: a
-         readout that changes sixty times a second is a blur, and the tile row
-         is what the presenter reads out loud. */
+      /* The chart follows every frame, the clock in the status line ten times
+         a second: a readout that changes sixty times a second is a blur. */
       const onFrame = (dReal) => {
         st.pump(dReal);
         const t = nowMs();
@@ -1862,27 +2473,23 @@
 
         xAxis(ctx, x0, x1, D1.kB, t0, t1, LIVE_TICK_MIN, clockOf);
 
-        // The arrival edge, with the newest hot spot sitting on it.
+        // The arrival edge, with every curve writing its value beside it.
         liveEdge(ctx, x1, D1.tT, D1.kB, 'now');
         if (N > 0) {
-          ctx.save();
-          ctx.fillStyle = COL.accent;
-          ctx.beginPath(); ctx.arc(x1, yOfT(A.thHtwin[ph(N - 1)]), 4.5, 0, 2 * Math.PI); ctx.fill();
-          ctx.restore();
+          const j = ph(N - 1);
+          edgeLabels(ctx, x1, [
+            { y: yOfT(A.thHtwin[j]), text: A.thHtwin[j].toFixed(1) + ' °C', color: COL.accent, bold: true },
+            { y: yOfT(A.thOmeas[j]), text: A.thOmeas[j].toFixed(1) + ' °C', color: COL.text },
+            { y: yOfT(A.thA[j]), text: A.thA[j].toFixed(1) + ' °C', color: COL.note }
+          ], D1.tT, D1.tB);
+          edgeLabels(ctx, x1, [
+            { y: yOfK(A.K[j]), text: A.K[j].toFixed(2) + ' pu', color: COL.label }
+          ], D1.kT, D1.kB);
         }
       };
 
-      const thH = live.last('thHtwin');
-      const rate = C.agingRate(thH);
       return html`
         <${React.Fragment}>
-          <div className="lv-tiles">
-            <${Tile} label="load" value=${live.last('K').toFixed(2)} unit="pu" />
-            <${Tile} label="ambient" value=${live.last('thA').toFixed(1)} unit="°C" />
-            <${Tile} label="top oil, measured" value=${live.last('thOmeas').toFixed(1)} unit="°C" />
-            <${Tile} label="hot spot, computed" value=${thH.toFixed(1)} unit="°C" emph=${true} />
-            <${Tile} label="ageing rate" value=${rate < 10 ? rate.toFixed(2) : rate.toFixed(1)} unit="x normal" />
-          </div>
           <${StripCanvas} height=${D1_H} drawRef=${drawRef} running=${running} onFrame=${onFrame} />
           <${Legend} items=${[
             { label: 'hot spot, computed', color: COL.accent },
@@ -1891,12 +2498,9 @@
             { label: 'load', color: COL.label }
           ]} />
           <div className="lv-act">
-            <button type="button" className=${running ? 'secondary' : ''}
-              onClick=${() => setRunning(!running)}>
-              ${running ? 'Pause' : 'Resume'}
-            </button>
+            <${PlayButton} running=${running} onClick=${() => setRunning(!running)} />
             <span className="lv-actnote">
-              ${'trailing 48 h, ' + clockOf(live.now()) + ', 600x' + (running ? '' : ', paused')}
+              ${'trailing 48 h, ' + clockOf(live.now()) + ', ' + LIVE_RATE_LABEL + (running ? '' : ', paused')}
             </span>
           </div>
         <//>
@@ -1955,19 +2559,24 @@
        Underneath their difference, which is the level 2 statement: a residual
        inside the band is a model that still fits, a residual outside it is a
        plant that has changed.
-       The band is analytic, not fitted to the data it judges. Sigma of a
-       15-sample mean of 0.5 K white sensor noise is 0.5 / sqrt(15) = 0.129 K,
-       and the band is three of those.
+       The band is 3.5 sigma of the smoothed residual of a healthy plant, and
+       that sigma is measured rather than derived: the sensor error is
+       correlated over half an hour, so a 30 min mean of it is nowhere near
+       sigma/sqrt(15) (see DEMO.residSmPerSigma).
        One plant, running. The button does exactly one thing: it starts, or
        stops, a cooling degradation AT THE PRESENT MOMENT of the stream. It
        never moves the clock, never clears the chart and never picks a
        prepared dataset. Injecting bends the rated top-oil rise up by 25 % over
-       2 h from now, clearing bends it back from wherever the blend had got
-       to, and the residual walks out of the band and later back into it on the
-       plant's own time constants. The onset and the flag are marked where
-       they happened and scroll off the left edge with everything else. */
+       2 h from now, clearing bends it back from wherever the blend had got to,
+       and the residual walks out of the band and later back into it on the
+       plant's own time constants. Pressing the button again in the middle of either blend
+       is a supported move and not an edge case: the blend restarts from where
+       it stands, the onset marker moves to the new press, a flag from the
+       previous episode is dropped, and the status keeps following the present
+       residual. The marks stand where they happened and scroll off the left
+       edge with everything else. */
     const D2_H = 462;
-    const D2 = { padL: 74, padR: 44, tT: 18, tB: 252, sep: 264, rT: 292, rB: 436 };
+    const D2 = { padL: 74, padR: 112, tT: 18, tB: 252, sep: 264, rT: 292, rB: 436 };
     const D2_HOURS = 48;
     /* The residual axis has to hold a band four tenths of a kelvin wide and a
        fault worth eleven, and the stream walks from one to the other without
@@ -2110,43 +2719,61 @@
 
         /* The onset, quietly, and the flag, not quietly. Both stand where they
            happened and leave the chart on the left edge like everything else:
-           what is on the screen is the last 48 h, no more and no less. */
-        const mark = (tm, col, label, dash, atY) => {
+           what is on the screen is the last 48 h, no more and no less.
+           The flag is the loud one on purpose: with the number tiles gone it is
+           the only place the word FLAGGED appears next to a time, and it has to
+           carry that from the back of a lecture hall. */
+        const mark = (tm, col, label, dash, atY, wide) => {
           if (tm == null || tm < t0 || tm > t1) return;
           const x = xOfT(tm), right = x > x1 - 250;
           ctx.save();
           ctx.strokeStyle = col;
-          ctx.lineWidth = 1.5;
-          ctx.globalAlpha = 0.85;
+          ctx.lineWidth = wide ? 2.6 : 1.5;
+          ctx.globalAlpha = wide ? 1 : 0.85;
           if (dash) ctx.setLineDash(dash);
           ctx.beginPath(); ctx.moveTo(x, D2.tT); ctx.lineTo(x, D2.tB); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(x, D2.rT); ctx.lineTo(x, D2.rB); ctx.stroke();
           ctx.setLineDash([]);
           ctx.globalAlpha = 1;
-          ctx.font = '600 13px system-ui, sans-serif';
-          ctx.fillStyle = col;
+          ctx.font = (wide ? '600 15px' : '600 13px') + ' system-ui, sans-serif';
           ctx.textAlign = right ? 'right' : 'left';
           ctx.textBaseline = 'top';
-          ctx.fillText(label, x + (right ? -6 : 6), atY);
+          /* The flag label gets the page ground painted under it, so it stays
+             legible where it lands on the residual trace. */
+          if (wide) {
+            const tw = ctx.measureText(label).width;
+            ctx.fillStyle = COL.ink;
+            ctx.globalAlpha = 0.88;
+            ctx.fillRect(x + (right ? -tw - 10 : 4), atY - 3, tw + 6, 21);
+            ctx.globalAlpha = 1;
+          }
+          ctx.fillStyle = col;
+          ctx.fillText(label, x + (right ? -6 : 7), atY);
           ctx.restore();
         };
-        mark(onsetMin, COL.note, 'cooling fault starts', [4, 4], D2.tT + 2);
+        mark(onsetMin, COL.note, 'cooling fault starts', [4, 4], D2.tT + 2, false);
         if (flagged && lagMin != null) {
           mark(flagMin, COL.bad,
-            'flagged, ' + lagMin.toFixed(0) + ' min after onset', null, D2.rT + 2);
+            'flagged, ' + lagMin.toFixed(0) + ' min after onset', null, D2.rT + 28, true);
         }
 
         xAxis(ctx, x0, x1, D2.rB, t0, t1, LIVE_TICK_MIN, clockOf);
 
-        // The arrival edge, carrying the two numbers in the tiles.
+        /* The arrival edge, carrying the numbers that used to sit in the tile
+           row: the two top-oil traces and the smoothed residual, each written
+           at the end of its own line. */
         liveEdge(ctx, x1, D2.tT, D2.tB, 'now');
         liveEdge(ctx, x1, D2.rT, D2.rB, null);
         if (N > 0) {
-          ctx.save();
-          ctx.fillStyle = COL.accent;
-          ctx.beginPath(); ctx.arc(x1, yOfT(A.thOtwin[ph(N - 1)]), 4, 0, 2 * Math.PI); ctx.fill();
-          ctx.beginPath(); ctx.arc(x1, yOfR(A.residSm[ph(N - 1)]), 4, 0, 2 * Math.PI); ctx.fill();
-          ctx.restore();
+          const j = ph(N - 1);
+          edgeLabels(ctx, x1, [
+            { y: yOfT(A.thOtwin[j]), text: A.thOtwin[j].toFixed(1) + ' °C', color: COL.accent, bold: true },
+            { y: yOfT(A.thOmeas[j]), text: A.thOmeas[j].toFixed(1) + ' °C', color: COL.text }
+          ], D2.tT, D2.tB);
+          edgeLabels(ctx, x1, [
+            { y: yOfR(A.residSm[j]), text: (smFull ? A.residSm[j].toFixed(2) : '--') + ' K',
+              color: flagged ? COL.bad : COL.accent, bold: true }
+          ], D2.rT, D2.rB);
         }
 
         ctx.save();
@@ -2155,7 +2782,25 @@
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillText('TOP OIL', x0 + 5, D2.tT + 2);
-        ctx.fillText('RESIDUAL, MEASURED MINUS MODELLED', x0 + 5, D2.sep + 5);
+        ctx.fillText('RESIDUAL, MEASURED MINUS MODELLED, BAND ' +
+          live.band.toFixed(2) + ' K', x0 + 5, D2.sep + 5);
+        ctx.restore();
+
+        /* The verdict, as a chip inside the residual panel. It is the one thing
+           the tab is for, so it is a word and a colour and not a number in a
+           row of numbers. */
+        ctx.save();
+        ctx.font = '600 15px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const chip = flagged ? 'FLAGGED' : 'OK';
+        const cw = ctx.measureText(chip).width;
+        ctx.fillStyle = flagged ? COL.bad : COL.good;
+        ctx.globalAlpha = 0.16;
+        ctx.fillRect(x0 + 5, D2.rT + 5, cw + 18, 25);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = flagged ? COL.bad : COL.good;
+        ctx.fillText(chip, x0 + 14, D2.rT + 9);
         ctx.restore();
       };
 
@@ -2171,21 +2816,11 @@
 
       return html`
         <${React.Fragment}>
-          <div className="lv-tiles">
-            <${Tile} label="residual, 30 min mean"
-              value=${smFull ? live.last('residSm').toFixed(2) : '--'}
-              unit=${smFull ? 'K' : ''} emph=${true} />
-            <${Tile} label="band, three sigma" value=${'±' + live.band.toFixed(2)} unit="K" />
-            <${Tile} label="status" value=${flagged ? 'FLAGGED' : 'OK'} unit=""
-              color=${flagged ? COL.bad : COL.good} />
-            <${Tile} label="detection lag" value=${flagged && lagMin != null ? lagMin.toFixed(0) : '--'}
-              unit=${flagged && lagMin != null ? 'min' : ''} />
-          </div>
           <${StripCanvas} height=${D2_H} drawRef=${drawRef} running=${true} onFrame=${onFrame} />
           <${Legend} items=${[
             { label: 'top oil, modelled', color: COL.accent },
             { label: 'top oil, measured', color: COL.text },
-            { label: 'band, three sigma of the smoothed sensor noise', color: COL.accent, band: true },
+            { label: 'band, 3.5 sigma of the smoothed residual, measured', color: COL.accent, band: true },
             { label: 'flag', color: COL.bad }
           ]} />
           <div className="lv-act">
@@ -2194,7 +2829,7 @@
               ${faulted ? 'Clear fault' : 'Inject cooling fault'}
             </button>
             <span className="lv-actnote">
-              ${state + ', ' + clockOf(live.now()) + ', 600x'}
+              ${state + ', ' + clockOf(live.now()) + ', ' + LIVE_RATE_LABEL}
             </span>
           </div>
         <//>
@@ -2211,7 +2846,11 @@
        demo day and the mean follows the peak, which is what a hotter or
        cooler week looks like on a distribution transformer. Scaling the
        amplitude around a fixed mean instead would push the trough down to
-       0.2 pu at the top of the slider, which is not a day anyone has. */
+       0.2 pu at the top of the slider, which is not a day anyone has.
+       Wherever the slider stands, the new profile is eased in over the first
+       6 h of the horizon (C.forecast, FCST_BLEND_MIN), so the forecast joins
+       the history without a step and the first hours carry no overshoot that
+       only the slider put there. */
     const P3_H = 470;
     const P3 = { padL: 74, padR: 26, tT: 20, tB: 424, xLab: 430 };
     const P3_TROUGH = 0.50;        // pu, the night load of the demo day
@@ -2234,7 +2873,9 @@
           if (fc.q05[k] < lo) lo = fc.q05[k];
           if (fc.q95[k] > hi) hi = fc.q95[k];
         }
-        return niceRange(lo, hi, 6);
+        /* Nine ticks, not six: at six the step rounds up to 20 K and the axis
+           runs to 140 C with the top third of it empty. */
+        return niceRange(lo, hi, 9);
       }, [fc]);
 
       const cvRef = useCanvas(P3_H, (ctx, w) => {
@@ -2279,6 +2920,26 @@
         refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
           C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
 
+        /* The one number on this tab that cannot be read off the chart: how
+           much of the ensemble crosses the ageing reference at some point in
+           the 48 h, which is not the same question as where the band sits at
+           the end. It is written where the answer is, under the line it is
+           about, and set like the other annotations rather than like a
+           readout. */
+        ctx.save();
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        /* Just above the line and just right of "now": the strip between the
+           two reference lines is empty in the first hours of every forecast
+           this slider can produce, and the placement says the number is about
+           what comes after now, not about the record. */
+        ctx.fillText((100 * fc.pOver98).toFixed(0) + ' % of ' + fc.n +
+          ' members cross ' + C.DEMO.overTemp + ' °C within ' + C.DEMO.fcstHours + ' h',
+          xOfH(0) + 10, yOf(C.DEMO.overTemp) - 6);
+        ctx.restore();
+
         // Where the record stops and the model starts.
         const xn = xOfH(0);
         ctx.save();
@@ -2305,12 +2966,6 @@
 
       return html`
         <${React.Fragment}>
-          <div className="lv-tiles">
-            <${Tile} label="median peak hot spot" value=${fc.medPeak.toFixed(1)} unit="°C" />
-            <${Tile} label=${'P(hot spot > ' + C.DEMO.overTemp + ' °C within 48 h)'}
-              value=${(100 * fc.pOver98).toFixed(0)} unit="%" emph=${true} />
-            <${Tile} label="ensemble members" value=${fc.n} unit="runs" />
-          </div>
           <canvas ref=${cvRef} className="lv-canvas" style=${{ height: P3_H + 'px' }}></canvas>
           <${Legend} items=${[
             { label: 'measured history', color: COL.text },
@@ -2329,10 +2984,13 @@
        canvas: the hot spot with the three thresholds the controller acts on,
        the demanded load against the served one with the gap between them
        shaded, and the cooling stage as a band along the floor.
-       The chart shows only what has already happened, and the log beside it
-       shows only the decisions already taken, because that is the whole claim
-       of the level: not that the loop is clever, but that every step of it is
-       written down. Sense, decide, act, with a timestamp.
+       The chart shows only what has already happened, plus the one thing that
+       has not: the dashed look-ahead at the cursor, the trajectory the
+       controller integrated forward at the last tick before it decided. The
+       log beside it shows only the decisions already taken, because that is
+       the whole claim of the level: not that the loop is clever, but that
+       every step of it is written down. Sense, decide, act, with a timestamp,
+       and the sense line carries the forecast the decision was made on.
        autoRun() computes all of it once. The playback moves an index. */
     const A5_H = 500;
     const A5 = {
@@ -2377,6 +3035,11 @@
         return niceRange(lo - 3, C.DEMO.tripC + 2, 8);
       }, [run]);
 
+      /* The look-ahead of the controller tick the cursor is standing in. Every
+         tick stored one, so this is a lookup and not a computation. */
+      const pred = run.preds[run.predIdx[iNow]] || null;
+      const predEnd = pred ? pred.h[pred.h.length - 1] : run.thH[iNow];
+
       const cvRef = useCanvas(A5_H, (ctx, w) => {
         const x0 = A5.padL, x1 = w - A5.padR, wPlot = x1 - x0;
         const xOfT = (tm) => x0 + tm / total * wPlot;
@@ -2409,6 +3072,35 @@
         if (iNow > 0) {
           ctx.strokeStyle = COL.accent; ctx.lineWidth = 3;
           pathSeries(ctx, (k) => run.thH[k], 0, iNow, xOfI, yOfT, wSeen, false); ctx.stroke();
+          /* The look-ahead of the controller tick the cursor is standing in:
+             the trajectory the loop integrated forward before it decided, drawn
+             from the sample it started at, so the gap between the dashed line
+             and the solid one that catches up with it IS the forecast error.
+             Dashed and half transparent, because it is a claim about the
+             future and not a measurement. */
+          if (pred) {
+            ctx.strokeStyle = COL.accent;
+            ctx.globalAlpha = 0.55;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 5]);
+            ctx.beginPath();
+            ctx.moveTo(xOfT(pred.tMin), yOfT(run.thH[Math.round(pred.tMin / run.dtMin)]));
+            for (let j = 0; j < pred.h.length; j++) {
+              ctx.lineTo(xOfT(pred.tMin + (j + 1) * run.predDtMin), yOfT(pred.h[j]));
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            /* An open ring on the far end of it. Ninety minutes of a two-day
+               axis is twenty pixels, which is a stub and not a curve, and the
+               ring is what makes it read as a deliberate mark rather than as a
+               rendering artefact of the line under the cursor. */
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(xOfT(pred.tMin + pred.h.length * run.predDtMin),
+              yOfT(pred.h[pred.h.length - 1]), 4, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
         }
         ctx.restore();
 
@@ -2521,6 +3213,8 @@
           <div className="lv-main">
             <div className="lv-tiles">
               <${Tile} label="hot spot" value=${run.thH[iNow].toFixed(1)} unit="°C" emph=${true} />
+              <${Tile} label=${'hot spot, predicted +' + run.horizonMin + ' min'}
+                value=${predEnd.toFixed(1)} unit="°C" />
               <${Tile} label="load served" value=${run.Kserved[iNow].toFixed(2)} unit="pu" />
               <${Tile} label="curtailed" value=${curtail.toFixed(2)} unit="pu"
                 color=${curtail > 0.005 ? COL.warn : null} />
@@ -2531,18 +3225,13 @@
             <canvas ref=${cvRef} className="lv-canvas" style=${{ height: A5_H + 'px' }}></canvas>
             <${Legend} items=${[
               { label: 'hot spot, computed', color: COL.accent },
+              { label: 'hot spot, predicted ' + run.horizonMin + ' min ahead',
+                color: COL.accent, dash: true },
               { label: 'load served', color: COL.accent },
               { label: 'load demanded', color: COL.label },
               { label: 'curtailed', color: COL.warn, band: true },
               { label: 'fans running', color: COL.info, band: true }
             ]} />
-            <p className="lv-rules">
-              <b>Cooling</b> ONAN to ONAF at ${C.DEMO.fanOnC} °C, back at ${C.DEMO.fanOffC} °C.<br/>
-              <b>Load cap</b> armed at ${C.DEMO.limitOnC} °C, served load held at the value whose
-              steady-state hot spot is ${C.DEMO.limitTargetC} °C, released at ${C.DEMO.limitOffC} °C.<br/>
-              <b>Trip</b> latched at ${C.DEMO.tripC} °C, the IEC 60076-7 long-time emergency limit.
-              It does not fire on this day, and it is in the loop anyway.
-            </p>
             <div className="lv-act">
               <button type="button" className=${started ? 'secondary' : ''}
                 onClick=${() => {
@@ -2576,45 +3265,60 @@
     }
 
     /* ── Level 4: prescriptive ────────────────────────────────────────────
-       Three fixed dispatches of the same 1.30 pu, 4 h contingency, already
+       The same 1.30 pu for 4 h, offered at three different hours and already
        scored by C.scenarios(): peak hot spot, feasibility against the 120 C
-       cyclic limit, and ageing consumed. The only interaction is which card
-       is selected, the simulations never run again, all three trajectories
-       exist before the first click.
-       Each option gets a fixed colour, independent of selection, so a card
-       and its curve stay the same colour whichever one is chosen: A shares
-       the "bad" hue with its own badge (it is the one over the limit), C
-       shares the "good" hue with its badge (it is the recommendation), B
-       sits in between on the info hue used for cooling elsewhere on the
-       page. */
-    const D4_H = 380;
-    const D4 = { padL: 74, padR: 26, tT: 20, tB: 320 };
+       cyclic limit, and ageing consumed. The only interaction is which of the
+       three windows is selected; the simulations never run again, all four
+       trajectories exist before the first click.
+       Only the selected trajectory is drawn, plus the base case, the same day
+       with no transfer at all. Three curves at once turned the chart into a
+       thicket and invited the eye to compare peaks that are 2 K apart; one
+       curve against the day it would otherwise have been says the same thing
+       and says it about the option in front of the room.
+       The selected trajectory carries the accent colour, the same colour the
+       hot spot has on levels 1, 3 and 5, so that one hue means one quantity
+       across the whole page. The verdict is a colour too, but it belongs to
+       the words and to the window backdrop, not to the curve: a curve that
+       changed hue with the verdict read as a fourth quantity. */
+    const D4_H = 400;
+    const D4 = { padL: 74, padR: 26, tT: 20, tB: 344 };
     const D4_HOURS = 36;
-    /* The y axis deliberately does not start at 0: the three peaks sit
-       within 4 C of each other and of the 120 C line, and on a scale that
-       also shows the ambient-driven night trough that gap is a few pixels,
-       invisible from the back of a room (see _plan_levels.md, amendment
-       after stage 1). Margins below the lowest peak and above the highest
-       one keep just enough of the approach and the limit line in view. */
-    const D4_LO_MARGIN = 15, D4_HI_MARGIN = 3, D4_TICKS = 5;
+    /* The axis holds every curve the tab can draw, base case included, and the
+       120 C line, with a little air. Two consequences, both deliberate: the
+       daily swing of the base case is a wave and not a line stuck to the x
+       axis, and the range does not move when another window is picked, so the
+       three options can be compared by clicking through them. */
+    const D4_MARGIN = 4, D4_TICKS = 9;
 
-    function scenColor(id) {
-      return id === 'A' ? COL.bad : id === 'B' ? COL.info : COL.good;
+    /* The verdict as a colour and as a phrase. Feasible but not recommended
+       stays neutral: it is not an alarm and it is not the answer. */
+    function d4Verdict(s) {
+      if (!s.feasible) return { text: 'over the ' + C.DEMO.limitCyclic + ' °C limit', color: COL.bad };
+      if (s.recommended) return { text: 'recommended', color: COL.good };
+      return { text: 'feasible', color: COL.text };
     }
 
     function Prescriptive() {
-      const data = useMemo(() => C.scenarios(), []);
-      const defaultId = (data.filter((s) => s.recommended)[0] || data[0]).id;
+      const res = useMemo(() => C.scenarios(), []);
+      const opts = res.options, base = res.base;
+      const defaultId = (opts.filter((s) => s.recommended)[0] || opts[0]).id;
       const [selId, setSelId] = useState(defaultId);
-      const sel = data.filter((s) => s.id === selId)[0] || data[0];
+      const sel = opts.filter((s) => s.id === selId)[0] || opts[0];
+      const verdict = d4Verdict(sel);
       const T = D4_HOURS * 60;
 
       const sc = useMemo(() => {
-        const peaks = data.map((s) => s.peak);
-        const lo = Math.min.apply(null, peaks) - D4_LO_MARGIN;
-        const hi = Math.max(Math.max.apply(null, peaks), C.DEMO.limitCyclic) + D4_HI_MARGIN;
-        return niceRange(lo, hi, D4_TICKS);
-      }, [data]);
+        let lo = Infinity, hi = C.DEMO.limitCyclic;
+        const scan = (a) => {
+          for (let k = 0; k < a.length; k++) {
+            if (a[k] < lo) lo = a[k];
+            if (a[k] > hi) hi = a[k];
+          }
+        };
+        opts.forEach((s) => scan(s.thH));
+        scan(base.thH);
+        return niceRange(lo - D4_MARGIN, hi + D4_MARGIN, D4_TICKS);
+      }, [res]);
 
       const cvRef = useCanvas(D4_H, (ctx, w) => {
         const x0 = D4.padL, x1 = w - D4.padR, wPlot = x1 - x0;
@@ -2623,20 +3327,22 @@
 
         yAxis(ctx, x0, x1, yOf, sc.lo, sc.hi, sc.step, ' °C');
 
+        // Six-hourly grid, midnight of the second day a shade stronger, the
+        // same convention as the live strips on levels 1 and 2.
         ctx.save();
         ctx.strokeStyle = COL.grid;
-        ctx.globalAlpha = 0.18;
         ctx.lineWidth = 1;
         for (let hh = 6; hh < D4_HOURS; hh += 6) {
           const x = xOfT(hh * 60);
+          ctx.globalAlpha = hh % 24 === 0 ? 0.34 : 0.16;
           ctx.beginPath(); ctx.moveTo(x, D4.tT); ctx.lineTo(x, D4.tB); ctx.stroke();
         }
         ctx.restore();
 
-        // The transfer window of the selected option, a quiet backdrop in
-        // that option's own colour, behind the curves and the limit line.
+        // The transfer window of the selected option, a quiet backdrop behind
+        // the curves and the limit line.
         ctx.save();
-        ctx.fillStyle = scenColor(sel.id);
+        ctx.fillStyle = verdict.color;
         ctx.globalAlpha = 0.10;
         sel.windows.forEach((win) => {
           const xa = xOfT(win[0]), xb = xOfT(win[1]);
@@ -2644,65 +3350,66 @@
         });
         ctx.restore();
 
-        // The three trajectories, selected one on top and at full strength.
         ctx.save();
         ctx.beginPath(); ctx.rect(x0, D4.tT, wPlot, D4.tB - D4.tT); ctx.clip();
         ctx.lineJoin = 'bevel';
-        const ordered = data.filter((s) => s.id !== sel.id).concat([sel]);
-        ordered.forEach((s) => {
-          const isSel = s.id === sel.id;
-          const xOfI = (k) => xOfT(k * s.dtMin);
-          ctx.globalAlpha = isSel ? 1 : 0.35;
-          ctx.strokeStyle = scenColor(s.id);
-          ctx.lineWidth = isSel ? 3 : 1.5;
-          pathSeries(ctx, (k) => s.thH[k], 0, s.t.length - 1, xOfI, yOf, wPlot, false);
-          ctx.stroke();
-        });
-        ctx.globalAlpha = 1;
+        /* The day the unit would have had anyway, drawn first, quietly and
+           dashed: it is the counterfactual, and on the grey skin, where every
+           colour is a grey, the dash is what tells the two curves apart. */
+        ctx.strokeStyle = COL.faint; ctx.lineWidth = 1.6;
+        ctx.setLineDash([6, 5]);
+        pathSeries(ctx, (k) => base.thH[k], 0, base.t.length - 1,
+          (k) => xOfT(k * base.dtMin), yOf, wPlot, false);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 3;
+        pathSeries(ctx, (k) => sel.thH[k], 0, sel.t.length - 1,
+          (k) => xOfT(k * sel.dtMin), yOf, wPlot, false);
+        ctx.stroke();
         ctx.restore();
 
         refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
           C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
 
-        xAxis(ctx, x0, x1, D4.tB, 0, D4_HOURS, 6, (v) => v + ' h');
+        /* No number is written at the peak. Every peak this tab can draw lands
+           within a few kelvin of the 120 C line, and a label there collides
+           with the limit line at exactly the moment it matters most. The peak
+           is in the result line under the chart instead. */
+
+        // Clock time rather than hours from the start: the three switches are
+        // labelled with clock times, and the axis has to be readable in the
+        // same words.
+        xAxis(ctx, x0, x1, D4.tB, 0, D4_HOURS, 6, (v) => {
+          const hh = Math.round(v) % 24;
+          return (hh < 10 ? '0' : '') + hh + ':00';
+        });
       });
 
       return html`
         <${React.Fragment}>
-          <p className="lv-note">Neighbouring transformer lost. 1.30 pu must be carried for 4 h
-            within the next 24 h. Same energy in every option, only the timing differs.</p>
-          <div className="lv-cards">
-            ${data.map((s) => html`
+          <p className="lv-lead">Neighbouring transformer lost. 1.30 pu must be carried
+            for 4 h within the next 24 h.</p>
+          <div className="lv-seg" role="group" aria-label="transfer window">
+            ${opts.map((s) => html`
               <button key=${s.id} type="button"
-                className=${'lv-card' + (s.id === sel.id ? ' active' : '')}
-                onClick=${() => setSelId(s.id)}>
-                <span className="lv-cardlabel">${s.name}</span>
-                <span className="lv-cardwin">${s.label}</span>
-                <div className="lv-cardnums">
-                  <span>
-                    <span className="lv-k">peak hot spot</span>
-                    <span className="lv-v">${s.peak.toFixed(1)}<span className="lv-u">°C</span></span>
-                  </span>
-                  <span>
-                    <span className="lv-k">ageing</span>
-                    <span className="lv-v">${s.agingDays.toFixed(2)}<span className="lv-u">d</span></span>
-                  </span>
-                </div>
-                <span className=${'lv-badge ' +
-                  (!s.feasible ? 'lv-badge-bad' : s.recommended ? 'lv-badge-rec' : 'lv-badge-ok')}>
-                  ${!s.feasible ? 'over 120 °C limit' : s.recommended ? 'recommended' : 'feasible'}
-                </span>
-              </button>
+                className=${s.id === sel.id ? 'active' : ''}
+                aria-pressed=${s.id === sel.id ? 'true' : 'false'}
+                onClick=${() => setSelId(s.id)}>${s.label}</button>
             `)}
           </div>
           <canvas ref=${cvRef} className="lv-canvas" style=${{ height: D4_H + 'px' }}></canvas>
           <${Legend} items=${[
-            { label: 'A, run now', color: scenColor('A') },
-            { label: 'B, shift to night', color: scenColor('B') },
-            { label: 'C, split', color: scenColor('C') },
-            { label: 'transfer window, selected option', color: scenColor(sel.id), band: true },
+            { label: 'hot spot, ' + sel.label, color: COL.accent },
+            { label: 'same day, no transfer', color: COL.faint },
+            { label: 'transfer window', color: verdict.color, band: true },
             { label: C.DEMO.limitCyclic + ' °C, cyclic limit', color: COL.faint }
           ]} />
+          <div className="lv-result">
+            <span>peak hot spot <b>${sel.peak.toFixed(1)} °C</b></span>
+            <span>ageing over 36 h <b>${sel.agingDays.toFixed(2)} d</b>, against
+              ${' ' + base.agingDays.toFixed(2)} d with no transfer</span>
+            <span className="lv-verdict" style=${{ color: verdict.color }}>${verdict.text}</span>
+          </div>
         <//>
       `;
     }
@@ -2771,6 +3478,99 @@
     }
     function maxOf(a) { var m = -Infinity, i; for (i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; }
 
+    /* ── 0 The drivers. The ambient is the Parton-Logan day, not a cosine, and
+           the whole page leans on that: WHEN the air is warm relative to when
+           the load is heavy is what every one of the five tabs is scored on. */
+    var dtD = C.DEMO.dtMin, nD = Math.round(C.DAY_MIN / dtD), iD;
+    var clean = { weatherK: 0 };
+    var aMin = Infinity, aMax = -Infinity, iMin = 0, iMax = 0, av;
+    for (iD = 0; iD < nD; iD++) {
+      av = C.ambientAt(iD * dtD, clean);
+      if (av < aMin) { aMin = av; iMin = iD; }
+      if (av > aMax) { aMax = av; iMax = iD; }
+    }
+    var hMin = iMin * dtD / 60, hMax = iMax * dtD / 60;
+    /* Air warms faster than it cools: from the pre-dawn minimum to the
+       afternoon maximum is a good deal less than half a day, and the way back
+       is correspondingly more. A cosine would put both at exactly 12 h. */
+    var riseH = (hMax - hMin + 24) % 24, fallH = 24 - riseH;
+    pass('the ambient day is asymmetric, rise shorter than fall',
+      riseH < fallH - 3 && riseH > 4,
+      'min at ' + hMin.toFixed(2) + ' h, max at ' + hMax.toFixed(2) + ' h, rise ' +
+      riseH.toFixed(2) + ' h against fall ' + fallH.toFixed(2) + ' h');
+    pass('the ambient minimum sits before sunrise and the maximum in the afternoon',
+      hMin > 2.5 && hMin < 6.5 && hMax > 12 && hMax < 16.5,
+      hMin.toFixed(2) + ' h and ' + hMax.toFixed(2) + ' h');
+
+    /* And it is not a sine either. Best fit of a + b cos + c sin over one day,
+       by projection, and then the rms of what is left over. A cosine driver
+       would leave zero here; the shape plus the weather texture leaves kelvins. */
+    function sineResid(opts) {
+      var s0 = 0, sc = 0, ss = 0, k, th, v, r = 0, mx = 0;
+      for (k = 0; k < nD; k++) {
+        th = 2 * Math.PI * k / nD;
+        v = C.ambientAt(k * dtD, opts);
+        s0 += v; sc += v * Math.cos(th); ss += v * Math.sin(th);
+      }
+      s0 /= nD; sc *= 2 / nD; ss *= 2 / nD;
+      for (k = 0; k < nD; k++) {
+        th = 2 * Math.PI * k / nD;
+        v = C.ambientAt(k * dtD, opts) - (s0 + sc * Math.cos(th) + ss * Math.sin(th));
+        r += v * v;
+        if (Math.abs(v) > mx) mx = Math.abs(v);
+      }
+      return { rms: Math.sqrt(r / nD), max: mx };
+    }
+    var rSine = sineResid({}), rSineClean = sineResid(clean);
+    pass('the ambient day is not a sine wave',
+      rSineClean.rms > 0.5 && rSine.rms > 0.5 && rSineClean.max > 1,
+      'departure from the best-fit sine, without weather rms ' + rSineClean.rms.toFixed(2) +
+      ' K and worst ' + rSineClean.max.toFixed(2) + ' K, with weather rms ' +
+      rSine.rms.toFixed(2) + ' K and worst ' + rSine.max.toFixed(2) + ' K');
+    /* The texture is weather, so it has to be slower than the sampling and
+       bigger than nothing: two days apart the same clock time is a different
+       temperature. */
+    var dDay = 0;
+    for (iD = 0; iD < nD; iD++) {
+      dDay = Math.max(dDay, Math.abs(C.ambientAt(iD * dtD, {}) - C.ambientAt(iD * dtD + C.DAY_MIN, {})));
+    }
+    pass('two demo days are not the same day twice', dDay > 0.5 && dDay < 6,
+      'worst difference at the same clock time ' + dDay.toFixed(2) + ' K');
+
+    /* ── 0b The sensor error. Correlated, not white: the autocorrelation at
+           20 min is nowhere near zero, which is the whole reason the residual
+           band below has to be measured instead of derived. */
+    var nN = 60000, xs = new Float64Array(nN), nz = C.arNoiseFactory(C.mulberry32(4242),
+      C.DEMO.noiseTauMin, C.DEMO.dtMin), sN = 0, s2N = 0;
+    for (iD = 0; iD < nN; iD++) { xs[iD] = nz(); sN += xs[iD]; s2N += xs[iD] * xs[iD]; }
+    var mN = sN / nN, sdN = Math.sqrt(s2N / nN - mN * mN);
+    function acorr(lagMin) {
+      var L = Math.round(lagMin / C.DEMO.dtMin), s = 0, k;
+      for (k = 0; k + L < nN; k++) s += (xs[k] - mN) * (xs[k + L] - mN);
+      return s / ((nN - L) * sdN * sdN);
+    }
+    var ac20 = acorr(20), ac60 = acorr(60);
+    pass('the sensor noise is correlated over tens of minutes',
+      ac20 > 0.35 && ac20 < 0.75 && ac60 < ac20 && ac60 > 0.05,
+      'autocorrelation ' + ac20.toFixed(3) + ' at 20 min, ' + ac60.toFixed(3) +
+      ' at 60 min, expected ' + Math.exp(-20 / C.DEMO.noiseTauMin).toFixed(3) + ' and ' +
+      Math.exp(-60 / C.DEMO.noiseTauMin).toFixed(3));
+    pass('the sensor noise process is standardised', Math.abs(sdN - 1) < 0.02 &&
+      Math.abs(mN) < 0.02, 'sd ' + sdN.toFixed(4) + ', mean ' + mN.toFixed(4));
+    /* The amplitude the tab actually shows: the spread of measured minus true
+       top oil, which has to be about twice the 0.5 K it used to be. */
+    var lvA = C.makeLive({}), sA = 0, s2A = 0, nA = 0, dA;
+    for (iD = 0; iD < 1440; iD++) {
+      lvA.step(1);
+      dA = lvA.last('thOmeas') - lvA.last('thOtrue');
+      sA += dA; s2A += dA * dA; nA++;
+    }
+    var sdA = Math.sqrt(s2A / nA - (sA / nA) * (sA / nA));
+    pass('the measured top oil carries about a kelvin of sensor noise',
+      sdA > 0.8 && sdA < 1.1 && C.DEMO.noiseK >= 0.85,
+      'sd of measured minus true ' + sdA.toFixed(3) + ' K, nominal ' +
+      C.DEMO.noiseK.toFixed(2) + ' K');
+
     /* ── 1 The difference equations converge to the closed-form steady state,
            on both cooling stages. 24 h at K = 1.0 and a constant ambient is
            about 14 oil time constants on ONAN and 19 on ONAF. */
@@ -2828,13 +3628,41 @@
     pass('healthy run stays inside the band 48 h', ok48.flagIdx < 0,
       'band +-' + ok48.band.toFixed(3) + ' K, worst |smoothed resid| ' + worstSm.toFixed(3) + ' K');
 
-    /* ── 6 Level 2, faulted: the residual leaves the band within 2 h of the
-           onset. The fault itself takes 2 h to fade in, so this asks the
-           detector to be quicker than the fault is. */
+    /* ── 5b The claim under the healthy run, over seeds rather than over one
+           lucky stream: the false alarm rate of the whole rule, measured. The
+           band is 3.5 sigma of the smoothed residual and the rule wants three
+           samples a stride apart outside it; both numbers exist to keep this
+           figure where the tab implicitly claims it is, which is "never" in
+           front of an audience and under 1 % in arithmetic. */
+    var faSeeds = 240, faHours = 48, faBad = 0, faN = Math.round(faHours * 60 / C.DEMO.dtMin), s;
+    for (s = 0; s < faSeeds; s++) {
+      var lvF = C.makeLive({ seed: 1000 + s * 7919 });
+      for (i = 0; i < faN; i++) {
+        lvF.step(1);
+        if (lvF.status() !== 'OK') { faBad++; break; }
+      }
+    }
+    pass('false alarm rate under 1 % over 240 healthy seeds',
+      faBad / faSeeds < 0.01,
+      faBad + ' of ' + faSeeds + ' runs of ' + faHours + ' h flagged, ' +
+      (100 * faBad / faSeeds).toFixed(2) + ' %');
+
+    /* ── 6 Level 2, faulted: the residual leaves the band and stays out.
+           Hours, not two hours. The fault takes 2 h to fade in, and the band is
+           2.8 K rather than the 0.4 K of the white-noise case, because the
+           sensor error wanders over the same half hour the residual is smoothed
+           over. A 25 % cooling loss therefore needs a good deal longer to prove
+           itself. That is the honest consequence of the noise and it is left
+           standing: at 1200x even the worst case is ten seconds on stage.
+           FLAG_BOUND is the one bound every detection assertion below is
+           measured against, so there is a single number to argue with. */
+    var FLAG_BOUND = 300;          // min, five hours
     var bad = C.simPlant(48, { faultAtMin: 24 * 60 });
     var lag = bad.flagIdx < 0 ? Infinity : bad.flagMin - bad.faultAtMin;
-    pass('cooling fault flagged within 2 h of onset', lag > 0 && lag < 120,
-      'flagged after ' + (isFinite(lag) ? lag.toFixed(0) + ' min' : 'never'));
+    pass('cooling fault flagged well inside ' + (FLAG_BOUND / 60) + ' h of onset',
+      lag > 0 && lag < FLAG_BOUND,
+      'flagged after ' + (isFinite(lag) ? lag.toFixed(0) + ' min' : 'never') +
+      ', onset at midnight');
 
     /* ── 6b The same plant as a live stream. simPlant decides everything in
            one pass afterwards; makeLive has to decide it sample by sample
@@ -2865,8 +3693,9 @@
     pass('healthy smoothed residual stays inside the band in the mean square',
       lvRms < lv.band, lvRms.toFixed(3) + ' K against ' + lv.band.toFixed(3) + ' K');
 
-    /* Inject in the middle of the stream: the clock keeps running and the
-       flag arrives within the 2 h the tab claims. */
+    /* Inject in the middle of the stream: the clock keeps running and the flag
+       arrives by itself. 06:00 is the hardest hour of the day for this, the
+       load trough, so this is the worst case and not a friendly sample. */
     var lv2 = C.makeLive({});
     lv2.step(Math.round(6 * 60 / C.DEMO.dtMin));
     var tBefore = lv2.now();
@@ -2874,16 +3703,19 @@
     pass('inject does not move the clock', lv2.now() === tBefore &&
       lv2.onsetMin() === tBefore, 'onset at t = ' + lv2.onsetMin() + ' min');
     var lvLag = null;
-    for (i = 0; i < Math.round(120 / C.DEMO.dtMin); i++) {
+    for (i = 0; i < Math.round(FLAG_BOUND / C.DEMO.dtMin); i++) {
       lv2.step(1);
       if (lv2.status() === 'FLAGGED') { lvLag = lv2.flagMin() - lv2.onsetMin(); break; }
     }
-    pass('injected fault is flagged within 2 h, stream running',
-      lvLag !== null && lvLag > 0 && lvLag < 120,
-      lvLag === null ? 'never flagged' : 'flagged after ' + lvLag.toFixed(0) + ' min');
+    pass('injected fault is flagged inside ' + (FLAG_BOUND / 60) + ' h, stream running',
+      lvLag !== null && lvLag > 0 && lvLag < FLAG_BOUND,
+      lvLag === null ? 'never flagged' : 'flagged after ' + lvLag.toFixed(0) +
+      ' min, onset 06:00, the load trough');
 
     /* Clear it, again without touching the clock: the plant recovers and the
-       status follows it back to OK on its own. */
+       status follows it back to OK on its own, dead band and dwell time
+       included. Twelve hours is the bound; measured over 20 onset times it
+       takes 323 min on average and 518 min at worst. */
     var tClear = lv2.now();
     lv2.setFault(false);
     pass('clear does not move the clock', lv2.now() === tClear,
@@ -2900,30 +3732,112 @@
       Math.abs(lv2.last('residSm')) <= lv2.band,
       Math.abs(lv2.last('residSm')).toFixed(3) + ' K against ' + lv2.band.toFixed(3) + ' K');
 
-    /* Continuity: injecting and clearing are changes of a PARAMETER, blended
-       over 2 h, so the plant temperature has no step in it anywhere. */
+    /* ── 6c The alarm does not chatter. A fault that is left running has to
+           raise the flag once and keep it, right through the night trough where
+           the residual of a still-faulted plant sags towards the band, because
+           a verdict that clears itself while the plant is still degraded is a
+           false negative wearing the costume of a recovery. Dead band plus
+           dwell time, the ordinary alarm recipe, and this is what it buys. */
+    var chSeeds = 24, chWorst = 0, chAt = null, chNever = 0, chN, chPrev, chFlips;
+    chN = Math.round(60 * 60 / C.DEMO.dtMin);
+    for (s = 0; s < chSeeds; s++) {
+      var lvC = C.makeLive({ seed: 1000 + s * 7919 });
+      lvC.setFault(true);
+      chPrev = lvC.status(); chFlips = 0;
+      for (i = 0; i < chN; i++) {
+        lvC.step(1);
+        if (lvC.status() !== chPrev) { chFlips++; chPrev = lvC.status(); }
+      }
+      if (lvC.status() !== 'FLAGGED') chNever++;
+      if (chFlips > chWorst) { chWorst = chFlips; chAt = s; }
+    }
+    pass('a running fault flags exactly once and never clears itself',
+      chWorst === 1 && chNever === 0,
+      chWorst + ' status changes at worst over ' + chSeeds + ' seeds times 60 h, ' +
+      chNever + ' runs ended unflagged (worst seed index ' + chAt + ')');
+
+    /* The presenter does not get to choose the hour. The fault is hardest to
+       see in the small hours, when the load is at its 0.50 pu trough and a
+       degraded cooling path has almost nothing to carry, so the claim is
+       checked at every onset hour of the day and reported at its worst.
+       The bound is a consequence, not a target: correlated sensor noise widens
+       the band by a factor of seven over the white-noise case, and a 25 %
+       cooling loss needs that much longer to clear it. At 1200x the worst case
+       is thirteen seconds of wall clock, which is why the fault was left at the
+       plausible 25 % of fouled radiators rather than inflated to keep an
+       arbitrary two-hour figure. */
+    var wLag = 0, wAt = null, sLag = 0, hh, lagH;
+    for (hh = 0; hh < 24; hh++) {
+      var lvH = C.makeLive({});
+      lvH.step(Math.round(hh * 60 / C.DEMO.dtMin) + 1);
+      lvH.setFault(true);
+      lagH = Infinity;
+      for (i = 0; i < Math.round(2 * FLAG_BOUND / C.DEMO.dtMin); i++) {
+        lvH.step(1);
+        if (lvH.status() === 'FLAGGED') { lagH = lvH.flagMin() - lvH.onsetMin(); break; }
+      }
+      sLag += lagH;
+      if (lagH > wLag) { wLag = lagH; wAt = hh; }
+    }
+    pass('the fault is flagged inside ' + (FLAG_BOUND / 60) + ' h whatever hour it starts',
+      wLag < FLAG_BOUND,
+      'worst ' + wLag.toFixed(0) + ' min at onset ' + wAt + ':00, mean ' +
+      (sLag / 24).toFixed(0) + ' min over the 24 onset hours');
+
+    /* Continuity and bookkeeping under a presenter who plays with the button.
+       Injecting and clearing are changes of a PARAMETER, blended over an hour
+       from wherever the blend stands, so the plant temperature has no step in
+       it however erratically the two are pressed. Eight presses at irregular
+       intervals, several of them inside a running blend, and after each one the
+       episode has to be in order: the onset is now, the previous flag is gone,
+       and the verdict is the verdict about the present residual. */
     var lv3 = C.makeLive({});
     var prevO = lv3.last('thOtrue'), jump = 0, cur;
     function walkLive(n) {
-      var s;
-      for (s = 0; s < n; s++) {
+      var q;
+      for (q = 0; q < n; q++) {
         lv3.step(1);
         cur = lv3.last('thOtrue');
         if (Math.abs(cur - prevO) > jump) jump = Math.abs(cur - prevO);
         prevO = cur;
       }
     }
-    walkLive(30);
-    lv3.setFault(true);
-    walkLive(30);
-    lv3.setFault(false);          // toggled back in the middle of the blend
-    walkLive(30);
-    lv3.setFault(true);
-    walkLive(Math.round(6 * 60 / C.DEMO.dtMin));
-    lv3.setFault(false);
-    walkLive(Math.round(6 * 60 / C.DEMO.dtMin));
-    pass('plant top oil is continuous across every fault toggle', jump < 1,
+    var mins = function (m) { return Math.round(m / C.DEMO.dtMin); };
+    var toggles = [[true, 26], [false, 12], [true, 8], [false, 96], [true, 240],
+      [false, 34], [true, 150], [false, 720]];
+    var bookOk = true, bookWhy = '';
+    for (s = 0; s < toggles.length; s++) {
+      var wantOn = toggles[s][0];
+      lv3.setFault(wantOn);
+      if (wantOn && (lv3.onsetMin() !== lv3.now() || lv3.flagMin() !== null ||
+          lv3.status() !== 'OK' || lv3.clearMin() !== null)) {
+        bookOk = false; bookWhy = 'inject ' + (s + 1) + ' left a stale episode';
+      }
+      if (!wantOn && lv3.clearMin() !== lv3.now()) {
+        bookOk = false; bookWhy = 'clear ' + (s + 1) + ' did not stamp the repair';
+      }
+      if (lv3.faultOn() !== wantOn) { bookOk = false; bookWhy = 'toggle ' + (s + 1) + ' did not take'; }
+      walkLive(mins(toggles[s][1]));
+    }
+    pass('plant top oil is continuous across all eight fault toggles', jump < 1,
       'worst step ' + jump.toFixed(3) + ' K per ' + C.DEMO.dtMin + ' min');
+    pass('every toggle leaves the episode bookkeeping consistent', bookOk,
+      bookOk ? '8 presses, 4 of them inside a running blend' : bookWhy);
+    /* The last press was a repair 12 h ago, so the plant is healthy again and
+       the status has to say so by itself, without anything being reset. */
+    pass('the status follows the residual back to OK after the last repair',
+      lv3.status() === 'OK' && !lv3.faultOn() &&
+      Math.abs(lv3.last('residSm')) <= lv3.band,
+      'status ' + lv3.status() + ', smoothed residual ' +
+      lv3.last('residSm').toFixed(3) + ' K against a band of ' + lv3.band.toFixed(3) + ' K');
+    /* And it does the opposite too: run the fault long enough and the verdict
+       stands rather than flickering. */
+    lv3.setFault(true);
+    walkLive(mins(300));
+    pass('a fault left running keeps the plant flagged', lv3.status() === 'FLAGGED' &&
+      lv3.flagMin() > lv3.onsetMin(),
+      'flagged ' + (lv3.flagMin() - lv3.onsetMin()).toFixed(0) + ' min after the last onset, ' +
+      'smoothed residual ' + lv3.last('residSm').toFixed(2) + ' K');
 
     /* ── 7 Level 3: the band widens with the horizon, the median forecast sits
            on the nominal run, and the exceedance probability is a real
@@ -2939,48 +3853,114 @@
     pass('P(hot spot > 98 C) is strictly between 0 and 1',
       fc.pOver98 > 0 && fc.pOver98 < 1, (100 * fc.pOver98).toFixed(0) + ' %');
 
+    /* ── 7b The slider on level 3 states tomorrow's peak, and the plant does
+           not learn it at midnight: the profile is eased in over the first 6 h
+           (FCST_BLEND_MIN). Two things follow and both are checked at three
+           slider positions, the two ends and the nominal middle.
+           First, the median has to start exactly where the history stops.
+           That is nearly free, since every member starts from the one state
+           the twin knows, but it is the claim the join is made of.
+           Second, and this is what the ramp is for, the first two hours must
+           not be steeper than the rest of the day: a step in load at t = 0
+           drives the winding gradient through a 10 min time constant and puts
+           an overshoot at the left edge of the chart that belongs to the
+           slider and not to the day. The same forecast computed without the
+           ramp is run alongside to show the size of what is being removed. */
+    var p3rows = [], p3ok = true, p3free = 0;
+    [0.80, 1.00, 1.30].forEach(function (pk) {
+      var o = { loadMean: 0.5 * (pk + 0.5), loadAmp: 0.5 * (pk - 0.5) };
+      var slope = function (f, a, b) {
+        var s = 0, k, ia = Math.round(a * 60 / f.dtMin), ib = Math.round(b * 60 / f.dtMin);
+        for (k = Math.max(1, ia); k <= Math.min(f.med.length - 1, ib); k++) {
+          s = Math.max(s, Math.abs(f.med[k] - f.med[k - 1]) / f.dtMin * 60);
+        }
+        return s;
+      };
+      var f1 = C.forecast(1, o);
+      var f0 = C.forecast(1, { loadMean: o.loadMean, loadAmp: o.loadAmp, blendMin: 0 });
+      var join = Math.abs(f1.med[0] - f1.hist[f1.hist.length - 1]);
+      var r1 = slope(f1, 0, 2) / slope(f1, 2, 24);
+      var r0 = slope(f0, 0, 2) / slope(f0, 2, 24);
+      if (!(join < 0.3 && r1 < 1.10)) p3ok = false;
+      if (r0 > 2) p3free++;
+      p3rows.push(pk.toFixed(2) + ' pu: join ' + join.toFixed(2) + ' K, first 2 h ' +
+        r1.toFixed(2) + ' of the day (' + r0.toFixed(1) + ' without the ramp)');
+    });
+    pass('the forecast joins the history without a step or an overshoot', p3ok,
+      p3rows.join('; '));
+    pass('without the ramp the off-nominal settings do overshoot', p3free === 2,
+      p3free + ' of 2 slider ends overshoot by more than a factor of two');
+
     /* ── 8 Level 4: the three options are the same job at three different
            hours, so the served energy has to match to the last decimal; only
-           then is the comparison a comparison of timing. A is over the 120 C
-           cyclic limit, B and C are under it, the winner is the feasible
+           then is the comparison a comparison of timing. Exactly one of the
+           three is over the 120 C cyclic limit, the winner is the feasible
            option with the least ageing, and it wins by a margin a presenter
-           can point at rather than by rounding. */
+           can point at rather than by rounding. Every one of them is worse
+           than doing nothing, which is the honest shape of a contingency and
+           is checked as well. */
     var sc = C.scenarios();
-    var A = sc[0], B = sc[1], Cc = sc[2];
-    var eSpread = (Math.max(A.servedPuH, B.servedPuH, Cc.servedPuH) /
-      Math.min(A.servedPuH, B.servedPuH, Cc.servedPuH)) - 1;
+    var opt = sc.options;
+    var served = opt.map(function (s) { return s.servedPuH; });
+    var eSpread = Math.max.apply(null, served) / Math.min.apply(null, served) - 1;
     pass('all three options serve the same energy', eSpread < 0.01,
-      A.servedPuH.toFixed(3) + ' / ' + B.servedPuH.toFixed(3) + ' / ' +
-      Cc.servedPuH.toFixed(3) + ' pu h, spread ' + (100 * eSpread).toFixed(2) + ' %');
-    pass('scenario A exceeds the 120 C cyclic limit', !A.feasible,
-      'peak ' + A.peak.toFixed(1) + ' C at ' + (A.peakAtMin / 60).toFixed(1) + ' h');
-    pass('scenario B is feasible', B.feasible, 'peak ' + B.peak.toFixed(1) + ' C');
-    pass('scenario C is feasible', Cc.feasible, 'peak ' + Cc.peak.toFixed(1) + ' C');
-    var rec = sc.filter(function (s) { return s.recommended; });
+      served.map(function (v) { return v.toFixed(3); }).join(' / ') +
+      ' pu h, spread ' + (100 * eSpread).toFixed(2) + ' %');
+    var infeas = opt.filter(function (s) { return !s.feasible; });
+    pass('exactly one window is over the 120 C cyclic limit', infeas.length === 1,
+      opt.map(function (s) {
+        return s.label + ' ' + s.peak.toFixed(1) + ' C at ' +
+          (s.peakAtMin / 60).toFixed(1) + ' h';
+      }).join(', '));
+    var rec = opt.filter(function (s) { return s.recommended; });
     pass('exactly one option is recommended', rec.length === 1,
-      rec.map(function (s) { return s.id; }).join(''));
-    var feas = sc.filter(function (s) { return s.feasible; })
+      rec.map(function (s) { return s.label; }).join(''));
+    var feas = opt.filter(function (s) { return s.feasible; })
       .sort(function (a, b) { return a.agingDays - b.agingDays; });
     pass('the recommendation is the feasible option with the least ageing',
       rec.length === 1 && feas.length > 0 && rec[0].id === feas[0].id,
-      feas.map(function (s) { return s.id + ' ' + s.agingDays.toFixed(2) + ' d'; }).join(', '));
-    pass('running now ages the paper faster than the recommendation',
-      feas.length > 0 && A.agingDays > feas[0].agingDays,
-      'A ' + A.agingDays.toFixed(2) + ' d against ' + feas[0].id + ' ' +
-      feas[0].agingDays.toFixed(2) + ' d');
-    var gap = feas.length > 1 ? feas[1].agingDays / feas[0].agingDays - 1 : 0;
-    pass('the winner beats the runner-up by more than 30 % ageing', gap > 0.30,
-      (100 * gap).toFixed(0) + ' %');
+      feas.map(function (s) { return s.label + ' ' + s.agingDays.toFixed(2) + ' d'; }).join(', '));
+    pass('the option over the limit ages the paper faster than the recommendation',
+      feas.length > 0 && infeas.length > 0 && infeas[0].agingDays > feas[0].agingDays,
+      infeas[0].label + ' ' + infeas[0].agingDays.toFixed(2) + ' d against ' +
+      feas[0].label + ' ' + feas[0].agingDays.toFixed(2) + ' d');
+    var gap = feas.length > 1 ? 1 - feas[0].agingDays / feas[1].agingDays : 0;
+    pass('the winner consumes more than 30 % less ageing than the runner-up', gap > 0.30,
+      (100 * gap).toFixed(0) + ' % less');
+    /* The base case is the day with no transfer at all. It has to be under
+       the limit, cooler than every option, and it has to move: the chart
+       shows it as the wave the unit would have ridden anyway, and a flat
+       line there would mean the y axis is lying. */
+    var bmin = 1e9, bmax = -1e9, bi;
+    for (bi = 0; bi < sc.base.thH.length; bi++) {
+      if (sc.base.thH[bi] < bmin) bmin = sc.base.thH[bi];
+      if (sc.base.thH[bi] > bmax) bmax = sc.base.thH[bi];
+    }
+    var colder = opt.every(function (s) {
+      return sc.base.peak < s.peak && sc.base.agingDays < s.agingDays;
+    });
+    pass('the base case is cooler and cheaper than every option', colder,
+      'no transfer: peak ' + sc.base.peak.toFixed(1) + ' C, ' +
+      sc.base.agingDays.toFixed(2) + ' d');
+    pass('the base case swings over the day', bmax - bmin > 20,
+      bmin.toFixed(1) + ' to ' + bmax.toFixed(1) + ' C over ' + sc.hours + ' h');
 
     /* ── 9 Level 5: the loop escalates in the right order, never serves more
            than is asked, never passes the emergency limit, and does not hunt
            between cooling stages. */
     var ar = C.autoRun();
-    var firstFan = null, firstLimit = null;
-    for (i = 0; i < ar.events.length; i++) {
-      if (firstFan === null && ar.events[i].act.indexOf('ONAN to ONAF') >= 0) firstFan = ar.events[i].tMin;
-      if (firstLimit === null && ar.events[i].act.indexOf('load capped') >= 0) firstLimit = ar.events[i].tMin;
+    var reac = C.autoRun({ predictive: false });
+    function firstAct(r, needle) {
+      for (var q = 0; q < r.events.length; q++) {
+        if (r.events[q].act.indexOf(needle) >= 0) return r.events[q].tMin;
+      }
+      return null;
     }
+    function firstCross(r, thr) {
+      for (var q = 0; q < r.thH.length; q++) if (r.thH[q] >= thr) return r.t[q];
+      return null;
+    }
+    var firstFan = firstAct(ar, 'ONAN to ONAF'), firstLimit = firstAct(ar, 'load capped');
     pass('fans are used before the load is capped',
       firstFan !== null && firstLimit !== null && firstFan < firstLimit,
       'fans at ' + firstFan + ' min, cap at ' + firstLimit + ' min');
@@ -2995,6 +3975,78 @@
     var nSw = 0;
     for (i = 1; i < ar.stage.length; i++) if (ar.stage[i] !== ar.stage[i - 1]) nSw++;
     pass('at most four cooling stage changes in 48 h', nSw <= 4, nSw + ' changes');
+
+    /* ── 9b The point of the level: the loop acts on what the model says is
+           coming, not on what the sensor says has happened. Three claims, all
+           against the same plant run with the old threshold controller. */
+    pass('the predictive loop runs a cooler peak than the reactive one',
+      maxOf(ar.thH) < maxOf(reac.thH) - 3,
+      'predictive ' + maxOf(ar.thH).toFixed(1) + ' C against reactive ' +
+      maxOf(reac.thH).toFixed(1) + ' C, both aiming at ' + C.DEMO.limitTargetC + ' C');
+    /* The fans start BEFORE the hot spot of that same run reaches the fan
+       threshold, which is the one sentence the tab exists for. A reactive loop
+       cannot do this by construction: its switching instant IS the crossing. */
+    var crossPred = firstCross(ar, C.DEMO.fanOnC), crossReac = firstCross(reac, C.DEMO.fanOnC);
+    pass('the fans start before the hot spot reaches the fan threshold',
+      firstFan !== null && crossPred !== null && firstFan < crossPred - 30,
+      'fans at ' + firstFan + ' min, 95 C reached at ' + crossPred + ' min, ' +
+      (crossPred - firstFan) + ' min of lead');
+    pass('the reactive loop switches at the crossing and not before',
+      crossReac !== null && Math.abs(firstAct(reac, 'ONAN to ONAF') - crossReac) <= C.DEMO.ctrlMin,
+      'fans at ' + firstAct(reac, 'ONAN to ONAF') + ' min, 95 C reached at ' + crossReac + ' min');
+    /* Energy. At the SAME thresholds the predictive loop curtails MORE, and
+       that is not a defeat, it is the price of actually delivering the 105 C
+       it was told to hold while the reactive loop overshoots it by six kelvin.
+       The comparison that means something is at equal delivered peak: the same
+       reactive controller, retuned by -6 K so that it lands where the
+       predictive one lands, has to curtail far more to get there, because
+       everything it does it does too late. Both numbers are reported. */
+    var reacFair = C.autoRun({ predictive: false, thrShiftC: -6 });
+    pass('at the same thresholds the predictive loop pays for the cooler peak in energy',
+      ar.curtailedPuH > reac.curtailedPuH,
+      'predictive ' + ar.curtailedPuH.toFixed(2) + ' pu h at ' + maxOf(ar.thH).toFixed(1) +
+      ' C, reactive ' + reac.curtailedPuH.toFixed(2) + ' pu h at ' + maxOf(reac.thH).toFixed(1) + ' C');
+    pass('at the same delivered peak the predictive loop curtails less',
+      maxOf(reacFair.thH) <= maxOf(ar.thH) + 1 &&
+      ar.curtailedPuH < 0.8 * reacFair.curtailedPuH,
+      'predictive ' + ar.curtailedPuH.toFixed(2) + ' pu h at ' + maxOf(ar.thH).toFixed(1) +
+      ' C, reactive retuned to -6 K ' + reacFair.curtailedPuH.toFixed(2) + ' pu h at ' +
+      maxOf(reacFair.thH).toFixed(1) + ' C, ' +
+      (100 * (1 - ar.curtailedPuH / reacFair.curtailedPuH)).toFixed(0) + ' % less');
+    /* The forecast the loop works on is wrong on purpose: a 1.4 K cold bias
+       and half an hour of lag on the ambient. It has to be wrong by something
+       measurable and the loop still has to win, otherwise the level is a
+       demonstration of clairvoyance. */
+    var fErr = 0, fMax = 0, fN = 0, iEnd, eAbs;
+    for (i = 0; i < ar.preds.length; i++) {
+      iEnd = Math.round((ar.preds[i].tMin + ar.horizonMin) / ar.dtMin);
+      if (iEnd >= ar.thH.length) break;
+      eAbs = Math.abs(ar.preds[i].h[ar.preds[i].h.length - 1] - ar.thH[iEnd]);
+      fErr += eAbs; if (eAbs > fMax) fMax = eAbs;
+      fN++;
+    }
+    pass('the ambient forecast the loop is given is cold and late',
+      Math.abs(C.ambientForecast(600, { heatwave: true }) -
+        C.ambientAt(600, { heatwave: true })) > 0.5,
+      'at 10:00 the forecast reads ' +
+      C.ambientForecast(600, { heatwave: true }).toFixed(1) + ' C against ' +
+      C.ambientAt(600, { heatwave: true }).toFixed(1) + ' C of real air');
+    pass('the look-ahead is imperfect and still useful', fN > 200 && fErr / fN > 0.5 && fErr / fN < 4,
+      'mean ' + (fErr / fN).toFixed(2) + ' K at the ' + ar.horizonMin +
+      ' min horizon, worst ' + fMax.toFixed(1) + ' K over ' + fN + ' ticks');
+    /* Every controller tick stored the trajectory it decided on, and the tab
+       draws it at the cursor, so it has to exist for every sample. */
+    var predsOk = ar.preds.length > 0 && ar.predIdx.length === ar.t.length;
+    for (i = 0; i < ar.predIdx.length; i++) {
+      if (!(ar.predIdx[i] >= 0 && ar.predIdx[i] < ar.preds.length)) predsOk = false;
+    }
+    pass('every sample can name the look-ahead the loop was on', predsOk,
+      ar.preds.length + ' stored trajectories of ' +
+      (ar.preds[0] ? ar.preds[0].h.length : 0) + ' samples');
+    pass('the run opens with the state it inherited from the night',
+      ar.events.length > 0 && ar.events[0].tMin === 0 &&
+      ar.events[0].act.indexOf('carried over from the night') >= 0,
+      ar.events[0].act);
 
     console.log((fails === 0 ? 'ALL PASS' : fails + ' FAILURES') +
       '   ' + (total - fails) + '/' + total + '   ' + (Date.now() - t0) + ' ms');

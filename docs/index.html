@@ -13,6 +13,74 @@
        bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
        a light tab bar, white on a dark one. Same mark on all three pages. -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+  <!-- Landing-page-only styles: the link list below is not shared with the
+       demo pages, so it lives here instead of in app.css. Palette variables
+       (--tool-border, --tool-label, --tool-note) come from app.css and follow
+       whichever of the three skins is active. -->
+  <style>
+    .tw-linklist {
+      list-style: none;
+      margin: 1.8rem 0 0;
+      padding: 0;
+    }
+    .tw-linklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 20px 2px;
+      border-top: 1px solid color-mix(in srgb, var(--tool-border) 45%, transparent);
+    }
+    .tw-linklist li:first-child {
+      border-top: none;
+      padding-top: 4px;
+    }
+    .tw-linklist li:last-child {
+      padding-bottom: 4px;
+    }
+    .tw-link-icon {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      margin-top: 7px;
+      color: var(--pico-primary);
+    }
+    .tw-link-title {
+      margin: 0;
+      font-size: 1.08rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .tw-link-title a {
+      text-decoration: none;
+    }
+    .tw-link-title a:hover,
+    .tw-link-title a:focus {
+      text-decoration: underline;
+    }
+    .tw-link-desc {
+      margin: 5px 0 0;
+      color: var(--tool-label);
+      font-size: 0.93rem;
+      line-height: 1.55;
+    }
+    .tw-foot-sources {
+      margin: 0 0 14px;
+      padding-top: 22px;
+      border-top: 1px solid color-mix(in srgb, var(--tool-border) 45%, transparent);
+      color: var(--tool-label);
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    .tw-foot-fine {
+      margin: 0;
+      color: var(--tool-faint);
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+    .tw-foot-fine a {
+      color: inherit;
+    }
+  </style>
 </head>
 <body>
   <header class="container tw-head">
@@ -22,30 +90,71 @@
   </header>
   <script src="assets/js/theme.js"></script>
 
-  <main class="container" style="max-width:760px">
+  <main class="container" style="max-width:820px">
     <hgroup style="margin-top:2rem">
       <h1>transformer-twin-lab</h1>
       <p style="color:var(--tool-label)">Interactive demos on uncertainty in transformer digital twins.</p>
     </hgroup>
-    <ul>
-      <li><a href="duval.html">Duval Triangle 1, under measurement uncertainty</a></li>
-      <li><a href="pentagon.html">Duval Pentagon 1 and 2, under measurement uncertainty</a></li>
-      <li><a href="thermal.html">Thermal mini-twin, IEC 60076-7, top-oil and hot-spot under load and uncertainty</a></li>
-      <li><a href="levels.html">Five levels of a digital twin, one IEC 60076-7 model, five jobs</a></li>
+    <ul class="tw-linklist">
+      <li>
+        <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <path d="M16 4 28 28H4Z"/>
+          <circle cx="19.5" cy="22" r="1.7" fill="currentColor" stroke="none"/>
+        </svg>
+        <div>
+          <p class="tw-link-title"><a href="duval.html">Duval Triangle 1, under measurement uncertainty</a></p>
+          <p class="tw-link-desc">One DGA result in Duval Triangle 1, and the cloud of diagnoses it could equally have meant. Push the relative measurement uncertainty from 5 to 35 percent and the point starts crossing zone boundaries.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <polygon points="16,4 27.4,12.3 23.1,25.7 8.9,25.7 4.6,12.3"/>
+          <circle cx="18.7" cy="17.6" r="1.7" fill="currentColor" stroke="none"/>
+        </svg>
+        <div>
+          <p class="tw-link-title"><a href="pentagon.html">Duval Pentagon 1 and 2, under measurement uncertainty</a></p>
+          <p class="tw-link-desc">The same question in five gases. One point in Duval Pentagon 1 and 2, and the region of diagnoses that the laboratory error bar really covers.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <!-- Stem and bulb are one outline, not a rectangle laid over a circle:
+               drawn as two shapes their strokes cross inside the bulb and the
+               thermometer reads as a capsule stuck on a ball. The bulb arc runs
+               the long way round from where the stem sides meet the circle. -->
+          <path d="M10.8 17.53A5.5 5.5 0 1 0 17.2 17.53V8A3.2 3.2 0 0 0 10.8 8Z"/>
+          <line x1="20.5" y1="10.5" x2="25" y2="10.5"/>
+          <line x1="20.5" y1="15" x2="25" y2="15"/>
+        </svg>
+        <div>
+          <p class="tw-link-title"><a href="thermal.html">Thermal mini-twin, IEC 60076-7</a></p>
+          <p class="tw-link-desc">A year of top-oil and hot-spot temperature computed from a load profile, and four ways to propagate the uncertainty in it into the remaining life of the insulation.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <polyline points="4,28 4,23.2 8.8,23.2 8.8,18.4 13.6,18.4 13.6,13.6 18.4,13.6 18.4,8.8 23.2,8.8 23.2,4 28,4"/>
+        </svg>
+        <div>
+          <p class="tw-link-title"><a href="levels.html">Five levels of a digital twin</a></p>
+          <p class="tw-link-desc">One transformer, one thermal model, five jobs: describe the state, diagnose a cooling fault, forecast the next 48 hours, choose between dispatch options, and close the loop.</p>
+        </div>
+      </li>
     </ul>
   </main>
-  <footer class="container tw-foot" style="max-width:760px">
-    Sources: IEC 60599 and CIGRE TB 771 (Duval Triangle 1 fault zones); Duval and Lamarre 2014
-    and CIGRE TB 771 (Duval Pentagon 1 and 2); IEC 60076-7 (loading guide);
-    IEC 60076-2 (temperature-rise limits); CIGRE TB 738 (aging under moisture); Lundgaard et al. 2004
-    (aging kinetics); Parton and Logan 1981 (diurnal temperature shape).
-    Everything runs locally in your browser, nothing is uploaded.
-    <br/>
-    Copyright 2026 Alexander Alber, all rights reserved. Free to use and to link to;
-    please ask before reusing the code. A personal project in a CIGRE JWG A2/D2.65
-    context, not affiliated with any employer.
-    Vendored libraries keep their own licences, see
-    <a href="assets/THIRD-PARTY.md">THIRD-PARTY.md</a>.
+  <footer class="container tw-foot" style="max-width:820px">
+    <p class="tw-foot-sources">
+      Sources: IEC 60599 and CIGRE TB 771 (Duval Triangle 1 fault zones); Duval and Lamarre 2014
+      and CIGRE TB 771 (Duval Pentagon 1 and 2); IEC 60076-7 (loading guide);
+      IEC 60076-2 (temperature-rise limits); CIGRE TB 738 (aging under moisture); Lundgaard et al. 2004
+      (aging kinetics); Parton and Logan 1981 (diurnal temperature shape).
+      Everything runs locally in your browser, nothing is uploaded.
+    </p>
+    <p class="tw-foot-fine">
+      Copyright 2026 Alexander Alber · free to use and to link to, please ask before reusing the code ·
+      a personal project in a CIGRE JWG A2/D2.65 context, not affiliated with any employer ·
+      <a href="assets/THIRD-PARTY.md">Third-party licences</a>
+    </p>
   </footer>
 </body>
 </html>
