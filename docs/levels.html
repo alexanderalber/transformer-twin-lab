@@ -1,0 +1,3004 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<head>
+  <meta charset="utf-8">
+  <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Five levels of a digital twin</title>
+  <meta name="description" content="Descriptive, diagnostic, predictive, prescriptive, autonomous: the same transformer and the same thermal model, one capability level at a time.">
+  <link rel="stylesheet" href="assets/css/pico.min.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
+       A single fixed stroke colour would vanish against one of the two tab
+       bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
+       a light tab bar, white on a dark one. Same mark on all pages. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    /* Same sizing pattern as the thermal page: one width for the whole page, so
+       the header row and everything below it share an edge. Wide, because every
+       one of the five tabs shows a time series. */
+    html { --lv-w: 1240px; }
+    .lv-wrap { width: 100%; max-width: var(--lv-w); margin: 0 auto; padding: 0 0 16px; }
+    body > header.tw-head {
+      width: 100%; max-width: var(--lv-w); margin-inline: auto;
+      padding: 10px 0 0; font-size: 1.3rem;
+    }
+    body > header.tw-head h1 { font-size: 1.3rem; color: var(--tool-emph); }
+    /* Breadcrumb back to the overview: quieter than the page title, so the
+       title still reads as the title. */
+    .lv-crumb { color: var(--tool-note); text-decoration: none; background: none; }
+    .lv-crumb:hover, .lv-crumb:focus-visible { color: var(--pico-primary); text-decoration: underline; }
+    .lv-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
+    .lv-note { margin: 0; font-size: 12px; color: var(--tool-note); }
+
+    /* Tabs: the house pattern for choosing a VIEW, as opposed to .lang-seg,
+       which chooses a SETTING. The distinction is the point: as a segmented
+       control the tab switch would look exactly like the half dozen settings
+       under it. Underlined tabs say "these are the sections" instead.
+       The strip carries the baseline and the active tab overpaints it thicker,
+       so the underline must sit ON the strip's line, hence the negative bottom
+       margin on the buttons. */
+    .tabstrip {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--tool-hairline);
+      /* A line of air under the strip, for every tab at once. Each tab keeps
+         its own margin on top of this for whatever else it needs; putting the
+         common part here is what stops the four from drifting apart. */
+      margin-bottom: 20px;
+    }
+    .tabstrip > button {
+      margin: 0 0 -1px;
+      padding: 4px 2px 6px;
+      width: auto;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--tool-label);
+      cursor: pointer;
+    }
+    /* Pico redefines colour and border on button:is(:hover,:active,:focus);
+       both have to be taken back explicitly or the tab grows a blue box. */
+    .tabstrip > button:hover:not(.active),
+    .tabstrip > button:focus:not(.active) {
+      background: transparent;
+      border-color: transparent;
+      border-bottom-color: var(--tool-hairline);
+      color: var(--tool-emph);
+    }
+    .tabstrip > button.active,
+    .tabstrip > button.active:hover,
+    .tabstrip > button.active:focus {
+      background: transparent;
+      color: var(--pico-primary);
+      border-bottom-color: var(--pico-primary);
+      font-weight: 600;
+    }
+    .tabstrip > button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Number tiles ─────────────────────────────────────────────────────
+       The row of readouts over every chart. Sized for a projector: the value
+       is 34 px, roughly three times the readout size on the thermal page,
+       which is what "readable from the last row" costs. Tabular figures, so
+       the row does not twitch while a slider is dragged, and a fixed minimum
+       width per tile, so it does not reflow either. */
+    .lv-tiles {
+      display: flex; flex-wrap: wrap; align-items: flex-end;
+      gap: 10px 34px; margin: 0 2px 12px;
+    }
+    .lv-tile { min-width: 128px; }
+    .lv-tile .lv-k {
+      display: block; font-size: 13px; line-height: 1.3;
+      letter-spacing: 0.02em; color: var(--tool-label);
+    }
+    .lv-tile .lv-v {
+      display: block; font-size: 34px; line-height: 1.18; font-weight: 600;
+      color: var(--tool-text); font-variant-numeric: tabular-nums;
+    }
+    .lv-tile .lv-u {
+      margin-left: 5px; font-size: 15px; font-weight: 400; color: var(--tool-note);
+    }
+    /* The one number the tab is about. On the grey skin --pico-primary is a
+       muted teal rather than a colour, which is the whole point of that skin. */
+    .lv-tile.lv-emph .lv-k { color: var(--tool-emph); }
+    .lv-tile.lv-emph .lv-v { color: var(--pico-primary); }
+
+    /* One slider and its value. Wide track: this is the only interaction on
+       the tab, so it may have the room. */
+    .lv-ctl {
+      display: flex; align-items: center; gap: 12px;
+      margin: 12px 2px 0; font-size: 15px; color: var(--tool-label);
+    }
+    .lv-ctl input[type="range"] { width: 380px; max-width: 52vw; margin: 0; flex: 0 1 auto; }
+    .lv-ctl .lv-ctlval {
+      min-width: 96px; font-size: 17px; font-weight: 600;
+      color: var(--tool-emph); font-variant-numeric: tabular-nums;
+    }
+
+    /* Range sliders, taken over from the thermal page: Pico leaves the thumb
+       to the browser and the browser default disappears on the grey skin from
+       six metres away. Both vendor prefixes are needed, they are separate
+       pseudo-elements and a shared rule is dropped by both engines. */
+    .lv-wrap input[type="range"] {
+      appearance: none; -webkit-appearance: none; background: none; height: 22px;
+    }
+    .lv-wrap input[type="range"]:focus { outline: none; }
+    .lv-wrap input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .lv-wrap input[type="range"]::-moz-range-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .lv-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px;
+      border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .lv-wrap input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .lv-wrap input[type="range"]:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+    .lv-wrap input[type="range"]:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+
+    /* One button and a quiet note beside it, for the two tabs whose single
+       interaction is a button rather than a slider. Same vertical rhythm as
+       .lv-ctl. Pico stretches a bare button to the full width of its
+       container, so the width has to be taken back explicitly. */
+    .lv-act {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 10px 18px; margin: 12px 2px 0;
+    }
+    .lv-act button {
+      width: auto; margin: 0; padding: 7px 20px;
+      font-size: 15px; font-weight: 600; line-height: 1.3;
+    }
+    .lv-act .lv-actnote {
+      font-size: 15px; color: var(--tool-note); font-variant-numeric: tabular-nums;
+    }
+
+    /* Chart and event log side by side. min-width: 0 is what stops the chart
+       from refusing to shrink below the intrinsic width of its content, which
+       is the usual reason a flex row overflows. */
+    .lv-split { display: flex; align-items: flex-start; gap: 18px; }
+    .lv-split > .lv-main { flex: 1 1 auto; min-width: 0; }
+    .lv-log {
+      flex: 0 0 350px; box-sizing: border-box;
+      height: 500px; overflow-y: auto;
+      padding: 8px 12px;
+      border: 1px solid var(--tool-hairline); border-radius: 6px;
+      background: var(--tool-subtle);
+      font-family: var(--pico-font-family-monospace, monospace);
+      /* 15 px monospace is small on a desk and readable from the back row of
+         a lecture hall at 1080p full screen, which is the size that counts. */
+      font-size: 15px; line-height: 1.42;
+    }
+    .lv-logh {
+      font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--tool-label); margin-bottom: 6px;
+    }
+    .lv-logline { padding: 6px 0; border-top: 1px solid var(--tool-hairline); }
+    .lv-logline:first-of-type { border-top: none; }
+    .lv-logt { display: block; color: var(--tool-note); }
+    .lv-logb { display: block; color: var(--tool-text); }
+    .lv-logb b { color: var(--tool-emph); font-weight: 600; }
+    .lv-logempty { color: var(--tool-faint); }
+
+    /* The controller in three lines, under the chart it produced. */
+    .lv-rules {
+      margin: 10px 2px 0; font-size: 13.5px; line-height: 1.55;
+      color: var(--tool-note);
+    }
+    .lv-rules b { color: var(--tool-label); font-weight: 600; }
+
+    /* Colour key under the chart. A line swatch for a curve, a filled block
+       for a band. */
+    .lv-legend {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px;
+      margin: 8px 2px 0; font-size: 13.5px; color: var(--tool-note);
+      font-variant-numeric: tabular-nums;
+    }
+    .lv-legend i {
+      display: inline-block; width: 18px; height: 0; vertical-align: middle;
+      border-top: 3px solid currentColor; margin-right: 7px;
+    }
+    .lv-legend i.lv-sw {
+      height: 11px; border-top: none; border-radius: 2px;
+      background: currentColor; opacity: 0.42; vertical-align: -1px;
+    }
+
+    /* Three clickable scenario cards, level 4's only interaction. A plain
+       button rather than a div with a click handler, so the card is a real
+       control: focusable, reachable by keyboard, announced as a button. */
+    .lv-cards {
+      display: flex; flex-wrap: wrap; gap: 14px; margin: 2px 2px 16px;
+    }
+    .lv-card {
+      flex: 1 1 250px; min-width: 210px; text-align: left;
+      display: block; margin: 0; padding: 14px 16px;
+      border: 1px solid var(--tool-hairline); border-radius: 8px;
+      background: var(--tool-subtle); color: inherit; font: inherit;
+      cursor: pointer;
+    }
+    .lv-card:hover, .lv-card:focus-visible {
+      border-color: var(--tool-border); background: var(--tool-panel);
+    }
+    /* The selected card, the one the chart is drawing at full strength. */
+    .lv-card.active {
+      border-color: var(--pico-primary); background: var(--tool-panel);
+      box-shadow: 0 0 0 1px var(--pico-primary);
+    }
+    .lv-card .lv-cardlabel {
+      display: block; font-size: 15.5px; font-weight: 600; color: var(--tool-emph);
+    }
+    .lv-card .lv-cardwin {
+      display: block; font-size: 13px; color: var(--tool-note); margin: 2px 0 10px;
+    }
+    .lv-card .lv-cardnums {
+      display: flex; gap: 24px; margin-bottom: 10px;
+    }
+    .lv-card .lv-cardnums .lv-k {
+      display: block; font-size: 12px; color: var(--tool-label);
+    }
+    .lv-card .lv-cardnums .lv-v {
+      display: block; font-size: 23px; font-weight: 600; line-height: 1.2;
+      color: var(--tool-text); font-variant-numeric: tabular-nums;
+    }
+    .lv-card .lv-cardnums .lv-u {
+      margin-left: 3px; font-size: 13px; font-weight: 400; color: var(--tool-note);
+    }
+    /* One pill per card: over the limit, feasible, or the recommendation.
+       Coloured with the same tint recipe as the rest of app.css, at low
+       opacity so the pill reads as a label and not an alert box. */
+    .lv-badge {
+      display: inline-block; padding: 3px 11px; border-radius: 999px;
+      font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+      border: 1px solid transparent;
+    }
+    .lv-badge-bad {
+      color: var(--tool-sig-bad);
+      background: color-mix(in srgb, var(--tool-sig-bad) 16%, transparent);
+      border-color: color-mix(in srgb, var(--tool-sig-bad) 40%, transparent);
+    }
+    .lv-badge-ok {
+      color: var(--tool-note); background: var(--tool-subtle); border-color: var(--tool-hairline);
+    }
+    .lv-badge-rec {
+      color: var(--tool-sig-good);
+      background: color-mix(in srgb, var(--tool-sig-good) 18%, transparent);
+      border-color: color-mix(in srgb, var(--tool-sig-good) 45%, transparent);
+    }
+
+    /* Each tab's module gets a frame, and its title rides ON the frame the
+       way a fieldset legend does, taken over unchanged from the thermal
+       page's .th-group / .th-h2 pattern (same border recipe, same legend
+       placement), so the two pages read as one family.
+       The frame is a softened --tool-border rather than --tool-hairline:
+       hairline disappears on the dark skin, and full --tool-border is pure
+       white on the grey skin, which would put a loud box on the page.
+       margin-top gives the legend, which rides half above the top border,
+       air from the tab strip above it. */
+    .lv-group {
+      position: relative;
+      margin-top: 14px;
+      border: 1px solid color-mix(in srgb, var(--tool-border) 55%, transparent);
+      border-radius: 7px;
+      padding: 16px 18px 14px;
+    }
+    /* The legend sits half above the top border and paints the page ground
+       over it, so the frame appears to break around the words. */
+    .lv-group > .lv-h2 {
+      position: absolute; top: 0; left: 14px; transform: translateY(-50%);
+      margin: 0; padding: 0 6px; white-space: nowrap;
+      background: var(--page-bg);
+    }
+    .lv-h2 {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--tool-note); line-height: 1.3;
+    }
+    .lv-canvas { display: block; width: 100%; }
+
+    @media (max-width: 1280px) {
+      .lv-wrap, body > header.tw-head { padding-inline: 16px; }
+    }
+    /* Below this the log next to the chart leaves neither of the two enough
+       room, so it goes underneath. */
+    @media (max-width: 980px) {
+      .lv-split { flex-direction: column; }
+      .lv-log { flex: 1 1 auto; width: 100%; height: 240px; }
+      .lv-cards { flex-direction: column; }
+    }
+  </style>
+  <script src="assets/js/react.production.min.js"></script>
+  <script src="assets/js/react-dom.production.min.js"></script>
+  <script src="assets/js/htm.js"></script>
+</head>
+<body>
+  <header class="container tw-head">
+    <h1><a class="lv-crumb" href="index.html">twin-lab</a><span class="lv-sep">/</span>Five levels of a digital twin</h1>
+    <div class="theme-switcher">
+      <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
+    </div>
+  </header>
+  <script src="assets/js/theme.js"></script>
+
+  <main>
+    <div id="root">
+      <div class="lv-wrap"></div>
+    </div>
+  </main>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Simulation core: plain JS, no JSX and no DOM. The thermal model is the
+       IEC 60076-7:2018 difference-equation form, taken over unchanged from the
+       thermal mini-twin page, with a second cooling stage (ONAF) added. Ageing
+       is the IEC relative rate 2^((thetaH - 98)/6) for non-thermally-upgraded
+       kraft paper.
+       Every tab of the page is one pure function in here. Nothing on this page
+       integrates anything while a frame is being drawn.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="levelscore">
+  var LevelsCore = (function () {
+    'use strict';
+
+    var DAY_MIN = 1440;
+
+    /* ── Thermal constants ────────────────────────────────────────────────
+       IEC 60076-7:2018 Table 4, ONAN column for medium and large power
+       transformers. tauO and tauW in minutes, dThOr and dThHr in kelvin.
+       dThOr is the rated top-oil rise over ambient, dThHr the rated hot-spot
+       rise over top-oil.
+       R is the loss ratio (load loss over no-load loss at rated current), not
+       in Table 4 and not a standard-prescribed constant: 10 is a typical
+       engineering value, ordinary range about 8 to 15.
+       dThOr and dThHr are likewise not in Table 4: they are typical design
+       values sitting inside the IEC 60076-2 limits (60 K top-oil rise, 78 K
+       hot-spot rise over ambient at rated load), which prescribes limits, not
+       typical values. */
+    var IEC = {
+      k11: 0.5, k21: 2.0, k22: 2.0,
+      tauO: 210, tauW: 10,
+      x: 0.8, y: 1.3,
+      R: 10,
+      dThOr: 45,
+      dThHr: 26
+    };
+
+    /* Second cooling stage, ONAF, same unit with the fans running.
+       IEC 60076-7:2018 Table 4, ONAF column: k11 = 0.5, k21 = 2.0, k22 = 2.0,
+       x = 0.8, y = 1.3. The oil time constant drops because forced air moves
+       the tank heat out faster (tauO 150 min against 210 min ONAN) and the
+       winding time constant with it (tauW 7 min against 10 min).
+
+       The three remaining numbers are a dual-rating derivation, not table
+       values. The unit is rated 1.25 pu with fans, and the load factor K on
+       this page stays in ONAN per-unit throughout, so that one number means
+       the same thing on all five tabs and across a stage change.
+         R      = 10 / 1.25^2 = 6.4       loss ratio rescaled from the ONAF
+                                          rated current into ONAN per-unit
+         dThOr  = 32.8 K   chosen so that 32.8 * ((1 + 6.4*1.25^2)/(1 + 6.4))^0.8
+                           = 45.0 K, the ONAN rated top-oil rise, at K = 1.25 pu
+         dThHr  = 19.4 K   chosen so that 19.4 * 1.25^1.3 = 25.9 K, the ONAN
+                           rated hot-spot rise, at K = 1.25 pu
+       In words: with the fans on, the unit reaches its rated rises at 1.25 pu
+       instead of at 1.00 pu. At K = 1.00 pu and 20 C ambient that gives a
+       72 C hot spot against 91 C on ONAN, which is the whole point of the
+       stage. */
+    var ONAF = {
+      k11: 0.5, k21: 2.0, k22: 2.0,
+      tauO: 150, tauW: 7,
+      x: 0.8, y: 1.3,
+      R: 6.4,
+      dThOr: 32.8,
+      dThHr: 19.4
+    };
+
+    /* ── Demo constants ───────────────────────────────────────────────────
+       Everything the five tabs agree on. Kept in one object so the numbers
+       quoted in the UI and the numbers used by the integrator cannot drift
+       apart. */
+    var DEMO = {
+      dtMin: 2,            // integration step, min. Fastest tau is k22*tauW = 14 min
+      warmMin: 1440,       // 24 h warm-up before t = 0, so t = 0 is not a transient
+      seed: 20260820,      // fixed, so nothing on the page shimmers between reloads
+      noiseK: 0.5,         // top-oil sensor noise, 1 sigma, K
+      smoothMin: 30,       // trailing mean on the residual, min
+      residSigma: 3,       // band half-width in sigma of the smoothed residual
+      residRun: 3,         // samples outside the band before flagging
+      /* The three samples are read half a smoothing window apart, so together
+         they span a full window and are not three looks at the same 30 min.
+         Three ADJACENT samples of a 30 min trailing mean at dt = 2 min are
+         correlated at 0.93 and buy almost no evidence: measured over 200
+         noise seeds that rule raises a false alarm in 35 % of 48 h runs, the
+         spaced one in 0.5 %, and it still flags the cooling fault 70 to 95 min
+         after onset, inside the 2 h the tab claims. */
+      residSpread: 0.5,    // sample spacing as a fraction of the smoothing window
+      faultScale: 1.25,    // cooling fault: rated top-oil rise 45 K -> 56.25 K
+      faultBlendMin: 120,  // the fault fades in linearly over 2 h, no step
+      ensembleN: 100,      // forecast members
+      fcstHours: 48,       // forecast horizon, h
+      histHours: 24,       // history shown next to the forecast, h
+      overTemp: 98,        // hot-spot reference for the exceedance probability, C
+      limitCyclic: 120,    // IEC 60076-7 Table 5, normal cyclic loading, C
+      fanOnC: 95,          // controller: hot spot at which the fans start, C
+      fanOffC: 85,         // controller: hot spot at which the fans stop, C
+      limitOnC: 110,       // controller: hot spot at which the load limiter arms, C
+      limitTargetC: 105,   // controller: steady-state hot spot the limiter aims at, C
+      limitOffC: 100,      // controller: hot spot at which the limiter releases, C
+      tripC: 140,          // controller: latched trip, IEC long-time emergency limit, C
+      ctrlMin: 10          // controller tick, min. Nothing decides faster than this
+    };
+
+    /* ── Ageing ───────────────────────────────────────────────────────────
+       Relative ageing rate, non-thermally-upgraded kraft paper, reference
+       hot spot 98 C: V = 2^((thetaH - 98)/6) (IEC 60076-7). Six kelvin is one
+       doubling, which is why a hot-spot uncertainty of a few kelvin is worth
+       carrying around at all. */
+    function agingRate(thetaH) {
+      return Math.pow(2, (thetaH - 98) / 6);
+    }
+
+    /* Ageing consumed by a hot-spot series, in equivalent days at the 98 C
+       reference. dtMin is the spacing of the series in minutes. */
+    function agingDaysOf(series, dtMin) {
+      var s = 0, i;
+      for (i = 0; i < series.length; i++) s += agingRate(series[i]);
+      return s * dtMin / DAY_MIN;
+    }
+
+    /* ── Random numbers ───────────────────────────────────────────────────
+       Deterministic RNG, so the ensemble is the same on every reload and the
+       plots do not shimmer. */
+    function mulberry32(seed) {
+      var a = seed >>> 0;
+      return function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        var t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    /* Box-Muller on top of a given uniform source, one spare cached. */
+    function gaussFactory(rnd) {
+      var spare = null;
+      return function () {
+        if (spare !== null) { var v = spare; spare = null; return v; }
+        var u1, u2, r, t;
+        do { u1 = rnd(); } while (u1 <= 1e-12);
+        u2 = rnd();
+        r = Math.sqrt(-2 * Math.log(u1)); t = 2 * Math.PI * u2;
+        spare = r * Math.sin(t);
+        return r * Math.cos(t);
+      };
+    }
+
+    /* ── Thermal model, IEC 60076-7 difference equations ──────────────────
+       Taken over unchanged from the thermal mini-twin page. The only addition
+       is paramsFan, the same merge against the ONAF base set. */
+
+    function params(over) {
+      var P = {}, k;
+      for (k in IEC) if (Object.prototype.hasOwnProperty.call(IEC, k)) P[k] = IEC[k];
+      if (over) for (k in over) if (Object.prototype.hasOwnProperty.call(over, k)) P[k] = over[k];
+      return P;
+    }
+
+    function paramsFan(over) {
+      var P = {}, k;
+      for (k in ONAF) if (Object.prototype.hasOwnProperty.call(ONAF, k)) P[k] = ONAF[k];
+      if (over) for (k in over) if (Object.prototype.hasOwnProperty.call(over, k)) P[k] = over[k];
+      return P;
+    }
+
+    /* Steady state of the exponential solution: used for the initial condition
+       and as the reference the difference equations must converge to. */
+    function steadyState(K, thetaA, P) {
+      P = P || IEC;
+      var dThO = P.dThOr * Math.pow((1 + P.R * K * K) / (1 + P.R), P.x);
+      var dThH = P.dThHr * Math.pow(K, P.y);
+      return { thetaO: thetaA + dThO, thetaH: thetaA + dThO + dThH, dThO: dThO, dThH: dThH };
+    }
+
+    function initState(K, thetaA, P) {
+      P = P || IEC;
+      var ss = steadyState(K, thetaA, P);
+      var h = Math.pow(K, P.y) * P.dThHr;
+      var dThO = ss.dThO;
+      /* Tank heaters hold a minimum oil temperature, modelled as a floor, no
+         control dynamics. */
+      if (P.oilFloor != null && thetaA + dThO < P.oilFloor) dThO = P.oilFloor - thetaA;
+      /* Effective ambient starts on the actual ambient, so a constant-ambient
+         run is in steady state from the first step. */
+      return { dThO: dThO, dThH1: P.k21 * h, dThH2: (P.k21 - 1) * h, thetaAeff: thetaA };
+    }
+
+    /* ── One RK2 step ─────────────────────────────────────────────────────
+       Heun, that is the explicit trapezoid: a predictor at the end of the step
+       and then the average of the two slopes. Second order in dt at the cost of
+       one extra evaluation of the driving terms.
+       Heun rather than midpoint on purpose. Every caller here has the drivers
+       on a grid, and the end of a step IS the next stored sample, exactly; a
+       midpoint rule would have to interpolate them, which puts a first-order
+       error back into the very place the second-order rule was meant to
+       remove. So the end-of-step load and ambient are passed in as Kn and
+       thetaAn, and callers that genuinely have a constant driver may leave
+       them out.
+       All four states are of the form y' = (target(u) - y)/tau. */
+    function stepThermal(st, K, thetaA, dtMin, P, Kn, thetaAn) {
+      P = P || IEC;
+      if (Kn == null) Kn = K;
+      if (thetaAn == null) thetaAn = thetaA;
+
+      var Ky = Math.pow(K, P.y), Kyn = Math.pow(Kn, P.y);
+      var ssO = P.dThOr * Math.pow((1 + P.R * K * K) / (1 + P.R), P.x);
+      var ssOn = P.dThOr * Math.pow((1 + P.R * Kn * Kn) / (1 + P.R), P.x);
+      var h = dtMin, h2 = 0.5 * dtMin;
+      var s1, s2, tgt, tgtn, tau;
+
+      /* Effective ambient. IEC 60076-7 recommends weighting a varying ambient
+         with the oil time constant rather than using the instantaneous value;
+         modelled here as a first-order lag with tauAmb = tauO. Without it a
+         step in the ambient series arrives in the top oil within one time step,
+         which the tank cannot do. The DISPLAYED ambient stays the raw one. */
+      if (st.thetaAeff == null) st.thetaAeff = thetaA;
+      tau = P.tauO;
+      s1 = (thetaA - st.thetaAeff) / tau;
+      s2 = (thetaAn - (st.thetaAeff + h * s1)) / tau;
+      st.thetaAeff += h2 * (s1 + s2);
+      var aEff = st.thetaAeff;
+
+      tau = P.k11 * P.tauO;
+      s1 = (ssO - st.dThO) / tau;
+      s2 = (ssOn - (st.dThO + h * s1)) / tau;
+      st.dThO += h2 * (s1 + s2);
+
+      tau = P.k22 * P.tauW;
+      tgt = P.k21 * P.dThHr;
+      s1 = (tgt * Ky - st.dThH1) / tau;
+      s2 = (tgt * Kyn - (st.dThH1 + h * s1)) / tau;
+      st.dThH1 += h2 * (s1 + s2);
+
+      tau = P.tauO / P.k22;
+      tgtn = (P.k21 - 1) * P.dThHr;
+      s1 = (tgtn * Ky - st.dThH2) / tau;
+      s2 = (tgtn * Kyn - (st.dThH2 + h * s1)) / tau;
+      st.dThH2 += h2 * (s1 + s2);
+
+      st.thetaO = aEff + st.dThO;
+      /* Tank heaters hold a minimum oil temperature, modelled as a floor, no
+         control dynamics. The state itself is clamped, so the oil sits on the
+         floor instead of drifting below it and springing back. */
+      if (P.oilFloor != null && st.thetaO < P.oilFloor) {
+        st.dThO = P.oilFloor - aEff;
+        st.thetaO = P.oilFloor;
+      }
+      st.thetaH = st.thetaO + st.dThH1 - st.dThH2;
+      return st;
+    }
+
+    function copyState(st) {
+      return { dThO: st.dThO, dThH1: st.dThH1, dThH2: st.dThH2, thetaAeff: st.thetaAeff };
+    }
+
+    /* ── Drivers ──────────────────────────────────────────────────────────
+       One demo day, repeated. Both drivers are plain cosines: the point of this
+       page is the five capability levels, not a meteorological model, and a
+       cosine is the shape a presenter can read off the axis while talking.
+       tMin is minutes from midnight of day 0 and may be negative (warm-up). */
+    var AMB_PEAK_MIN = 15 * 60;    // ambient peaks at 15:00
+    var LOAD_PEAK_MIN = 19 * 60;   // load peaks at 19:00, the domestic evening
+
+    /* Ambient temperature in C. Demo day: 22 C mean, 7 K amplitude, so 15 C at
+       night and 29 C in the afternoon. Heat wave: 30 C mean, 8 K amplitude, so
+       22 C at night and 38 C in the afternoon. */
+    function ambientAt(tMin, opts) {
+      opts = opts || {};
+      var mean = opts.heatwave ? 30 : 22;
+      var amp = opts.heatwave ? 8 : 7;
+      if (opts.ambMean != null) mean = opts.ambMean;
+      if (opts.ambAmp != null) amp = opts.ambAmp;
+      var v = mean + amp * Math.cos(2 * Math.PI * (tMin - AMB_PEAK_MIN) / DAY_MIN);
+      if (opts.ambTrendPerDay) v += opts.ambTrendPerDay * tMin / DAY_MIN;
+      if (opts.ambOffset) v += opts.ambOffset;
+      return v;
+    }
+
+    /* Load factor in pu of the ONAN rating. Demo day: 0.75 pu mean, 0.25 pu
+       amplitude, so 0.50 pu at night and 1.00 pu at the evening peak.
+       opts.ramp overrides the cosine with a piecewise-linear profile given as
+       [[tMin, K], ...] knots, clamped at both ends. opts.peakScale scales the
+       amplitude only, so the daily mean stays put and only the peak moves.
+       opts.windows is the contingency form: a list of [t0, t1] minute pairs
+       during which the load is held at opts.windowK instead of following the
+       cosine, faded in and out over WINDOW_RAMP_MIN so that nothing steps.
+       Held, not added: the transferred load replaces the local one, which is
+       what makes the served energy identical across the three options and the
+       comparison a comparison of timing only. */
+    var WINDOW_RAMP_MIN = 10;
+
+    function loadAt(tMin, opts) {
+      opts = opts || {};
+      var r = opts.ramp, i, t0, t1, u;
+      if (r && r.length) {
+        if (tMin <= r[0][0]) return r[0][1];
+        for (i = 1; i < r.length; i++) {
+          if (tMin <= r[i][0]) {
+            t0 = r[i - 1][0]; t1 = r[i][0];
+            u = t1 === t0 ? 1 : (tMin - t0) / (t1 - t0);
+            return r[i - 1][1] + u * (r[i][1] - r[i - 1][1]);
+          }
+        }
+        return r[r.length - 1][1];
+      }
+      var mean = opts.loadMean == null ? 0.75 : opts.loadMean;
+      var amp = opts.loadAmp == null ? 0.25 : opts.loadAmp;
+      if (opts.peakScale != null) amp *= opts.peakScale;
+      var K = mean + amp * Math.cos(2 * Math.PI * (tMin - LOAD_PEAK_MIN) / DAY_MIN);
+      if (opts.windows) {
+        var w = opts.windows, g = 0, a, b, f;
+        for (i = 0; i < w.length; i++) {
+          a = w[i][0]; b = w[i][1];
+          if (tMin <= a - WINDOW_RAMP_MIN || tMin >= b + WINDOW_RAMP_MIN) continue;
+          if (tMin < a) f = (tMin - (a - WINDOW_RAMP_MIN)) / WINDOW_RAMP_MIN;
+          else if (tMin > b) f = ((b + WINDOW_RAMP_MIN) - tMin) / WINDOW_RAMP_MIN;
+          else f = 1;
+          if (f > g) g = f;
+        }
+        if (g > 0) K = K + g * (opts.windowK - K);
+      }
+      return K < 0.02 ? 0.02 : K;
+    }
+
+    /* Warm the model up for DEMO.warmMin before t = 0 on the given drivers, so
+       that t = 0 is a periodic operating point and not an initial transient.
+       tEnd moves the end of the warm-up off t = 0, which is what the live
+       stream needs: its window starts two days BEFORE t = 0, so its own
+       warm-up has to end there. */
+    function warmUp(P, opts, dtMin, warmMin, tEnd) {
+      dtMin = dtMin || DEMO.dtMin;
+      warmMin = warmMin == null ? DEMO.warmMin : warmMin;
+      tEnd = tEnd == null ? 0 : tEnd;
+      var t = tEnd - warmMin;
+      var st = initState(loadAt(t, opts), ambientAt(t, opts), P);
+      for (; t < tEnd - 1e-9; t += dtMin) {
+        stepThermal(st, loadAt(t, opts), ambientAt(t, opts), dtMin, P,
+          loadAt(t + dtMin, opts), ambientAt(t + dtMin, opts));
+      }
+      return st;
+    }
+
+    /* Smallest load factor whose steady-state hot spot is at most targetC, at
+       the given ambient and parameter set. Bisection, because steadyState is
+       strictly increasing in K and the closed form is not worth deriving for
+       a controller that runs once every 10 min. */
+    function kForHotspot(targetC, thetaA, P) {
+      var lo = 0.02, hi = 2.5, mid, i;
+      if (steadyState(lo, thetaA, P).thetaH > targetC) return lo;
+      if (steadyState(hi, thetaA, P).thetaH < targetC) return hi;
+      for (i = 0; i < 60; i++) {
+        mid = 0.5 * (lo + hi);
+        if (steadyState(mid, thetaA, P).thetaH < targetC) lo = mid; else hi = mid;
+      }
+      return 0.5 * (lo + hi);
+    }
+
+    /* ── Level 1 and 2: descriptive and diagnostic ────────────────────────
+       One run of the plant and one run of the twin on the same drivers.
+       The plant may carry a cooling fault (rated top-oil rise scaled by
+       DEMO.faultScale, faded in linearly over DEMO.faultBlendMin so nothing
+       steps); the twin never does, because the twin does not know about it.
+       Level 1 is what the two top-oil traces look like. Level 2 is their
+       difference: the residual, a trailing 30 min mean of it, and a band at
+       DEMO.residSigma sigma of that mean. Sigma of a k-sample mean of white
+       sensor noise is noiseK / sqrt(k), so the band is analytic and does not
+       have to be estimated from the very data it is meant to judge.
+       hours is the logged horizon; opts.faultAtMin is the fault onset in
+       minutes from t = 0, or null for a healthy run. */
+    function simPlant(hours, opts) {
+      opts = opts || {};
+      var dt = DEMO.dtMin;
+      var n = Math.round(hours * 60 / dt) + 1;
+      var faultAt = opts.faultAtMin == null ? null : opts.faultAtMin;
+      var scale = opts.faultScale == null ? DEMO.faultScale : opts.faultScale;
+      var blend = opts.faultBlendMin == null ? DEMO.faultBlendMin : opts.faultBlendMin;
+      var noiseK = opts.noiseK == null ? DEMO.noiseK : opts.noiseK;
+      var Pnom = params();
+      var gauss = gaussFactory(mulberry32(opts.seed == null ? DEMO.seed : opts.seed));
+
+      function faultFac(tMin) {
+        if (faultAt == null || tMin <= faultAt) return 1;
+        var u = blend <= 0 ? 1 : (tMin - faultAt) / blend;
+        if (u > 1) u = 1;
+        return 1 + (scale - 1) * u;
+      }
+      var Pfault = params();
+
+      /* Both runs share the warm-up, because the fault starts after t = 0. */
+      var stT = warmUp(Pnom, opts, dt);
+      var stW = copyState(stT);
+
+      var t = new Float64Array(n);
+      var thOtrue = new Float64Array(n), thHtrue = new Float64Array(n);
+      var thOmeas = new Float64Array(n);
+      var thOtwin = new Float64Array(n), thHtwin = new Float64Array(n);
+      var resid = new Float64Array(n), residSm = new Float64Array(n);
+      var amb = new Float64Array(n), load = new Float64Array(n);
+      var i, tm, K, A, Kn, An;
+
+      for (i = 0; i < n; i++) {
+        tm = i * dt;
+        K = loadAt(tm, opts); A = ambientAt(tm, opts);
+        if (i > 0) {
+          Pfault.dThOr = IEC.dThOr * faultFac(tm);
+          stepThermal(stT, load[i - 1], amb[i - 1], dt, Pfault, K, A);
+          stepThermal(stW, load[i - 1], amb[i - 1], dt, Pnom, K, A);
+        } else {
+          Pfault.dThOr = IEC.dThOr * faultFac(tm);
+          stT.thetaO = stT.thetaAeff + stT.dThO;
+          stT.thetaH = stT.thetaO + stT.dThH1 - stT.dThH2;
+          stW.thetaO = stW.thetaAeff + stW.dThO;
+          stW.thetaH = stW.thetaO + stW.dThH1 - stW.dThH2;
+        }
+        t[i] = tm; load[i] = K; amb[i] = A;
+        thOtrue[i] = stT.thetaO; thHtrue[i] = stT.thetaH;
+        thOtwin[i] = stW.thetaO; thHtwin[i] = stW.thetaH;
+        thOmeas[i] = stT.thetaO + noiseK * gauss();
+        resid[i] = thOmeas[i] - thOtwin[i];
+      }
+
+      /* Trailing mean. The band belongs to the full window, so the first
+         w - 1 samples get the full-window band too and are simply short of
+         data; they are never used for flagging (see the run counter below). */
+      var w = Math.max(1, Math.round(DEMO.smoothMin / dt));
+      var acc = 0;
+      for (i = 0; i < n; i++) {
+        acc += resid[i];
+        if (i >= w) acc -= resid[i - w];
+        residSm[i] = acc / Math.min(i + 1, w);
+      }
+      var band = DEMO.residSigma * noiseK / Math.sqrt(w);
+
+      var stride = Math.max(1, Math.round(DEMO.residSpread * w));
+      var flagIdx = -1, j, hit;
+      for (i = w - 1 + (DEMO.residRun - 1) * stride; i < n; i++) {
+        hit = true;
+        for (j = 0; j < DEMO.residRun; j++) {
+          if (Math.abs(residSm[i - j * stride]) <= band) { hit = false; break; }
+        }
+        if (hit) { flagIdx = i; break; }
+      }
+
+      return {
+        t: t, dtMin: dt, amb: amb, load: load,
+        thOtrue: thOtrue, thHtrue: thHtrue, thOmeas: thOmeas,
+        thOtwin: thOtwin, thHtwin: thHtwin,
+        resid: resid, residSm: residSm, band: band,
+        smoothW: w, flagStride: stride,
+        flagIdx: flagIdx, flagMin: flagIdx < 0 ? null : t[flagIdx],
+        faultAtMin: faultAt
+      };
+    }
+
+    /* ── The same plant as a running stream ───────────────────────────────
+       simPlant computes a fixed 48 h once. makeLive does the same physics one
+       step at a time and keeps the last 48 h in a ring buffer, which is what
+       levels 1 and 2 actually show: a trend that walks left while the newest
+       sample sits on the right edge.
+       Two things follow from that and are the whole reason this exists rather
+       than an index walking over a precomputed array.
+       First, the fault is an event in the RUNNING stream. setFault(true)
+       starts blending the rated top-oil rise from wherever it is now towards
+       DEMO.faultScale over DEMO.faultBlendMin, at the present simulated time;
+       setFault(false) blends back from wherever the blend had got to. Time is
+       never moved, nothing already in the ring is rewritten, and the truth
+       state is continuous across every toggle.
+       Second, the flag has to be decided online: a trailing 30 min mean and a
+       run of DEMO.residRun samples a stride apart outside the band, exactly
+       the rule simPlant applies in one pass afterwards. The status returns to
+       OK by itself once the smoothed residual is back inside the band, which
+       is what makes "clear the fault" visible as a recovery rather than as a
+       reset.
+       The constructor prefills the whole window with healthy operation, so
+       the chart is full on the first frame and the trailing mean is already
+       up to speed. After construction the newest sample sits at t = 0. */
+    var LIVE_WINDOW_MIN = 48 * 60;
+
+    function makeLive(opts) {
+      opts = opts || {};
+      var dt = DEMO.dtMin;
+      var winMin = opts.windowMin == null ? LIVE_WINDOW_MIN : opts.windowMin;
+      var cap = Math.max(2, Math.round(winMin / dt));
+      var noiseK = opts.noiseK == null ? DEMO.noiseK : opts.noiseK;
+      var fScale = opts.faultScale == null ? DEMO.faultScale : opts.faultScale;
+      var fBlend = opts.faultBlendMin == null ? DEMO.faultBlendMin : opts.faultBlendMin;
+      var seed = opts.seed == null ? DEMO.seed : opts.seed;
+      var dopts = opts.drivers || {};
+
+      /* The twin runs on the nominal parameters and never learns about the
+         fault; the plant object is the one whose dThOr is moved. */
+      var Pnom = params(), Ptrue = params();
+      var w = Math.max(1, Math.round(DEMO.smoothMin / dt));
+      var band = DEMO.residSigma * noiseK / Math.sqrt(w);
+      var stride = Math.max(1, Math.round(DEMO.residSpread * w));
+      var hLen = (DEMO.residRun - 1) * stride + 1;
+
+      var arr = {
+        tMin: new Float64Array(cap), K: new Float64Array(cap), thA: new Float64Array(cap),
+        thOtrue: new Float64Array(cap), thOmeas: new Float64Array(cap),
+        thOtwin: new Float64Array(cap), thHtwin: new Float64Array(cap),
+        residRaw: new Float64Array(cap), residSm: new Float64Array(cap)
+      };
+      var at = 0, count = 0;
+
+      var tNow = 0, prevK = 0, prevA = 0, stT = null, stW = null, gauss = null;
+      var smBuf = null, smAcc = 0, smN = 0, smAt = 0;
+      var hist = null, hAt = 0, hN = 0;
+      var facFrom = 1, facTo = 1, facT0 = null, faultOn = false;
+      var status = 'OK', onsetMin = null, flagMin = null, clearMin = null;
+
+      /* The blend factor at the present simulated time. Reading it from the
+         current time rather than storing it per step is what keeps a toggle
+         in the middle of a blend continuous: the next blend starts from this
+         value, not from 1 or from DEMO.faultScale. */
+      function facNow() {
+        if (facT0 == null) return facTo;
+        var u = fBlend <= 0 ? 1 : (tNow - facT0) / fBlend;
+        if (u >= 1) return facTo;
+        if (u <= 0) return facFrom;
+        return facFrom + (facTo - facFrom) * u;
+      }
+
+      function phys(k) {
+        var i = (at - count + k) % cap;
+        return i < 0 ? i + cap : i;
+      }
+
+      /* One sample: measure, difference, smooth, judge, store. */
+      function push(K, A) {
+        var meas = stT.thetaO + noiseK * gauss();
+        var r = meas - stW.thetaO;
+
+        if (smN === w) smAcc -= smBuf[smAt]; else smN++;
+        smBuf[smAt] = r; smAcc += r;
+        smAt = smAt + 1 === w ? 0 : smAt + 1;
+        var sm = smAcc / smN;
+
+        hist[hAt] = sm;
+        hAt = hAt + 1 === hLen ? 0 : hAt + 1;
+        if (hN < hLen) hN++;
+
+        if (smN === w && hN === hLen) {
+          var outside = true, j, q;
+          for (j = 0; j < DEMO.residRun; j++) {
+            q = hAt - 1 - j * stride;
+            while (q < 0) q += hLen;
+            if (Math.abs(hist[q]) <= band) { outside = false; break; }
+          }
+          if (status === 'OK') {
+            if (outside) { status = 'FLAGGED'; flagMin = tNow; }
+          } else if (Math.abs(sm) <= band) {
+            status = 'OK'; flagMin = null;
+          }
+        }
+
+        arr.tMin[at] = tNow; arr.K[at] = K; arr.thA[at] = A;
+        arr.thOtrue[at] = stT.thetaO; arr.thOmeas[at] = meas;
+        arr.thOtwin[at] = stW.thetaO; arr.thHtwin[at] = stW.thetaH;
+        arr.residRaw[at] = r; arr.residSm[at] = sm;
+        at = at + 1 === cap ? 0 : at + 1;
+        if (count < cap) count++;
+      }
+
+      function advance() {
+        var tn = tNow + dt;
+        var K = loadAt(tn, dopts), A = ambientAt(tn, dopts);
+        tNow = tn;
+        Ptrue.dThOr = IEC.dThOr * facNow();
+        stepThermal(stT, prevK, prevA, dt, Ptrue, K, A);
+        stepThermal(stW, prevK, prevA, dt, Pnom, K, A);
+        prevK = K; prevA = A;
+        push(K, A);
+      }
+
+      function reset() {
+        var tA = -(cap - 1) * dt;
+        at = 0; count = 0;
+        gauss = gaussFactory(mulberry32(seed));
+        smBuf = new Float64Array(w); smAcc = 0; smN = 0; smAt = 0;
+        hist = new Float64Array(hLen); hAt = 0; hN = 0;
+        facFrom = 1; facTo = 1; facT0 = null; faultOn = false;
+        status = 'OK'; onsetMin = null; flagMin = null; clearMin = null;
+        Ptrue.dThOr = IEC.dThOr;
+        stT = warmUp(Pnom, dopts, dt, DEMO.warmMin, tA);
+        stW = copyState(stT);
+        tNow = tA;
+        prevK = loadAt(tA, dopts); prevA = ambientAt(tA, dopts);
+        stT.thetaO = stT.thetaAeff + stT.dThO;
+        stT.thetaH = stT.thetaO + stT.dThH1 - stT.dThH2;
+        stW.thetaO = stW.thetaAeff + stW.dThO;
+        stW.thetaH = stW.thetaO + stW.dThH1 - stW.dThH2;
+        push(prevK, prevA);
+        var i;
+        for (i = 1; i < cap; i++) advance();
+      }
+
+      reset();
+
+      return {
+        dtMin: dt, capacity: cap, windowMin: cap * dt,
+        band: band, smoothW: w, flagStride: stride,
+        arr: arr, phys: phys,
+        count: function () { return count; },
+        now: function () { return tNow; },
+        status: function () { return status; },
+        faultOn: function () { return faultOn; },
+        onsetMin: function () { return onsetMin; },
+        flagMin: function () { return flagMin; },
+        clearMin: function () { return clearMin; },
+        faultFactor: function () { return facNow(); },
+        /* Newest sample, the one the readouts show. */
+        last: function (key) { return count === 0 ? 0 : arr[key][phys(count - 1)]; },
+        step: function (n) {
+          var i, m = n == null ? 1 : Math.max(0, Math.round(n));
+          for (i = 0; i < m; i++) advance();
+        },
+        /* Inject or clear at the present simulated time. Never moves time,
+           never clears the ring. */
+        setFault: function (on) {
+          on = !!on;
+          if (on === faultOn) return;
+          facFrom = facNow();
+          facTo = on ? fScale : 1;
+          facT0 = tNow;
+          faultOn = on;
+          if (on) { onsetMin = tNow; clearMin = null; }
+          else clearMin = tNow;
+        },
+        reset: reset
+      };
+    }
+
+    /* ── Level 3: predictive ──────────────────────────────────────────────
+       24 h of nominal history, then a 48 h ensemble forecast. Every member
+       starts from the same state, which is what the twin actually knows at
+       "now", and then differs in four draws:
+         ambient offset       N(0, 1.5 K)        a systematic weather bias
+         ambient trend        N(0, 1.5 K/day)    the part that grows with horizon
+         load scale           N(1, 0.06)         demand forecast error
+         rated top-oil rise   N(1, 0.05)         parameter uncertainty
+       The trend draw is why the band widens with the horizon instead of
+       saturating after a few oil time constants: a constant offset stops
+       adding width once the tank has followed it, a drift does not.
+       peakScale scales the load amplitude of every member and of the history,
+       so the slider on the tab moves the evening peak and nothing else.
+       opts.loadMean and opts.loadAmp are passed through to the driver for
+       callers that would rather state the daily profile outright than scale
+       the default one; both default to the demo day, 0.75 pu and 0.25 pu. */
+    function forecast(peakScale, opts) {
+      opts = opts || {};
+      peakScale = peakScale == null ? 1 : peakScale;
+      var N = opts.n == null ? DEMO.ensembleN : opts.n;
+      var dt = opts.dtMin == null ? 5 : opts.dtMin;
+      var nH = Math.round(DEMO.histHours * 60 / dt) + 1;
+      var nF = Math.round(DEMO.fcstHours * 60 / dt) + 1;
+      var base = { peakScale: peakScale };
+      if (opts.loadMean != null) base.loadMean = opts.loadMean;
+      if (opts.loadAmp != null) base.loadAmp = opts.loadAmp;
+      var Pnom = params();
+      var gauss = gaussFactory(mulberry32(opts.seed == null ? DEMO.seed : opts.seed));
+
+      /* History: 24 h ending at t = 0, on the plain demo day and on top of the
+         usual warm-up. Deliberately not on `base`: the past is the past, and a
+         slider that says "tomorrow's peak load" must not redraw it. At the
+         default peakScale of 1 and without a stated profile the two are the
+         same drivers anyway, so nothing about the default run changes. */
+      var hb = {};
+      var st = warmUp(Pnom, hb, dt, DEMO.warmMin + DEMO.histHours * 60);
+      var tH = new Float64Array(nH), hist = new Float64Array(nH), histO = new Float64Array(nH);
+      var i, j, tm, tn;
+      for (i = 0; i < nH; i++) {
+        tm = -DEMO.histHours * 60 + i * dt;
+        if (i > 0) {
+          stepThermal(st, loadAt(tm - dt, hb), ambientAt(tm - dt, hb), dt, Pnom,
+            loadAt(tm, hb), ambientAt(tm, hb));
+        } else {
+          st.thetaO = st.thetaAeff + st.dThO;
+          st.thetaH = st.thetaO + st.dThH1 - st.dThH2;
+        }
+        tH[i] = tm; hist[i] = st.thetaH; histO[i] = st.thetaO;
+      }
+      var st0 = copyState(st);
+
+      /* Nominal forecast from the same state, no draws. */
+      var t = new Float64Array(nF), nom = new Float64Array(nF);
+      var sn = copyState(st0);
+      for (i = 0; i < nF; i++) {
+        tm = i * dt;
+        if (i > 0) {
+          stepThermal(sn, loadAt(tm - dt, base), ambientAt(tm - dt, base), dt, Pnom,
+            loadAt(tm, base), ambientAt(tm, base));
+        }
+        t[i] = tm;
+        nom[i] = (sn.thetaAeff + sn.dThO) + sn.dThH1 - sn.dThH2;
+      }
+
+      /* Ensemble. Column-major would be nicer for the quantiles but the walk
+         over time has to be sequential anyway, so the members go in rows and
+         the quantile pass transposes with a stride. */
+      var M = new Float64Array(N * nF);
+      var peaks = new Float64Array(N);
+      var over = 0, o;
+      for (j = 0; j < N; j++) {
+        var mo = {
+          peakScale: peakScale * (1 + 0.06 * gauss()),
+          loadMean: base.loadMean, loadAmp: base.loadAmp,
+          ambOffset: 1.5 * gauss(),
+          ambTrendPerDay: 1.5 * gauss()
+        };
+        var Pm = params({ dThOr: IEC.dThOr * (1 + 0.05 * gauss()) });
+        var sm = copyState(st0);
+        var pk = -1e9;
+        for (i = 0; i < nF; i++) {
+          tm = i * dt;
+          if (i > 0) {
+            stepThermal(sm, loadAt(tm - dt, mo), ambientAt(tm - dt, mo), dt, Pm,
+              loadAt(tm, mo), ambientAt(tm, mo));
+          }
+          o = (sm.thetaAeff + sm.dThO) + sm.dThH1 - sm.dThH2;
+          M[j * nF + i] = o;
+          if (o > pk) pk = o;
+        }
+        peaks[j] = pk;
+        if (pk > DEMO.overTemp) over++;
+      }
+
+      function quantOf(sorted, q) {
+        var u = q * (sorted.length - 1), lo = Math.floor(u), hi = Math.ceil(u);
+        return sorted[lo] + (u - lo) * (sorted[hi] - sorted[lo]);
+      }
+      var med = new Float64Array(nF), q25 = new Float64Array(nF), q75 = new Float64Array(nF);
+      var q05 = new Float64Array(nF), q95 = new Float64Array(nF);
+      var col = new Float64Array(N);
+      for (i = 0; i < nF; i++) {
+        for (j = 0; j < N; j++) col[j] = M[j * nF + i];
+        var s = Array.prototype.slice.call(col).sort(function (a, b) { return a - b; });
+        med[i] = quantOf(s, 0.50);
+        q25[i] = quantOf(s, 0.25); q75[i] = quantOf(s, 0.75);
+        q05[i] = quantOf(s, 0.05); q95[i] = quantOf(s, 0.95);
+      }
+      var pk2 = Array.prototype.slice.call(peaks).sort(function (a, b) { return a - b; });
+
+      return {
+        t: t, dtMin: dt, tHist: tH, hist: hist, histO: histO, nom: nom,
+        med: med, q25: q25, q75: q75, q05: q05, q95: q95,
+        pOver98: over / N, medPeak: quantOf(pk2, 0.5), peaks: peaks, n: N
+      };
+    }
+
+    /* ── Level 4: prescriptive ────────────────────────────────────────────
+       The premise: the neighbouring transformer is lost, and 1.3 pu has to be
+       carried for 4 h some time in the next 24 h. WHAT is carried is fixed;
+       only WHEN is open. All three options therefore serve exactly the same
+       energy, 1.30 pu times 4 h, and the whole difference between them is the
+       state of the tank and the ambient at the moment the load arrives:
+         A  run now      07:00 to 11:00
+         B  wait         00:00 to 04:00
+         C  split it     07:00 to 09:00 and 00:00 to 02:00
+       Each option is integrated over 36 h from midnight, which covers B's
+       window and leaves the tank time to come back down, and is scored on peak
+       hot spot, feasibility against the IEC 60076-7 Table 5 normal cyclic
+       limit of 120 C, and ageing consumed, the latter as equivalent
+       normal-ageing days, integral of 2^((thetaH - 98)/6) over 24 h. The
+       recommendation is the feasible option with the least ageing.
+       Same kilowatt hours, different paper: that is the point of the tab.
+
+       Two results here are worth knowing before reading the numbers.
+       First, waiting for the cool hours buys much less than it sounds like it
+       should. The tank low-passes the ambient with tauO = 210 min, which
+       attenuates a 24 h swing to about 0.74 of its amplitude and delays it by
+       roughly 42 degrees, so the effective ambient at 02:00 is nowhere near
+       the 15 C the thermometer shows. Option B wins about 2.7 K on the peak,
+       not the 10 K the raw ambient curve suggests.
+       Second, splitting wins on a different mechanism entirely: a 2 h window
+       does not reach steady state. With k11*tauO = 105 min the oil is still
+       climbing when the window ends, which is why C peaks below B even though
+       half of C sits in A's warm morning slot. */
+    var CONT_K = 1.30;             // pu, fixed by the premise, not a tuning knob
+    var CONT_HOURS = 36;           // integration window from midnight, h
+    /* The contingency day is the ordinary demo day of tabs 1 to 3, 22 C mean,
+       and not a warmer one invented for this tab. At 1.30 pu the ONAN steady
+       state is about ambient + 103 K, so the whole family of options sits
+       within a few kelvin of the 120 C line: at a 23 C daily mean every option
+       including the night one is already over it, and there is nothing left to
+       decide. 22 C is the warmest mean at which the tab has an answer. */
+    var CONT_AMB_MEAN = 22;
+
+    var SCENARIO_DEFS = [
+      {
+        id: 'A', name: 'Run now', label: '1.30 pu, 07:00 to 11:00',
+        windows: [[7 * 60, 11 * 60]]
+      },
+      {
+        id: 'B', name: 'Shift to night', label: '1.30 pu, 00:00 to 04:00',
+        windows: [[24 * 60, 28 * 60]]
+      },
+      {
+        id: 'C', name: 'Split', label: '1.30 pu, 07:00 to 09:00 and 00:00 to 02:00',
+        windows: [[7 * 60, 9 * 60], [24 * 60, 26 * 60]]
+      }
+    ];
+
+    function scenarios(opts) {
+      opts = opts || {};
+      var dt = DEMO.dtMin;
+      var ambMean = opts.ambMean == null ? CONT_AMB_MEAN : opts.ambMean;
+      var limit = opts.limitC == null ? DEMO.limitCyclic : opts.limitC;
+      var windowK = opts.windowK == null ? CONT_K : opts.windowK;
+      var Pnom = params();
+      var n = Math.round(CONT_HOURS * 60 / dt) + 1;
+      var out = SCENARIO_DEFS.map(function (d) {
+        var o = { ambMean: ambMean, windows: d.windows, windowK: windowK };
+        var st = warmUp(Pnom, o, dt);
+        var t = new Float64Array(n), thH = new Float64Array(n), thO = new Float64Array(n);
+        var load = new Float64Array(n);
+        var i, k, tm, peak = -1e9, peakAt = 0, served = 0, inW;
+        for (i = 0; i < n; i++) {
+          tm = i * dt;
+          if (i > 0) {
+            stepThermal(st, loadAt(tm - dt, o), ambientAt(tm - dt, o), dt, Pnom,
+              loadAt(tm, o), ambientAt(tm, o));
+          } else {
+            st.thetaO = st.thetaAeff + st.dThO;
+            st.thetaH = st.thetaO + st.dThH1 - st.dThH2;
+          }
+          t[i] = tm; thH[i] = st.thetaH; thO[i] = st.thetaO;
+          load[i] = loadAt(tm, o);
+          /* Energy served inside the transfer windows, pu times hours. The
+             ramps in and out sit outside [a, b), so this is 1.30 pu times 4 h
+             for every option by construction. It is computed rather than
+             asserted from the definition because it is the claim the whole tab
+             rests on: same job, different hour. */
+          inW = false;
+          for (k = 0; k < d.windows.length; k++) {
+            if (tm >= d.windows[k][0] && tm < d.windows[k][1]) { inW = true; break; }
+          }
+          if (inW) served += load[i] * dt / 60;
+          if (thH[i] > peak) { peak = thH[i]; peakAt = tm; }
+        }
+        return {
+          id: d.id, name: d.name, label: d.label, windows: d.windows, K: windowK,
+          t: t, dtMin: dt, thH: thH, thO: thO, load: load,
+          peak: peak, peakAtMin: peakAt,
+          agingDays: agingDaysOf(thH, dt),
+          servedPuH: served,
+          feasible: peak <= limit,
+          recommended: false
+        };
+      });
+      /* Recommend the feasible option that consumes the least insulation
+         life. Feasibility first, because a cheaper option that breaks the
+         120 C limit is not an option. */
+      var best = null, i;
+      for (i = 0; i < out.length; i++) {
+        if (out[i].feasible && (best === null || out[i].agingDays < best.agingDays)) best = out[i];
+      }
+      if (best) best.recommended = true;
+      return out;
+    }
+
+    /* ── Level 5: autonomous ──────────────────────────────────────────────
+       A two-day heat wave, closed loop. Every DEMO.ctrlMin the controller
+       looks at the hot spot and acts, in this order of escalation:
+         1  cooling stage, hysteresis 95 C on / 85 C off. Cheap and reversible,
+            so it goes first.
+         2  load limiter, armed at 110 C, released at 100 C. While armed the
+            served load is capped at the value whose STEADY-STATE hot spot is
+            DEMO.limitTargetC at the present ambient and cooling stage, found
+            by bisection. Aiming at a steady state rather than at the present
+            temperature is what stops the limiter from hunting.
+         3  trip, latched at 140 C, the IEC 60076-7 Table 5 long-time emergency
+            limit. It never fires in the demo day; it is in here because a loop
+            without a last resort is not a loop you would connect.
+       Everything is precomputed. The tab replays the arrays. */
+    function autoRun(opts) {
+      opts = opts || {};
+      var dt = DEMO.dtMin;
+      var hours = opts.hours == null ? 48 : opts.hours;
+      var n = Math.round(hours * 60 / dt) + 1;
+      var o = { heatwave: true, loadMean: 1.00, loadAmp: 0.35 };
+      var Pan = params(), Paf = paramsFan();
+      var ctrlEvery = Math.max(1, Math.round(DEMO.ctrlMin / dt));
+
+      var fans = false, limited = false, tripped = false;
+      var Kmax = Infinity;
+
+      /* Warm-up with the controller running, so t = 0 inherits a settled
+         cooling stage instead of switching in the first minute of the plot. */
+      var P = Pan;
+      var st = initState(loadAt(-DEMO.warmMin, o), ambientAt(-DEMO.warmMin, o), P);
+      var tm, K, Ks, A, i, c = 0;
+      for (tm = -DEMO.warmMin; tm < 0; tm += dt) {
+        A = ambientAt(tm, o);
+        if (c % ctrlEvery === 0) {
+          if (st.thetaH != null) {
+            if (!fans && st.thetaH >= DEMO.fanOnC) fans = true;
+            else if (fans && st.thetaH <= DEMO.fanOffC) fans = false;
+            P = fans ? Paf : Pan;
+            if (!limited && st.thetaH >= DEMO.limitOnC) limited = true;
+            else if (limited && st.thetaH <= DEMO.limitOffC) limited = false;
+            Kmax = limited ? kForHotspot(DEMO.limitTargetC, A, P) : Infinity;
+          }
+        }
+        c++;
+        K = loadAt(tm, o); Ks = Math.min(K, Kmax);
+        stepThermal(st, Ks, A, dt, P, Math.min(loadAt(tm + dt, o), Kmax), ambientAt(tm + dt, o));
+      }
+
+      var t = new Float64Array(n), thH = new Float64Array(n), thO = new Float64Array(n);
+      var Kdem = new Float64Array(n), Kserved = new Float64Array(n), amb = new Float64Array(n);
+      var stage = new Array(n), events = [];
+      var prevKs = null;
+
+      function log(tMin, sense, decide, act) {
+        events.push({ tMin: tMin, sense: sense, decide: decide, act: act });
+      }
+
+      c = 0;
+      for (i = 0; i < n; i++) {
+        tm = i * dt;
+        A = ambientAt(tm, o);
+        if (i > 0) {
+          stepThermal(st, prevKs.K, prevKs.A, dt, prevKs.P, prevKs.K, A);
+        } else {
+          st.thetaO = st.thetaAeff + st.dThO;
+          st.thetaH = st.thetaO + st.dThH1 - st.dThH2;
+        }
+
+        if (c % ctrlEvery === 0) {
+          var was = fans, wasLim = limited;
+          if (!tripped && st.thetaH >= DEMO.tripC) {
+            tripped = true;
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C', 'above the 140 C emergency limit',
+              'trip, load to zero, latched');
+          }
+          if (!fans && st.thetaH >= DEMO.fanOnC) fans = true;
+          else if (fans && st.thetaH <= DEMO.fanOffC) fans = false;
+          if (fans !== was) {
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
+              fans ? 'above the 95 C fan-on threshold' : 'below the 85 C fan-off threshold',
+              fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
+          }
+          P = fans ? Paf : Pan;
+          if (!limited && st.thetaH >= DEMO.limitOnC) limited = true;
+          else if (limited && st.thetaH <= DEMO.limitOffC) limited = false;
+          Kmax = limited ? kForHotspot(DEMO.limitTargetC, A, P) : Infinity;
+          if (limited !== wasLim) {
+            log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
+              limited ? 'above the 110 C limiter threshold' : 'below the 100 C release threshold',
+              limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu' : 'load limit released');
+          }
+        }
+        c++;
+
+        K = loadAt(tm, o);
+        Ks = tripped ? 0 : Math.min(K, Kmax);
+        t[i] = tm; amb[i] = A;
+        thH[i] = st.thetaH; thO[i] = st.thetaO;
+        Kdem[i] = K; Kserved[i] = Ks;
+        stage[i] = fans ? 'ONAF' : 'ONAN';
+        prevKs = { K: Ks, A: A, P: P };
+      }
+
+      return {
+        t: t, dtMin: dt, thH: thH, thO: thO, amb: amb,
+        Kdem: Kdem, Kserved: Kserved, stage: stage, events: events,
+        agingDays: agingDaysOf(thH, dt), tripped: tripped
+      };
+    }
+
+    return {
+      IEC: IEC, ONAF: ONAF, DEMO: DEMO, DAY_MIN: DAY_MIN,
+      params: params, paramsFan: paramsFan,
+      steadyState: steadyState, initState: initState, stepThermal: stepThermal,
+      copyState: copyState, warmUp: warmUp, kForHotspot: kForHotspot,
+      agingRate: agingRate, agingDaysOf: agingDaysOf,
+      mulberry32: mulberry32, gaussFactory: gaussFactory,
+      ambientAt: ambientAt, loadAt: loadAt,
+      simPlant: simPlant, makeLive: makeLive, LIVE_WINDOW_MIN: LIVE_WINDOW_MIN,
+      forecast: forecast, scenarios: scenarios, autoRun: autoRun
+    };
+  })();
+  if (typeof window !== 'undefined') window.LevelsCore = LevelsCore;
+  </script>
+
+  <script id="app">
+    const { useState, useEffect, useRef, useMemo } = React;
+    const html = htm.bind(React.createElement);
+    const C = LevelsCore;
+
+    /* Canvas code cannot read var(--) itself, so the palette lives in mutable
+       bindings, re-read on `themechange` (see assets/js/theme.js). Same keys
+       and the same sources as on the thermal page. */
+    const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const COL = {};
+    function readPalette() {
+      Object.assign(COL, {
+        emph: cssVar('--tool-emph'), text: cssVar('--tool-text'),
+        label: cssVar('--tool-label'), note: cssVar('--tool-note'),
+        faint: cssVar('--tool-faint'), border: cssVar('--tool-border'),
+        grid: cssVar('--tool-grid'), ink: cssVar('--tool-panel'),
+        subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary'),
+        /* The four signal colours of the shared stylesheet. On the grey skin
+           they are deliberately greys of different weight, which is why the
+           charts never rely on hue alone: a flag is a line plus a word. */
+        good: cssVar('--tool-sig-good'), warn: cssVar('--tool-sig-warn'),
+        bad: cssVar('--tool-sig-bad'), info: cssVar('--tool-sig-info')
+      });
+    }
+    readPalette();
+
+    /* ── Drawing helpers ──────────────────────────────────────────────────
+       Taken over from the thermal page unchanged, plus two small ones (yAxis,
+       refLine) that were inline there and are needed on more than one tab
+       here. */
+
+    /* One series as a path, read through get(i) so the caller decides what the
+       index means. Beyond two samples per pixel the column min and max are
+       drawn instead, which keeps sensor noise visible instead of aliasing it
+       into a smooth line. */
+    function pathSeries(ctx, get, i0, i1, xOfI, yOf, wPx, stepped) {
+      const nPix = Math.max(1, Math.round(wPx));
+      const n = i1 - i0 + 1;
+      ctx.beginPath();
+      if (n <= 2 * nPix) {
+        for (let i = i0; i <= i1; i++) {
+          const x = xOfI(i), y = yOf(get(i));
+          if (i === i0) ctx.moveTo(x, y);
+          else if (stepped) { ctx.lineTo(x, yOf(get(i - 1))); ctx.lineTo(x, y); }
+          else ctx.lineTo(x, y);
+        }
+        return;
+      }
+      const per = n / nPix;
+      for (let p = 0; p < nPix; p++) {
+        const a = i0 + Math.floor(p * per);
+        const b = Math.min(i1, i0 + Math.floor((p + 1) * per) - 1);
+        let mn = Infinity, mx = -Infinity;
+        for (let i = a; i <= b; i++) { const v = get(i); if (v < mn) mn = v; if (v > mx) mx = v; }
+        const x = xOfI(a);
+        if (p === 0) ctx.moveTo(x, yOf(mx));
+        ctx.lineTo(x, yOf(mx));
+        ctx.lineTo(x, yOf(mn));
+      }
+    }
+
+    function fillBand(ctx, getUp, getDn, i0, i1, xOfI, yOf, wPx) {
+      const nPix = Math.max(1, Math.round(wPx));
+      const n = i1 - i0 + 1;
+      const per = Math.max(1, n / nPix);
+      ctx.beginPath();
+      let first = true;
+      for (let p = 0; p * per < n; p++) {
+        const a = i0 + Math.floor(p * per);
+        const b = Math.min(i1, i0 + Math.floor((p + 1) * per) - 1);
+        let mx = -Infinity;
+        for (let i = a; i <= b; i++) { const v = getUp(i); if (v > mx) mx = v; }
+        const x = xOfI(a);
+        if (first) { ctx.moveTo(x, yOf(mx)); first = false; } else ctx.lineTo(x, yOf(mx));
+      }
+      for (let p = Math.ceil(n / per) - 1; p >= 0; p--) {
+        const a = i0 + Math.floor(p * per);
+        const b = Math.min(i1, i0 + Math.floor((p + 1) * per) - 1);
+        let mn = Infinity;
+        for (let i = a; i <= b; i++) { const v = getDn(i); if (v < mn) mn = v; }
+        ctx.lineTo(xOfI(a), yOf(mn));
+      }
+      ctx.closePath();
+    }
+
+    /* Fixed CSS height, backing store at device resolution, redrawn on every
+       render and on a size or theme change. */
+    function useCanvas(height, draw) {
+      const cvRef = useRef(null);
+      const [, bump] = useState(0);
+      useEffect(() => {
+        const on = () => bump((n) => n + 1);
+        window.addEventListener('resize', on);
+        window.addEventListener('themechange', on);
+        return () => { window.removeEventListener('resize', on); window.removeEventListener('themechange', on); };
+      }, []);
+      useEffect(() => {
+        const cv = cvRef.current;
+        if (!cv) return;
+        readPalette();
+        const rect = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(rect.width)), h = height;
+        cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        draw(ctx, w, h);
+      });
+      return cvRef;
+    }
+
+    function niceStep(span, target) {
+      const raw = Math.abs(span) / Math.max(1, target);
+      if (!(raw > 0)) return 1;
+      const p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+      const m = raw / p;
+      return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+    }
+    function fmtAx(v) {
+      const a = Math.abs(v);
+      if (a >= 1000) return (v / 1000).toFixed(a >= 9500 ? 0 : 1) + 'k';
+      if (a >= 10 || a < 1e-9) return v.toFixed(0);
+      return v.toFixed(1);
+    }
+
+    /* A nice-stepped range that contains [lo, hi] and any values the caller
+       insists on seeing, such as a reference line above the data. */
+    function niceRange(lo, hi, target) {
+      if (!(hi > lo)) hi = lo + 1;
+      const step = niceStep(hi - lo, target);
+      return {
+        lo: Math.floor(lo / step) * step,
+        hi: Math.ceil(hi / step) * step,
+        step: step
+      };
+    }
+
+    function xAxis(ctx, x0, x1, yB, lo, hi, step, fmt) {
+      ctx.save();
+      ctx.strokeStyle = COL.border;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath(); ctx.moveTo(x0, yB + 0.5); ctx.lineTo(x1, yB + 0.5); ctx.stroke();
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const first = Math.ceil(lo / step - 1e-9) * step;
+      for (let v = first; v <= hi + 1e-9; v += step) {
+        const x = x0 + (v - lo) / (hi - lo) * (x1 - x0);
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.moveTo(x, yB); ctx.lineTo(x, yB + 4); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = COL.note;
+        ctx.fillText(fmt(v), x, yB + 6);
+      }
+      ctx.restore();
+    }
+
+    /* Horizontal grid plus its labels on the left. The grid is the axis: no
+       box around the plot, the same as on the other two pages. */
+    function yAxis(ctx, x0, x1, yOf, lo, hi, step, unit) {
+      ctx.save();
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 1;
+      const first = Math.ceil(lo / step - 1e-9) * step;
+      for (let v = first; v <= hi + 1e-9; v += step) {
+        const y = yOf(v);
+        ctx.strokeStyle = COL.grid;
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = COL.note;
+        ctx.fillText(fmtAx(v) + unit, x0 - 10, y);
+      }
+      ctx.restore();
+    }
+
+    /* A dashed limit line with its label sitting on it. Annotation, not data,
+       hence the alpha. */
+    function refLine(ctx, x0, x1, y, label, col) {
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.85;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.fillStyle = col;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(label, x1 - 3, y - 4);
+      ctx.restore();
+    }
+
+    /* ── Small presentational pieces ──────────────────────────────────────
+       One readout tile, the row it lives in, and the colour key. */
+    /* `color` overrides the value colour for the one tile that carries a
+       state rather than a number, such as OK against FLAGGED. */
+    function Tile({ label, value, unit, emph, color }) {
+      return html`
+        <div className=${'lv-tile' + (emph ? ' lv-emph' : '')}>
+          <span className="lv-k">${label}</span>
+          <span className="lv-v" style=${color ? { color: color } : null}>${value}<span className="lv-u">${unit}</span></span>
+        </div>
+      `;
+    }
+
+    function Legend({ items }) {
+      return html`
+        <div className="lv-legend">
+          ${items.map((it) => html`
+            <span key=${it.label} style=${{ color: it.color }}>
+              <i className=${it.band ? 'lv-sw' : ''}></i>
+              <span style=${{ color: 'var(--tool-note)' }}>${it.label}</span>
+            </span>
+          `)}
+        </div>
+      `;
+    }
+
+    function Ctl({ id, label, min, max, step, value, format, onChange }) {
+      return html`
+        <div className="lv-ctl">
+          <label htmlFor=${id}>${label}</label>
+          <input id=${id} type="range" min=${min} max=${max} step=${step} value=${value}
+            onChange=${(e) => onChange(parseFloat(e.target.value))} />
+          <span className="lv-ctlval">${format(value)}</span>
+        </div>
+      `;
+    }
+
+    function Tabs({ items, value, onChange }) {
+      return html`
+        <div className="tabstrip" role="tablist">
+          ${items.map((it) => html`
+            <button key=${it.id} type="button" role="tab"
+              aria-selected=${it.id === value ? 'true' : 'false'}
+              className=${it.id === value ? 'active' : ''}
+              onClick=${() => onChange(it.id)}>${it.label}</button>
+          `)}
+        </div>
+      `;
+    }
+
+    /* The five tabs. Levels 1, 2, 3 and 5 are drawn; level 4 still says what
+       it will show and lands in the next stage. */
+    const TABS = [
+      {
+        id: 'descriptive', label: 'Descriptive',
+        title: 'Level 1, what is happening',
+        body: 'Measured top-oil against the twin, on the same load and the same ambient. No claim beyond the two traces.'
+      },
+      {
+        id: 'diagnostic', label: 'Diagnostic',
+        title: 'Level 2, why it is happening',
+        body: 'The difference between the two traces, smoothed over 30 min, against a band at three sigma of the sensor noise. Cooling degrades and the residual walks out of the band.'
+      },
+      {
+        id: 'predictive', label: 'Predictive',
+        title: 'Level 3, what happens next',
+        body: 'Forty-eight hours ahead as an ensemble of 100 members, quantile band, and the probability of passing 98 C.'
+      },
+      {
+        id: 'prescriptive', label: 'Prescriptive',
+        title: 'Level 4, what to do about it',
+        body: 'Three contingency dispatches, each scored on peak hot spot, feasibility against the 120 C cyclic limit, and days of insulation life consumed.'
+      },
+      {
+        id: 'autonomous', label: 'Autonomous',
+        title: 'Level 5, doing it',
+        body: 'A heat wave with the loop closed: fans, then a load cap, then a trip. Sense, decide, act, logged with a timestamp.'
+      }
+    ];
+
+    /* ── The live strip ───────────────────────────────────────────────────
+       Levels 1 and 2 are trends, not pictures of a finished run: the newest
+       sample sits on the right edge and the past scrolls off to the left,
+       which is what a control-room screen does and what makes "now" mean
+       something on a tab whose only other control is a button.
+       Both tabs run their own C.makeLive instance. The constructor prefills
+       48 h, so the chart is full from the first frame, and leaving the tab
+       unmounts the instance rather than leaving a frame request running
+       behind a hidden canvas. */
+    const LIVE_RATE = 10;          // simulated minutes per second of wall clock, 600x
+    const LIVE_MAX_STEPS = 240;    // per frame, 8 h of simulated time, a backgrounded tab
+    const LIVE_TILE_MS = 100;      // how often the readouts are allowed to change
+    const LIVE_TICK_MIN = 6 * 60;  // x axis tick and grid spacing
+
+    function nowMs() {
+      return typeof performance !== 'undefined' && performance.now
+        ? performance.now() : Date.now();
+    }
+
+    /* Wall-clock time of day of a simulated minute, for the wandering axis.
+       The stream starts at t = 0 and runs forward, and its window reaches two
+       days back into negative time, hence the two-sided modulo. */
+    function clockOf(tMin) {
+      const m = ((Math.round(tMin) % C.DAY_MIN) + C.DAY_MIN) % C.DAY_MIN;
+      const h = Math.floor(m / 60), mm = m % 60;
+      return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+    }
+
+    /* One stream per mounted tab, kept in a ref so that a re-render does not
+       restart the plant. The pump turns elapsed wall clock into whole dt
+       steps and carries the remainder, so the average speed is exactly
+       `rate` whatever the frame times do, and a frame that arrives after a
+       long stall advances at most LIVE_MAX_STEPS. */
+    function useStream(rate, opts) {
+      const ref = useRef(0);
+      if (!ref.current) {
+        const live = C.makeLive(opts || {});
+        let carry = 0;
+        ref.current = {
+          live: live,
+          pump: (dReal) => {
+            carry += dReal * rate / 1000;
+            const n = Math.floor(carry / C.DEMO.dtMin);
+            if (n <= 0) return;
+            carry -= n * C.DEMO.dtMin;
+            live.step(Math.min(n, LIVE_MAX_STEPS));
+          }
+        };
+      }
+      return ref.current;
+    }
+
+    /* A canvas that redraws once per animation frame and advances the stream
+       while it is at it. Deliberately not useCanvas plus a state bump:
+       useCanvas resizes the backing store on every render, and reallocating
+       a 4K canvas sixty times a second is the one thing that would make the
+       strip stutter on a projector. The size is set when the layout or the
+       theme changes, and nothing else happens per frame except drawing.
+       drawRef.current is read fresh every frame, so the parent may rebuild
+       its draw closure on every render without restarting the loop. */
+    function StripCanvas({ height, drawRef, running, onFrame }) {
+      const cvRef = useRef(null);
+      const [bumpN, bump] = useState(0);
+      useEffect(() => {
+        const on = () => bump((n) => n + 1);
+        window.addEventListener('resize', on);
+        window.addEventListener('themechange', on);
+        return () => { window.removeEventListener('resize', on); window.removeEventListener('themechange', on); };
+      }, []);
+      useEffect(() => {
+        const cv = cvRef.current;
+        if (!cv) return undefined;
+        readPalette();
+        const rect = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(rect.width)), h = height;
+        cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const paint = () => {
+          ctx.clearRect(0, 0, w, h);
+          if (typeof drawRef.current === 'function') drawRef.current(ctx, w, h);
+        };
+        paint();                     // a paused strip is still a strip
+        if (!running) return undefined;
+        let raf = 0, alive = true, prev = null;
+        const frame = (ts) => {
+          if (!alive) return;
+          if (prev === null) prev = ts;
+          /* A tab that was in the background for a minute would otherwise
+             ask for a minute of simulated time in one frame. */
+          const dReal = Math.min(250, ts - prev);
+          prev = ts;
+          if (onFrame) onFrame(dReal);
+          paint();
+          raf = window.requestAnimationFrame(frame);
+        };
+        raf = window.requestAnimationFrame(frame);
+        return () => { alive = false; window.cancelAnimationFrame(raf); };
+      }, [height, running, bumpN]);
+      return html`<canvas ref=${cvRef} className="lv-canvas" style=${{ height: height + 'px' }}></canvas>`;
+    }
+
+    /* The wandering grid and the time axis of a trailing window. Day
+       boundaries are drawn a shade stronger than the six-hour marks, which is
+       the only thing that tells one demo day from the next. */
+    function liveGrid(ctx, xOfT, t0, t1, yT, yB) {
+      ctx.save();
+      ctx.strokeStyle = COL.grid;
+      ctx.lineWidth = 1;
+      const first = Math.ceil(t0 / LIVE_TICK_MIN) * LIVE_TICK_MIN;
+      for (let tm = first; tm <= t1; tm += LIVE_TICK_MIN) {
+        ctx.globalAlpha = (((tm % C.DAY_MIN) + C.DAY_MIN) % C.DAY_MIN) === 0 ? 0.34 : 0.16;
+        const x = xOfT(tm);
+        ctx.beginPath(); ctx.moveTo(x, yT); ctx.lineTo(x, yB); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    /* The right-hand edge: the line the samples arrive on. */
+    function liveEdge(ctx, x, yT, yB, label) {
+      ctx.save();
+      ctx.strokeStyle = COL.emph;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, yT); ctx.lineTo(x, yB); ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (label) {
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.fillStyle = COL.emph;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText(label, x - 5, yT + 2);
+      }
+      ctx.restore();
+    }
+
+    /* ── Level 1: descriptive ─────────────────────────────────────────────
+       The trailing forty-eight hours of the demo plant on one canvas, in two
+       lanes: the temperatures on top, the load factor underneath, sharing the
+       x axis. The window walks, the readouts follow the right-hand edge, and
+       the only control is Pause, for the moment on stage when the sentence
+       matters more than the animation.
+       Three of the four traces are things a substation actually has. The
+       fourth, the hot spot, is the one the tab is about, and it exists only
+       because a model computed it.
+       The lane bounds are absolute canvas coordinates and have to keep adding
+       up to D1_H, the same convention as the strip chart on the thermal
+       page. */
+    const D1_H = 470;
+    const D1 = {
+      /* padR leaves room for the half of the last clock label that sits past
+         the end of the axis. */
+      padL: 74, padR: 44,
+      tT: 16, tB: 330,      // temperature lane
+      sep: 342,
+      kT: 356, kB: 440,     // load lane
+      xLab: 446
+    };
+    const D1_HOURS = 48;
+    const D1_KFULL = 1.2;          // top of the load lane, pu
+
+    function Descriptive() {
+      const st = useStream(LIVE_RATE, {});
+      const live = st.live;
+      const [running, setRunning] = useState(true);
+      const [, bump] = useState(0);
+      const tileRef = useRef(0);
+      const drawRef = useRef(0);
+
+      /* A fixed y range, taken once from the same plant computed offline: a
+         strip whose axis rescales while it scrolls cannot be read. The 98 C
+         reference has to fit inside it. */
+      const sc = useMemo(() => {
+        const r = C.simPlant(D1_HOURS, {});
+        let lo = Infinity, hi = C.DEMO.overTemp + 2;
+        for (let k = 0; k < r.t.length; k++) {
+          if (r.amb[k] < lo) lo = r.amb[k];
+          if (r.thHtwin[k] > hi) hi = r.thHtwin[k];
+        }
+        return niceRange(lo, hi, 5);
+      }, []);
+
+      /* The chart follows every frame, the numbers ten times a second: a
+         readout that changes sixty times a second is a blur, and the tile row
+         is what the presenter reads out loud. */
+      const onFrame = (dReal) => {
+        st.pump(dReal);
+        const t = nowMs();
+        if (t - tileRef.current > LIVE_TILE_MS) { tileRef.current = t; bump((n) => n + 1); }
+      };
+
+      drawRef.current = (ctx, w) => {
+        const x0 = D1.padL, x1 = w - D1.padR, wPlot = x1 - x0;
+        const t1 = live.now(), t0 = t1 - D1_HOURS * 60;
+        const A = live.arr, N = live.count(), ph = live.phys;
+        const xOfT = (tm) => x0 + (tm - t0) / (t1 - t0) * wPlot;
+        const xOfI = (k) => xOfT(A.tMin[ph(k)]);
+        const yOfT = (v) => D1.tB - (v - sc.lo) / (sc.hi - sc.lo) * (D1.tB - D1.tT);
+        const yOfK = (k) => D1.kB - Math.max(0, Math.min(D1_KFULL, k)) / D1_KFULL * (D1.kB - D1.kT);
+
+        yAxis(ctx, x0, x1, yOfT, sc.lo, sc.hi, sc.step, ' °C');
+        liveGrid(ctx, xOfT, t0, t1, D1.tT, D1.kB);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.overTemp), C.DEMO.overTemp + ' °C reference', COL.faint);
+
+        // Temperatures, clipped to their lane.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, D1.tT, wPlot, D1.tB - D1.tT); ctx.clip();
+        ctx.lineJoin = 'bevel';
+        ctx.strokeStyle = COL.note; ctx.lineWidth = 1.6;
+        pathSeries(ctx, (k) => A.thA[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
+        /* Measured, so drawn thin: the 0.5 K sensor noise is on it and at one
+           sample per 2 min the line has to stay light enough to read through. */
+        ctx.strokeStyle = COL.text; ctx.lineWidth = 1.1; ctx.globalAlpha = 0.9;
+        pathSeries(ctx, (k) => A.thOmeas[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 3;
+        pathSeries(ctx, (k) => A.thHtwin[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
+        ctx.restore();
+
+        // Lane separator: two panels on one canvas, not one crowded plot.
+        ctx.save();
+        ctx.strokeStyle = COL.border;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0 - D1.padL + 2, D1.sep + 0.5); ctx.lineTo(x1, D1.sep + 0.5); ctx.stroke();
+        ctx.restore();
+
+        // Load lane, its own tiny axis on the same x.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, D1.kT - 2, wPlot, D1.kB - D1.kT + 4); ctx.clip();
+        ctx.strokeStyle = COL.faint;
+        ctx.globalAlpha = 0.5;
+        ctx.setLineDash([3, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0, yOfK(1)); ctx.lineTo(x1, yOfK(1)); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = COL.label; ctx.lineWidth = 1.8;
+        pathSeries(ctx, (k) => A.K[ph(k)], 0, N - 1, xOfI, yOfK, wPlot, false); ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('0.5 pu', x0 - 10, yOfK(0.5));
+        ctx.fillStyle = COL.faint;
+        ctx.fillText('1.0 pu', x0 - 10, yOfK(1));
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('LOAD', x0 + 5, D1.sep + 5);
+        ctx.restore();
+
+        xAxis(ctx, x0, x1, D1.kB, t0, t1, LIVE_TICK_MIN, clockOf);
+
+        // The arrival edge, with the newest hot spot sitting on it.
+        liveEdge(ctx, x1, D1.tT, D1.kB, 'now');
+        if (N > 0) {
+          ctx.save();
+          ctx.fillStyle = COL.accent;
+          ctx.beginPath(); ctx.arc(x1, yOfT(A.thHtwin[ph(N - 1)]), 4.5, 0, 2 * Math.PI); ctx.fill();
+          ctx.restore();
+        }
+      };
+
+      const thH = live.last('thHtwin');
+      const rate = C.agingRate(thH);
+      return html`
+        <${React.Fragment}>
+          <div className="lv-tiles">
+            <${Tile} label="load" value=${live.last('K').toFixed(2)} unit="pu" />
+            <${Tile} label="ambient" value=${live.last('thA').toFixed(1)} unit="°C" />
+            <${Tile} label="top oil, measured" value=${live.last('thOmeas').toFixed(1)} unit="°C" />
+            <${Tile} label="hot spot, computed" value=${thH.toFixed(1)} unit="°C" emph=${true} />
+            <${Tile} label="ageing rate" value=${rate < 10 ? rate.toFixed(2) : rate.toFixed(1)} unit="x normal" />
+          </div>
+          <${StripCanvas} height=${D1_H} drawRef=${drawRef} running=${running} onFrame=${onFrame} />
+          <${Legend} items=${[
+            { label: 'hot spot, computed', color: COL.accent },
+            { label: 'top oil, measured', color: COL.text },
+            { label: 'ambient', color: COL.note },
+            { label: 'load', color: COL.label }
+          ]} />
+          <div className="lv-act">
+            <button type="button" className=${running ? 'secondary' : ''}
+              onClick=${() => setRunning(!running)}>
+              ${running ? 'Pause' : 'Resume'}
+            </button>
+            <span className="lv-actnote">
+              ${'trailing 48 h, ' + clockOf(live.now()) + ', 600x' + (running ? '' : ', paused')}
+            </span>
+          </div>
+        <//>
+      `;
+    }
+
+    /* ── Playback ─────────────────────────────────────────────────────────
+       A cursor walking over data that is already computed. Nothing is
+       integrated while a frame is being drawn: the whole run exists before the
+       first frame, and this only moves an index through it.
+       `total` is the length of the run in simulated minutes, `rate` how many
+       simulated minutes pass per second of wall clock, `startAt` where the
+       cursor is parked whenever `runKey` changes, and `running` whether it
+       moves at all. The loop stops itself at the end of the run and is
+       cancelled on unmount, so leaving the tab stops it rather than leaving a
+       frame request running behind a hidden chart.
+       The frame delta is clamped: a tab that was in the background for a
+       minute would otherwise jump the whole run in a single step. */
+    function usePlayback(total, rate, runKey, startAt, running) {
+      const tRef = useRef(0);
+      const [tMin, setTMin] = useState(startAt || 0);
+      useEffect(() => {
+        tRef.current = startAt || 0;
+        setTMin(tRef.current);
+        if (!running) return undefined;
+        let raf = 0, prev = null, live = true;
+        const tick = (ts) => {
+          if (!live) return;
+          if (prev === null) prev = ts;
+          const dReal = Math.min(250, ts - prev);
+          prev = ts;
+          let v = tRef.current + dReal * rate / 1000;
+          if (v >= total) v = total;
+          tRef.current = v;
+          setTMin(v);
+          if (v < total) raf = window.requestAnimationFrame(tick);
+        };
+        raf = window.requestAnimationFrame(tick);
+        return () => { live = false; window.cancelAnimationFrame(raf); };
+      }, [runKey, running]);
+      return tMin;
+    }
+
+    /* Minutes from midnight of demo day one as a clock time, for the event
+       log. The run is two days long, so the day has to be in there too. */
+    function hhmm(tMin) {
+      const day = Math.floor(tMin / C.DAY_MIN) + 1;
+      const m = Math.round(tMin - (day - 1) * C.DAY_MIN);
+      const h = Math.floor(m / 60), mm = m % 60;
+      return 'd' + day + ' ' + (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+    }
+
+    /* ── Level 2: diagnostic ──────────────────────────────────────────────
+       Two panels on one canvas. On top the top oil as the sensor reports it
+       against the top oil the twin computes, which is level 1 read as a pair.
+       Underneath their difference, which is the level 2 statement: a residual
+       inside the band is a model that still fits, a residual outside it is a
+       plant that has changed.
+       The band is analytic, not fitted to the data it judges. Sigma of a
+       15-sample mean of 0.5 K white sensor noise is 0.5 / sqrt(15) = 0.129 K,
+       and the band is three of those.
+       One plant, running. The button does exactly one thing: it starts, or
+       stops, a cooling degradation AT THE PRESENT MOMENT of the stream. It
+       never moves the clock, never clears the chart and never picks a
+       prepared dataset. Injecting bends the rated top-oil rise up by 25 % over
+       2 h from now, clearing bends it back from wherever the blend had got
+       to, and the residual walks out of the band and later back into it on the
+       plant's own time constants. The onset and the flag are marked where
+       they happened and scroll off the left edge with everything else. */
+    const D2_H = 462;
+    const D2 = { padL: 74, padR: 44, tT: 18, tB: 252, sep: 264, rT: 292, rB: 436 };
+    const D2_HOURS = 48;
+    /* The residual axis has to hold a band four tenths of a kelvin wide and a
+       fault worth eleven, and the stream walks from one to the other without
+       being restarted, so the axis glides instead of switching. One second of
+       wall clock per e-fold: slow enough to read as a zoom, fast enough to
+       have finished by the time the residual has left the band. */
+    const D2_GLIDE_S = 1.0;
+
+    function Diagnostic() {
+      const st = useStream(LIVE_RATE, {});
+      const live = st.live;
+      const [faulted, setFaulted] = useState(false);
+      const [, bump] = useState(0);
+      const tileRef = useRef(0);
+      const drawRef = useRef(0);
+      const rsRef = useRef(0);
+
+      /* The button owns the state, the plant follows it. Applied here rather
+         than in the click handler so that the two can never disagree, and
+         because setFault is idempotent: it returns at once if the plant is
+         already in the state asked for. */
+      if (live.faultOn() !== faulted) live.setFault(faulted);
+
+      /* One temperature scale for the healthy and the degraded plant, taken
+         once from the same physics computed offline, so that the fault moves
+         the trace and not the axis. */
+      const sc = useMemo(() => {
+        let lo = Infinity, hi = -Infinity;
+        [C.simPlant(D2_HOURS, {}), C.simPlant(D2_HOURS, { faultAtMin: 0 })].forEach((r) => {
+          for (let k = 0; k < r.t.length; k++) {
+            if (r.thOmeas[k] < lo) lo = r.thOmeas[k];
+            if (r.thOmeas[k] > hi) hi = r.thOmeas[k];
+            if (r.thOtwin[k] < lo) lo = r.thOtwin[k];
+            if (r.thOtwin[k] > hi) hi = r.thOtwin[k];
+          }
+        });
+        return niceRange(lo - 1, hi + 1, 5);
+      }, []);
+
+      const onFrame = (dReal) => {
+        st.pump(dReal);
+        const t = nowMs();
+        if (t - tileRef.current > LIVE_TILE_MS) { tileRef.current = t; bump((n) => n + 1); }
+      };
+
+      const status = live.status();
+      const flagged = status === 'FLAGGED';
+      const onsetMin = live.onsetMin(), flagMin = live.flagMin();
+      const lagMin = flagMin != null && onsetMin != null && flagMin >= onsetMin
+        ? flagMin - onsetMin : null;
+      /* The window is prefilled, so the trailing mean is always a full 30 min
+         mean. The fallback stays for the first samples after a reset. */
+      const smFull = live.count() >= live.smoothW;
+
+      drawRef.current = (ctx, w) => {
+        const x0 = D2.padL, x1 = w - D2.padR, wPlot = x1 - x0;
+        const t1 = live.now(), t0 = t1 - D2_HOURS * 60;
+        const A = live.arr, N = live.count(), ph = live.phys;
+        const xOfT = (tm) => x0 + (tm - t0) / (t1 - t0) * wPlot;
+        const xOfI = (k) => xOfT(A.tMin[ph(k)]);
+        const yOfT = (v) => D2.tB - (v - sc.lo) / (sc.hi - sc.lo) * (D2.tB - D2.tT);
+
+        /* The residual axis, glided towards what is in the window. Nothing on
+           this tab is allowed to jump, the axis least of all. */
+        let m = 4 * live.band;
+        for (let k = 0; k < N; k++) {
+          const v = Math.abs(A.residRaw[ph(k)]);
+          if (v > m) m = v;
+        }
+        const want = niceRange(-1.08 * m, 1.08 * m, 5);
+        const tNowMs = nowMs();
+        let rs = rsRef.current;
+        if (!rs || rs.at == null) {
+          rs = { lo: want.lo, hi: want.hi, at: tNowMs };
+          rsRef.current = rs;
+        } else {
+          const dS = Math.max(0, Math.min(0.25, (tNowMs - rs.at) / 1000));
+          const a = 1 - Math.exp(-dS / D2_GLIDE_S);
+          rs.lo += (want.lo - rs.lo) * a;
+          rs.hi += (want.hi - rs.hi) * a;
+          rs.at = tNowMs;
+        }
+        const rStep = niceStep(rs.hi - rs.lo, 5);
+        const yOfR = (v) => D2.rB - (v - rs.lo) / (rs.hi - rs.lo) * (D2.rB - D2.rT);
+
+        yAxis(ctx, x0, x1, yOfT, sc.lo, sc.hi, sc.step, ' °C');
+        yAxis(ctx, x0, x1, yOfR, rs.lo, rs.hi, rStep, ' K');
+
+        liveGrid(ctx, xOfT, t0, t1, D2.tT, D2.tB);
+        liveGrid(ctx, xOfT, t0, t1, D2.rT, D2.rB);
+
+        // Top panel: what the sensor says against what the model says.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, D2.tT, wPlot, D2.tB - D2.tT); ctx.clip();
+        ctx.lineJoin = 'bevel';
+        ctx.strokeStyle = COL.text; ctx.lineWidth = 1.1; ctx.globalAlpha = 0.85;
+        pathSeries(ctx, (k) => A.thOmeas[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.8;
+        pathSeries(ctx, (k) => A.thOtwin[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = COL.border;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0 - D2.padL + 2, D2.sep + 0.5); ctx.lineTo(x1, D2.sep + 0.5); ctx.stroke();
+        ctx.restore();
+
+        // Bottom panel: the residual, its band, and the zero it should sit on.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, D2.rT, wPlot, D2.rB - D2.rT); ctx.clip();
+        ctx.fillStyle = COL.accent;
+        ctx.globalAlpha = 0.16;
+        ctx.fillRect(x0, yOfR(live.band), wPlot, yOfR(-live.band) - yOfR(live.band));
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = COL.border;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0, yOfR(0)); ctx.lineTo(x1, yOfR(0)); ctx.stroke();
+        /* The raw residual as dots, one per sample and at most one per pixel
+           column: it is the noise the band is made of, and drawing it as a
+           line would claim more continuity than 2 min samples have. */
+        ctx.fillStyle = COL.text;
+        ctx.globalAlpha = 0.30;
+        const stride = Math.max(1, Math.round(N / Math.max(1, wPlot)));
+        /* One path for all of them and one fill: fourteen hundred separate
+           fillRect calls sixty times a second is the kind of thing that shows
+           up as a stutter on a projector. */
+        ctx.beginPath();
+        for (let k = 0; k < N; k += stride) {
+          ctx.rect(xOfI(k) - 0.9, yOfR(A.residRaw[ph(k)]) - 0.9, 1.8, 1.8);
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.lineJoin = 'bevel';
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.6;
+        pathSeries(ctx, (k) => A.residSm[ph(k)], 0, N - 1, xOfI, yOfR, wPlot, false);
+        ctx.stroke();
+        ctx.restore();
+
+        /* The onset, quietly, and the flag, not quietly. Both stand where they
+           happened and leave the chart on the left edge like everything else:
+           what is on the screen is the last 48 h, no more and no less. */
+        const mark = (tm, col, label, dash, atY) => {
+          if (tm == null || tm < t0 || tm > t1) return;
+          const x = xOfT(tm), right = x > x1 - 250;
+          ctx.save();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.85;
+          if (dash) ctx.setLineDash(dash);
+          ctx.beginPath(); ctx.moveTo(x, D2.tT); ctx.lineTo(x, D2.tB); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x, D2.rT); ctx.lineTo(x, D2.rB); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+          ctx.font = '600 13px system-ui, sans-serif';
+          ctx.fillStyle = col;
+          ctx.textAlign = right ? 'right' : 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(label, x + (right ? -6 : 6), atY);
+          ctx.restore();
+        };
+        mark(onsetMin, COL.note, 'cooling fault starts', [4, 4], D2.tT + 2);
+        if (flagged && lagMin != null) {
+          mark(flagMin, COL.bad,
+            'flagged, ' + lagMin.toFixed(0) + ' min after onset', null, D2.rT + 2);
+        }
+
+        xAxis(ctx, x0, x1, D2.rB, t0, t1, LIVE_TICK_MIN, clockOf);
+
+        // The arrival edge, carrying the two numbers in the tiles.
+        liveEdge(ctx, x1, D2.tT, D2.tB, 'now');
+        liveEdge(ctx, x1, D2.rT, D2.rB, null);
+        if (N > 0) {
+          ctx.save();
+          ctx.fillStyle = COL.accent;
+          ctx.beginPath(); ctx.arc(x1, yOfT(A.thOtwin[ph(N - 1)]), 4, 0, 2 * Math.PI); ctx.fill();
+          ctx.beginPath(); ctx.arc(x1, yOfR(A.residSm[ph(N - 1)]), 4, 0, 2 * Math.PI); ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('TOP OIL', x0 + 5, D2.tT + 2);
+        ctx.fillText('RESIDUAL, MEASURED MINUS MODELLED', x0 + 5, D2.sep + 5);
+        ctx.restore();
+      };
+
+      const pct = ((C.DEMO.faultScale - 1) * 100).toFixed(0);
+      const clearMin = live.clearMin();
+      const recovering = !faulted && clearMin != null &&
+        (flagged || live.now() - clearMin < C.DEMO.faultBlendMin);
+      const state = faulted
+        ? 'rated top-oil rise degrading by ' + pct + ' % since ' + clockOf(onsetMin)
+        : recovering
+          ? 'recovering, cooling restored at ' + clockOf(clearMin)
+          : 'healthy plant';
+
+      return html`
+        <${React.Fragment}>
+          <div className="lv-tiles">
+            <${Tile} label="residual, 30 min mean"
+              value=${smFull ? live.last('residSm').toFixed(2) : '--'}
+              unit=${smFull ? 'K' : ''} emph=${true} />
+            <${Tile} label="band, three sigma" value=${'±' + live.band.toFixed(2)} unit="K" />
+            <${Tile} label="status" value=${flagged ? 'FLAGGED' : 'OK'} unit=""
+              color=${flagged ? COL.bad : COL.good} />
+            <${Tile} label="detection lag" value=${flagged && lagMin != null ? lagMin.toFixed(0) : '--'}
+              unit=${flagged && lagMin != null ? 'min' : ''} />
+          </div>
+          <${StripCanvas} height=${D2_H} drawRef=${drawRef} running=${true} onFrame=${onFrame} />
+          <${Legend} items=${[
+            { label: 'top oil, modelled', color: COL.accent },
+            { label: 'top oil, measured', color: COL.text },
+            { label: 'band, three sigma of the smoothed sensor noise', color: COL.accent, band: true },
+            { label: 'flag', color: COL.bad }
+          ]} />
+          <div className="lv-act">
+            <button type="button" className=${faulted ? 'secondary' : ''}
+              onClick=${() => setFaulted(!faulted)}>
+              ${faulted ? 'Clear fault' : 'Inject cooling fault'}
+            </button>
+            <span className="lv-actnote">
+              ${state + ', ' + clockOf(live.now()) + ', 600x'}
+            </span>
+          </div>
+        <//>
+      `;
+    }
+
+    /* ── Level 3: predictive ──────────────────────────────────────────────
+       Twenty-four hours of history, then the 48 h ensemble. The median is
+       drawn thinner than the bands are wide, on purpose: at 48 h the 5 to
+       95 % band is the answer and the median is a line through the middle
+       of it.
+       The slider is the peak load of the coming days in ONAN per unit, and it
+       is the peak that moves: the night trough is held at the 0.50 pu of the
+       demo day and the mean follows the peak, which is what a hotter or
+       cooler week looks like on a distribution transformer. Scaling the
+       amplitude around a fixed mean instead would push the trough down to
+       0.2 pu at the top of the slider, which is not a day anyone has. */
+    const P3_H = 470;
+    const P3 = { padL: 74, padR: 26, tT: 20, tB: 424, xLab: 430 };
+    const P3_TROUGH = 0.50;        // pu, the night load of the demo day
+
+    function Predictive() {
+      const [peakPu, setPeakPu] = useState(1.0);
+      const fc = useMemo(() => C.forecast(1, {
+        loadMean: 0.5 * (peakPu + P3_TROUGH),
+        loadAmp: 0.5 * (peakPu - P3_TROUGH)
+      }), [peakPu]);
+      const nF = fc.t.length - 1, nH = fc.tHist.length - 1;
+
+      /* Both reference lines are always in view. Without the 120 C line the
+         axis would rescale under the slider and the two bands would look the
+         same width at every load. */
+      const sc = useMemo(() => {
+        let lo = Infinity, hi = C.DEMO.limitCyclic + 3;
+        for (let k = 0; k <= nH; k++) if (fc.hist[k] < lo) lo = fc.hist[k];
+        for (let k = 0; k <= nF; k++) {
+          if (fc.q05[k] < lo) lo = fc.q05[k];
+          if (fc.q95[k] > hi) hi = fc.q95[k];
+        }
+        return niceRange(lo, hi, 6);
+      }, [fc]);
+
+      const cvRef = useCanvas(P3_H, (ctx, w) => {
+        const x0 = P3.padL, x1 = w - P3.padR, wPlot = x1 - x0;
+        const h0 = -C.DEMO.histHours, h1 = C.DEMO.fcstHours;
+        const xOfH = (hh) => x0 + (hh - h0) / (h1 - h0) * wPlot;
+        const yOf = (v) => P3.tB - (v - sc.lo) / (sc.hi - sc.lo) * (P3.tB - P3.tT);
+        const xF = (k) => xOfH(fc.t[k] / 60);
+        const xH = (k) => xOfH(fc.tHist[k] / 60);
+
+        yAxis(ctx, x0, x1, yOf, sc.lo, sc.hi, sc.step, ' °C');
+
+        ctx.save();
+        ctx.strokeStyle = COL.grid;
+        ctx.globalAlpha = 0.18;
+        ctx.lineWidth = 1;
+        for (let hh = h0 + 12; hh < h1; hh += 12) {
+          if (hh === 0) continue;
+          const x = xOfH(hh);
+          ctx.beginPath(); ctx.moveTo(x, P3.tT); ctx.lineTo(x, P3.tB); ctx.stroke();
+        }
+        ctx.restore();
+
+        // Bands first, everything else on top of them.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, P3.tT, wPlot, P3.tB - P3.tT); ctx.clip();
+        ctx.fillStyle = COL.accent;
+        ctx.globalAlpha = 0.13;
+        fillBand(ctx, (k) => fc.q95[k], (k) => fc.q05[k], 0, nF, xF, yOf, wPlot); ctx.fill();
+        ctx.globalAlpha = 0.24;
+        fillBand(ctx, (k) => fc.q75[k], (k) => fc.q25[k], 0, nF, xF, yOf, wPlot); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.lineJoin = 'bevel';
+        ctx.strokeStyle = COL.text; ctx.lineWidth = 2.2;
+        pathSeries(ctx, (k) => fc.hist[k], 0, nH, xH, yOf, wPlot, false); ctx.stroke();
+        ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.8;
+        pathSeries(ctx, (k) => fc.med[k], 0, nF, xF, yOf, wPlot, false); ctx.stroke();
+        ctx.restore();
+
+        refLine(ctx, x0, x1, yOf(C.DEMO.overTemp),
+          C.DEMO.overTemp + ' °C, ageing reference', COL.faint);
+        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
+          C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
+
+        // Where the record stops and the model starts.
+        const xn = xOfH(0);
+        ctx.save();
+        ctx.strokeStyle = COL.emph;
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(xn, P3.tT - 4); ctx.lineTo(xn, P3.tB); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.fillStyle = COL.emph;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('now', xn + 6, P3.tT - 6);
+        ctx.textAlign = 'right';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.fillText('measured', xn - 6, P3.tT - 6);
+        ctx.restore();
+
+        xAxis(ctx, x0, x1, P3.tB, h0, h1, 12, (v) => (v > 0 ? '+' : '') + v + ' h');
+      });
+
+      return html`
+        <${React.Fragment}>
+          <div className="lv-tiles">
+            <${Tile} label="median peak hot spot" value=${fc.medPeak.toFixed(1)} unit="°C" />
+            <${Tile} label=${'P(hot spot > ' + C.DEMO.overTemp + ' °C within 48 h)'}
+              value=${(100 * fc.pOver98).toFixed(0)} unit="%" emph=${true} />
+            <${Tile} label="ensemble members" value=${fc.n} unit="runs" />
+          </div>
+          <canvas ref=${cvRef} className="lv-canvas" style=${{ height: P3_H + 'px' }}></canvas>
+          <${Legend} items=${[
+            { label: 'measured history', color: COL.text },
+            { label: 'forecast median', color: COL.accent },
+            { label: '25 to 75 %', color: COL.accent, band: true },
+            { label: '5 to 95 %', color: COL.accent, band: true }
+          ]} />
+          <${Ctl} id="lv-p3-peak" label="tomorrow's peak load" min=${0.8} max=${1.3} step=${0.05}
+            value=${peakPu} onChange=${setPeakPu} format=${(v) => v.toFixed(2) + ' pu'} />
+        <//>
+      `;
+    }
+
+    /* ── Level 5: autonomous ──────────────────────────────────────────────
+       The same model, the same day, and nobody in the loop. Three lanes on one
+       canvas: the hot spot with the three thresholds the controller acts on,
+       the demanded load against the served one with the gap between them
+       shaded, and the cooling stage as a band along the floor.
+       The chart shows only what has already happened, and the log beside it
+       shows only the decisions already taken, because that is the whole claim
+       of the level: not that the loop is clever, but that every step of it is
+       written down. Sense, decide, act, with a timestamp.
+       autoRun() computes all of it once. The playback moves an index. */
+    const A5_H = 500;
+    const A5 = {
+      padL: 74, padR: 26,
+      tT: 18, tB: 300,        // hot-spot lane
+      sep: 312,
+      kT: 326, kB: 414,       // load lane
+      sgT: 426, sgB: 448      // cooling stage band, x axis sits on its floor
+    };
+    const A5_HOURS = 48;
+    /* The load lane does not start at zero. Demand runs between 0.65 and
+       1.35 pu and the curtailed gap is about 0.11 pu wide, which on a lane
+       from zero would be six pixels and invisible from the back of a room.
+       Both bounds are labelled on the axis. */
+    const A5_KLO = 0.5, A5_KHI = 1.5;
+    /* Two demo days in twenty-four seconds. The number that matters is the
+       wall clock: the whole page has three to four minutes on stage. */
+    const A5_RATE = 120;      // simulated minutes per second
+
+    function Autonomous() {
+      const run = useMemo(() => C.autoRun(), []);
+      const nMax = run.t.length - 1;
+      const total = A5_HOURS * 60;
+      const [playing, setPlaying] = useState(false);
+      const [runKey, setRunKey] = useState(0);
+      const tMin = usePlayback(total, A5_RATE, runKey, 0, playing);
+      const iNow = Math.max(0, Math.min(nMax, Math.round(tMin / run.dtMin)));
+      const started = playing || tMin > 0;
+
+      const logRef = useRef(null);
+      const shown = run.events.filter((e) => e.tMin <= tMin);
+      /* Newest line into view. The log reads top to bottom like a log, which
+         means the interesting end of it is the bottom one. */
+      useEffect(() => {
+        const el = logRef.current;
+        if (el && el.scrollHeight) el.scrollTop = el.scrollHeight;
+      }, [shown.length]);
+
+      const sc = useMemo(() => {
+        let lo = Infinity;
+        for (let k = 0; k <= nMax; k++) if (run.thH[k] < lo) lo = run.thH[k];
+        return niceRange(lo - 3, C.DEMO.tripC + 2, 8);
+      }, [run]);
+
+      const cvRef = useCanvas(A5_H, (ctx, w) => {
+        const x0 = A5.padL, x1 = w - A5.padR, wPlot = x1 - x0;
+        const xOfT = (tm) => x0 + tm / total * wPlot;
+        const xOfI = (k) => xOfT(k * run.dtMin);
+        const yOfT = (v) => A5.tB - (v - sc.lo) / (sc.hi - sc.lo) * (A5.tB - A5.tT);
+        const yOfK = (k) => A5.kB - (Math.max(A5_KLO, Math.min(A5_KHI, k)) - A5_KLO) /
+          (A5_KHI - A5_KLO) * (A5.kB - A5.kT);
+        const xc = xOfT(tMin);
+        const wSeen = Math.max(1, xc - x0);
+
+        yAxis(ctx, x0, x1, yOfT, sc.lo, sc.hi, sc.step, ' °C');
+
+        ctx.save();
+        ctx.strokeStyle = COL.grid;
+        ctx.globalAlpha = 0.18;
+        ctx.lineWidth = 1;
+        for (let hh = 6; hh < A5_HOURS; hh += 6) {
+          const x = xOfT(hh * 60);
+          ctx.beginPath(); ctx.moveTo(x, A5.tT); ctx.lineTo(x, A5.kB); ctx.stroke();
+        }
+        ctx.restore();
+
+        refLine(ctx, x0, x1, yOfT(C.DEMO.fanOnC), C.DEMO.fanOnC + ' °C, fans on', COL.info);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.limitOnC), C.DEMO.limitOnC + ' °C, load cap', COL.warn);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.tripC), C.DEMO.tripC + ' °C, trip', COL.bad);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, A5.tT, wPlot, A5.tB - A5.tT); ctx.clip();
+        ctx.lineJoin = 'bevel';
+        if (iNow > 0) {
+          ctx.strokeStyle = COL.accent; ctx.lineWidth = 3;
+          pathSeries(ctx, (k) => run.thH[k], 0, iNow, xOfI, yOfT, wSeen, false); ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = COL.border;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0 - A5.padL + 2, A5.sep + 0.5); ctx.lineTo(x1, A5.sep + 0.5); ctx.stroke();
+        ctx.restore();
+
+        // Load lane: what was asked, what was given, and the difference.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, A5.kT - 2, wPlot, A5.kB - A5.kT + 4); ctx.clip();
+        ctx.strokeStyle = COL.faint;
+        ctx.globalAlpha = 0.5;
+        ctx.setLineDash([3, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0, yOfK(1)); ctx.lineTo(x1, yOfK(1)); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+        if (iNow > 0) {
+          ctx.fillStyle = COL.warn;
+          ctx.globalAlpha = 0.3;
+          fillBand(ctx, (k) => run.Kdem[k], (k) => run.Kserved[k], 0, iNow, xOfI, yOfK, wSeen);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = COL.label; ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 4]);
+          pathSeries(ctx, (k) => run.Kdem[k], 0, iNow, xOfI, yOfK, wSeen, false); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = COL.accent; ctx.lineWidth = 2.4;
+          pathSeries(ctx, (k) => run.Kserved[k], 0, iNow, xOfI, yOfK, wSeen, false); ctx.stroke();
+        }
+        ctx.restore();
+
+        /* Cooling stage as a floor band, drawn as runs rather than per sample:
+           two colours and a word in each stretch wide enough to hold one. */
+        ctx.save();
+        ctx.strokeStyle = COL.border;
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x0 + 0.5, A5.sgT + 0.5, wPlot - 1, A5.sgB - A5.sgT - 1);
+        ctx.globalAlpha = 1;
+        let s0 = 0;
+        for (let k = 1; k <= iNow + 1; k++) {
+          if (k > iNow || run.stage[k] !== run.stage[s0]) {
+            const xa = xOfI(s0), xb = xOfT(Math.min(tMin, k * run.dtMin));
+            const fan = run.stage[s0] === 'ONAF';
+            ctx.fillStyle = fan ? COL.info : COL.subtle;
+            ctx.globalAlpha = fan ? 0.38 : 1;
+            ctx.fillRect(xa, A5.sgT + 1, Math.max(0.5, xb - xa), A5.sgB - A5.sgT - 2);
+            ctx.globalAlpha = 1;
+            if (xb - xa > 54) {
+              ctx.font = '600 12px system-ui, sans-serif';
+              ctx.fillStyle = fan ? COL.emph : COL.note;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(run.stage[s0], 0.5 * (xa + xb), 0.5 * (A5.sgT + A5.sgB));
+            }
+            s0 = k;
+          }
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('1.0 pu', x0 - 10, yOfK(1));
+        ctx.fillStyle = COL.faint;
+        ctx.fillText('0.5 pu', x0 - 10, yOfK(A5_KLO));
+        ctx.fillStyle = COL.note;
+        ctx.fillText('cooling', x0 - 10, 0.5 * (A5.sgT + A5.sgB));
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('LOAD, DEMANDED AND SERVED', x0 + 5, A5.sep + 5);
+        ctx.fillText('HOT SPOT', x0 + 5, A5.tT + 2);
+        ctx.restore();
+
+        xAxis(ctx, x0, x1, A5.sgB, 0, A5_HOURS, 6, (v) => v + ' h');
+
+        // Every event that has already happened, as a tick on the time axis.
+        ctx.save();
+        ctx.strokeStyle = COL.emph;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1;
+        run.events.forEach((e) => {
+          if (e.tMin > tMin) return;
+          const x = xOfT(e.tMin);
+          ctx.beginPath(); ctx.moveTo(x, A5.tT); ctx.lineTo(x, A5.tB); ctx.stroke();
+        });
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = COL.emph;
+        ctx.globalAlpha = 0.6;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(xc, A5.tT); ctx.lineTo(xc, A5.kB); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = COL.accent;
+        ctx.beginPath(); ctx.arc(xc, yOfT(run.thH[iNow]), 4.5, 0, 2 * Math.PI); ctx.fill();
+        ctx.restore();
+      });
+
+      const curtail = run.Kdem[iNow] - run.Kserved[iNow];
+      return html`
+        <div className="lv-split">
+          <div className="lv-main">
+            <div className="lv-tiles">
+              <${Tile} label="hot spot" value=${run.thH[iNow].toFixed(1)} unit="°C" emph=${true} />
+              <${Tile} label="load served" value=${run.Kserved[iNow].toFixed(2)} unit="pu" />
+              <${Tile} label="curtailed" value=${curtail.toFixed(2)} unit="pu"
+                color=${curtail > 0.005 ? COL.warn : null} />
+              <${Tile} label="cooling stage" value=${run.stage[iNow]} unit=""
+                color=${run.stage[iNow] === 'ONAF' ? COL.info : null} />
+              <${Tile} label="decisions taken" value=${shown.length} unit="" />
+            </div>
+            <canvas ref=${cvRef} className="lv-canvas" style=${{ height: A5_H + 'px' }}></canvas>
+            <${Legend} items=${[
+              { label: 'hot spot, computed', color: COL.accent },
+              { label: 'load served', color: COL.accent },
+              { label: 'load demanded', color: COL.label },
+              { label: 'curtailed', color: COL.warn, band: true },
+              { label: 'fans running', color: COL.info, band: true }
+            ]} />
+            <p className="lv-rules">
+              <b>Cooling</b> ONAN to ONAF at ${C.DEMO.fanOnC} °C, back at ${C.DEMO.fanOffC} °C.<br/>
+              <b>Load cap</b> armed at ${C.DEMO.limitOnC} °C, served load held at the value whose
+              steady-state hot spot is ${C.DEMO.limitTargetC} °C, released at ${C.DEMO.limitOffC} °C.<br/>
+              <b>Trip</b> latched at ${C.DEMO.tripC} °C, the IEC 60076-7 long-time emergency limit.
+              It does not fire on this day, and it is in the loop anyway.
+            </p>
+            <div className="lv-act">
+              <button type="button" className=${started ? 'secondary' : ''}
+                onClick=${() => {
+                  if (started) { setPlaying(false); setRunKey((n) => n + 1); }
+                  else setPlaying(true);
+                }}>
+                ${started ? 'Reset' : 'Play'}
+              </button>
+              <span className="lv-actnote">
+                ${'t = ' + (tMin / 60).toFixed(1) + ' h of ' + A5_HOURS + ' h, heat wave, 30 °C daily mean'}
+              </span>
+            </div>
+          </div>
+          <div className="lv-log" ref=${logRef}>
+            <div className="lv-logh">event log</div>
+            ${shown.length === 0
+              ? html`<div className="lv-logempty">no decisions yet</div>`
+              : shown.map((e, k) => html`
+                <div key=${k} className="lv-logline">
+                  <span className="lv-logt">${hhmm(e.tMin)}</span>
+                  <span className="lv-logb">
+                    <b>SENSE</b> ${e.sense}<br/>
+                    <b>DECIDE</b> ${e.decide}<br/>
+                    <b>ACT</b> ${e.act}
+                  </span>
+                </div>
+              `)}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ── Level 4: prescriptive ────────────────────────────────────────────
+       Three fixed dispatches of the same 1.30 pu, 4 h contingency, already
+       scored by C.scenarios(): peak hot spot, feasibility against the 120 C
+       cyclic limit, and ageing consumed. The only interaction is which card
+       is selected, the simulations never run again, all three trajectories
+       exist before the first click.
+       Each option gets a fixed colour, independent of selection, so a card
+       and its curve stay the same colour whichever one is chosen: A shares
+       the "bad" hue with its own badge (it is the one over the limit), C
+       shares the "good" hue with its badge (it is the recommendation), B
+       sits in between on the info hue used for cooling elsewhere on the
+       page. */
+    const D4_H = 380;
+    const D4 = { padL: 74, padR: 26, tT: 20, tB: 320 };
+    const D4_HOURS = 36;
+    /* The y axis deliberately does not start at 0: the three peaks sit
+       within 4 C of each other and of the 120 C line, and on a scale that
+       also shows the ambient-driven night trough that gap is a few pixels,
+       invisible from the back of a room (see _plan_levels.md, amendment
+       after stage 1). Margins below the lowest peak and above the highest
+       one keep just enough of the approach and the limit line in view. */
+    const D4_LO_MARGIN = 15, D4_HI_MARGIN = 3, D4_TICKS = 5;
+
+    function scenColor(id) {
+      return id === 'A' ? COL.bad : id === 'B' ? COL.info : COL.good;
+    }
+
+    function Prescriptive() {
+      const data = useMemo(() => C.scenarios(), []);
+      const defaultId = (data.filter((s) => s.recommended)[0] || data[0]).id;
+      const [selId, setSelId] = useState(defaultId);
+      const sel = data.filter((s) => s.id === selId)[0] || data[0];
+      const T = D4_HOURS * 60;
+
+      const sc = useMemo(() => {
+        const peaks = data.map((s) => s.peak);
+        const lo = Math.min.apply(null, peaks) - D4_LO_MARGIN;
+        const hi = Math.max(Math.max.apply(null, peaks), C.DEMO.limitCyclic) + D4_HI_MARGIN;
+        return niceRange(lo, hi, D4_TICKS);
+      }, [data]);
+
+      const cvRef = useCanvas(D4_H, (ctx, w) => {
+        const x0 = D4.padL, x1 = w - D4.padR, wPlot = x1 - x0;
+        const xOfT = (tm) => x0 + tm / T * wPlot;
+        const yOf = (v) => D4.tB - (v - sc.lo) / (sc.hi - sc.lo) * (D4.tB - D4.tT);
+
+        yAxis(ctx, x0, x1, yOf, sc.lo, sc.hi, sc.step, ' °C');
+
+        ctx.save();
+        ctx.strokeStyle = COL.grid;
+        ctx.globalAlpha = 0.18;
+        ctx.lineWidth = 1;
+        for (let hh = 6; hh < D4_HOURS; hh += 6) {
+          const x = xOfT(hh * 60);
+          ctx.beginPath(); ctx.moveTo(x, D4.tT); ctx.lineTo(x, D4.tB); ctx.stroke();
+        }
+        ctx.restore();
+
+        // The transfer window of the selected option, a quiet backdrop in
+        // that option's own colour, behind the curves and the limit line.
+        ctx.save();
+        ctx.fillStyle = scenColor(sel.id);
+        ctx.globalAlpha = 0.10;
+        sel.windows.forEach((win) => {
+          const xa = xOfT(win[0]), xb = xOfT(win[1]);
+          ctx.fillRect(xa, D4.tT, xb - xa, D4.tB - D4.tT);
+        });
+        ctx.restore();
+
+        // The three trajectories, selected one on top and at full strength.
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, D4.tT, wPlot, D4.tB - D4.tT); ctx.clip();
+        ctx.lineJoin = 'bevel';
+        const ordered = data.filter((s) => s.id !== sel.id).concat([sel]);
+        ordered.forEach((s) => {
+          const isSel = s.id === sel.id;
+          const xOfI = (k) => xOfT(k * s.dtMin);
+          ctx.globalAlpha = isSel ? 1 : 0.35;
+          ctx.strokeStyle = scenColor(s.id);
+          ctx.lineWidth = isSel ? 3 : 1.5;
+          pathSeries(ctx, (k) => s.thH[k], 0, s.t.length - 1, xOfI, yOf, wPlot, false);
+          ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
+          C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
+
+        xAxis(ctx, x0, x1, D4.tB, 0, D4_HOURS, 6, (v) => v + ' h');
+      });
+
+      return html`
+        <${React.Fragment}>
+          <p className="lv-note">Neighbouring transformer lost. 1.30 pu must be carried for 4 h
+            within the next 24 h. Same energy in every option, only the timing differs.</p>
+          <div className="lv-cards">
+            ${data.map((s) => html`
+              <button key=${s.id} type="button"
+                className=${'lv-card' + (s.id === sel.id ? ' active' : '')}
+                onClick=${() => setSelId(s.id)}>
+                <span className="lv-cardlabel">${s.name}</span>
+                <span className="lv-cardwin">${s.label}</span>
+                <div className="lv-cardnums">
+                  <span>
+                    <span className="lv-k">peak hot spot</span>
+                    <span className="lv-v">${s.peak.toFixed(1)}<span className="lv-u">°C</span></span>
+                  </span>
+                  <span>
+                    <span className="lv-k">ageing</span>
+                    <span className="lv-v">${s.agingDays.toFixed(2)}<span className="lv-u">d</span></span>
+                  </span>
+                </div>
+                <span className=${'lv-badge ' +
+                  (!s.feasible ? 'lv-badge-bad' : s.recommended ? 'lv-badge-rec' : 'lv-badge-ok')}>
+                  ${!s.feasible ? 'over 120 °C limit' : s.recommended ? 'recommended' : 'feasible'}
+                </span>
+              </button>
+            `)}
+          </div>
+          <canvas ref=${cvRef} className="lv-canvas" style=${{ height: D4_H + 'px' }}></canvas>
+          <${Legend} items=${[
+            { label: 'A, run now', color: scenColor('A') },
+            { label: 'B, shift to night', color: scenColor('B') },
+            { label: 'C, split', color: scenColor('C') },
+            { label: 'transfer window, selected option', color: scenColor(sel.id), band: true },
+            { label: C.DEMO.limitCyclic + ' °C, cyclic limit', color: COL.faint }
+          ]} />
+        <//>
+      `;
+    }
+
+    /* The tab that is still to come. Same shell, no chart. */
+    function Placeholder({ info }) {
+      return html`
+        <${React.Fragment}>
+          <p className="lv-note">${info.body}</p>
+        <//>
+      `;
+    }
+
+    function App() {
+      /* ?tab=diagnostic etc. deep-links a tab, for rehearsal and testing. */
+      const [tab, setTab] = useState(() => {
+        const q = typeof location === 'undefined' ? null
+          : new URLSearchParams(location.search).get('tab');
+        return TABS.some((x) => x.id === q) ? q : 'descriptive';
+      });
+      const [, themeBump] = useState(0);
+      /* Whoever changes the skin, the canvases below re-read the palette and
+         redraw. The individual charts listen too; this one exists so that
+         anything drawn from plain markup follows as well. */
+      useEffect(() => {
+        const on = () => { readPalette(); themeBump((n) => n + 1); };
+        window.addEventListener('themechange', on);
+        return () => window.removeEventListener('themechange', on);
+      }, []);
+      const cur = TABS.filter((x) => x.id === tab)[0];
+      return html`
+        <div className="lv-wrap">
+          <${Tabs} items=${TABS} value=${tab} onChange=${setTab} />
+          <section className="lv-group">
+            <h2 className="lv-h2">${cur.title}</h2>
+            ${tab === 'descriptive' ? html`<${Descriptive} />`
+              : tab === 'diagnostic' ? html`<${Diagnostic} />`
+              : tab === 'predictive' ? html`<${Predictive} />`
+              : tab === 'prescriptive' ? html`<${Prescriptive} />`
+              : tab === 'autonomous' ? html`<${Autonomous} />`
+              : html`<${Placeholder} info=${cur} />`}
+          </section>
+        </div>
+      `;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+  </script>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Self test. In the browser it is behind #selftest and reports to the
+       console; extracted to Node together with the core block above it runs
+       unconditionally, which is the way this file gets checked. Nothing here
+       touches the DOM.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="selftest">
+  (function () {
+    'use strict';
+    if (typeof location !== 'undefined' && location.hash !== '#selftest') return;
+    var C = LevelsCore;
+    var fails = 0, total = 0, t0 = Date.now();
+    function pass(name, ok, detail) {
+      total++;
+      if (!ok) fails++;
+      console.log((ok ? 'pass  ' : 'FAIL  ') + name + (detail == null ? '' : '   ' + detail));
+    }
+    function maxOf(a) { var m = -Infinity, i; for (i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; }
+
+    /* ── 1 The difference equations converge to the closed-form steady state,
+           on both cooling stages. 24 h at K = 1.0 and a constant ambient is
+           about 14 oil time constants on ONAN and 19 on ONAF. */
+    function converge(P, K, A) {
+      var dt = C.DEMO.dtMin, st = C.initState(0.4, A, P), t;
+      for (t = 0; t < 1440; t += dt) C.stepThermal(st, K, A, dt, P);
+      var ss = C.steadyState(K, A, P);
+      return { dO: Math.abs(st.thetaO - ss.thetaO), dH: Math.abs(st.thetaH - ss.thetaH) };
+    }
+    var cvN = converge(C.params(), 1.0, 20);
+    pass('ONAN converges to steadyState', cvN.dO < 0.1 && cvN.dH < 0.1,
+      'dTopOil ' + cvN.dO.toExponential(2) + ' K, dHotSpot ' + cvN.dH.toExponential(2) + ' K');
+    var cvF = converge(C.paramsFan(), 1.0, 20);
+    pass('ONAF converges to steadyState', cvF.dO < 0.1 && cvF.dH < 0.1,
+      'dTopOil ' + cvF.dO.toExponential(2) + ' K, dHotSpot ' + cvF.dH.toExponential(2) + ' K');
+
+    /* ── 2 Fans always help: at the same load factor and ambient the ONAF hot
+           spot is below the ONAN one, over the whole useful load range. */
+    var worst = -Infinity, kk, sN, sF;
+    for (kk = 0.2; kk <= 1.45; kk += 0.05) {
+      sN = C.steadyState(kk, 25, C.IEC); sF = C.steadyState(kk, 25, C.ONAF);
+      worst = Math.max(worst, sF.thetaH - sN.thetaH);
+    }
+    pass('ONAF hot spot below ONAN at every K', worst < 0,
+      'worst margin ' + worst.toFixed(2) + ' K');
+
+    /* ── 3 Sanity anchors: K = 1.0 pu at 20 C ambient. ONAN is the classic
+           45 + 26 over ambient; ONAF is the dual-rating set. */
+    var aN = C.steadyState(1, 20, C.IEC).thetaH;
+    var aF = C.steadyState(1, 20, C.ONAF).thetaH;
+    pass('ONAN anchor near 91 C', Math.abs(aN - 91) <= 2, aN.toFixed(2) + ' C');
+    pass('ONAF anchor near 72 C', Math.abs(aF - 72) <= 2, aF.toFixed(2) + ' C');
+
+    /* ── 4 The cooling stage change does not reinitialise anything: the four
+           states are carried across the parameter swap untouched. Checked by
+           stepping the same state with both parameter sets and comparing the
+           slow states; the fast winding state is allowed to move, that is the
+           fans doing their job. */
+    var stA = C.initState(1.1, 25, C.IEC);
+    C.stepThermal(stA, 1.1, 25, C.DEMO.dtMin, C.IEC);
+    var stB = C.copyState(stA);
+    C.stepThermal(stA, 1.1, 25, C.DEMO.dtMin, C.IEC);
+    C.stepThermal(stB, 1.1, 25, C.DEMO.dtMin, C.ONAF);
+    var dSlow = Math.max(Math.abs(stA.dThO - stB.dThO),
+      Math.abs(stA.dThH2 - stB.dThH2), Math.abs(stA.thetaAeff - stB.thetaAeff));
+    pass('slow states continuous across a stage change', dSlow < 1,
+      'worst ' + dSlow.toFixed(3) + ' K per ' + C.DEMO.dtMin + ' min step');
+
+    /* ── 5 Level 2, healthy: 48 h with no fault never leaves the band. */
+    var ok48 = C.simPlant(48, {});
+    var worstSm = 0;
+    for (i = ok48.smoothW - 1; i < ok48.residSm.length; i++) {
+      worstSm = Math.max(worstSm, Math.abs(ok48.residSm[i]));
+    }
+    pass('healthy run stays inside the band 48 h', ok48.flagIdx < 0,
+      'band +-' + ok48.band.toFixed(3) + ' K, worst |smoothed resid| ' + worstSm.toFixed(3) + ' K');
+
+    /* ── 6 Level 2, faulted: the residual leaves the band within 2 h of the
+           onset. The fault itself takes 2 h to fade in, so this asks the
+           detector to be quicker than the fault is. */
+    var bad = C.simPlant(48, { faultAtMin: 24 * 60 });
+    var lag = bad.flagIdx < 0 ? Infinity : bad.flagMin - bad.faultAtMin;
+    pass('cooling fault flagged within 2 h of onset', lag > 0 && lag < 120,
+      'flagged after ' + (isFinite(lag) ? lag.toFixed(0) + ' min' : 'never'));
+
+    /* ── 6b The same plant as a live stream. simPlant decides everything in
+           one pass afterwards; makeLive has to decide it sample by sample
+           while the stream runs, and the two have to agree. */
+    var lv = C.makeLive({});
+    var capWant = Math.round(48 * 60 / C.DEMO.dtMin);
+    pass('live window is prefilled to its full 48 h',
+      lv.count() === capWant && lv.capacity === capWant,
+      lv.count() + ' of ' + capWant + ' samples, ' + (lv.windowMin / 60).toFixed(0) + ' h');
+    pass('the prefilled window ends on the t = 0 reference',
+      Math.abs(lv.arr.tMin[lv.phys(lv.count() - 1)]) < 1e-9 && Math.abs(lv.now()) < 1e-9,
+      'newest sample at t = ' + lv.now().toFixed(3) + ' min');
+
+    /* Healthy, streamed for another 48 h: never flagged, and the smoothed
+       residual is a band-sized quantity rather than a drifting one. */
+    var lvBad = false, lvRms = 0, lvWorst = 0, lvSm;
+    for (i = 0; i < capWant; i++) {
+      lv.step(1);
+      if (lv.status() !== 'OK') lvBad = true;
+      lvSm = lv.last('residSm');
+      lvRms += lvSm * lvSm;
+      if (Math.abs(lvSm) > lvWorst) lvWorst = Math.abs(lvSm);
+    }
+    lvRms = Math.sqrt(lvRms / capWant);
+    pass('healthy stream is never flagged over 48 h', !lvBad,
+      'band +-' + lv.band.toFixed(3) + ' K, rms smoothed residual ' + lvRms.toFixed(3) +
+      ' K, worst ' + lvWorst.toFixed(3) + ' K');
+    pass('healthy smoothed residual stays inside the band in the mean square',
+      lvRms < lv.band, lvRms.toFixed(3) + ' K against ' + lv.band.toFixed(3) + ' K');
+
+    /* Inject in the middle of the stream: the clock keeps running and the
+       flag arrives within the 2 h the tab claims. */
+    var lv2 = C.makeLive({});
+    lv2.step(Math.round(6 * 60 / C.DEMO.dtMin));
+    var tBefore = lv2.now();
+    lv2.setFault(true);
+    pass('inject does not move the clock', lv2.now() === tBefore &&
+      lv2.onsetMin() === tBefore, 'onset at t = ' + lv2.onsetMin() + ' min');
+    var lvLag = null;
+    for (i = 0; i < Math.round(120 / C.DEMO.dtMin); i++) {
+      lv2.step(1);
+      if (lv2.status() === 'FLAGGED') { lvLag = lv2.flagMin() - lv2.onsetMin(); break; }
+    }
+    pass('injected fault is flagged within 2 h, stream running',
+      lvLag !== null && lvLag > 0 && lvLag < 120,
+      lvLag === null ? 'never flagged' : 'flagged after ' + lvLag.toFixed(0) + ' min');
+
+    /* Clear it, again without touching the clock: the plant recovers and the
+       status follows it back to OK on its own. */
+    var tClear = lv2.now();
+    lv2.setFault(false);
+    pass('clear does not move the clock', lv2.now() === tClear,
+      'cleared at t = ' + tClear + ' min');
+    var lvBack = null;
+    for (i = 0; i < Math.round(12 * 60 / C.DEMO.dtMin); i++) {
+      lv2.step(1);
+      if (lv2.status() === 'OK') { lvBack = lv2.now() - tClear; break; }
+    }
+    pass('status returns to OK within 12 h of clearing',
+      lvBack !== null && lvBack > 0, lvBack === null ? 'still flagged' :
+      'OK again ' + (lvBack / 60).toFixed(1) + ' h after the repair started');
+    pass('smoothed residual is back inside the band after the repair',
+      Math.abs(lv2.last('residSm')) <= lv2.band,
+      Math.abs(lv2.last('residSm')).toFixed(3) + ' K against ' + lv2.band.toFixed(3) + ' K');
+
+    /* Continuity: injecting and clearing are changes of a PARAMETER, blended
+       over 2 h, so the plant temperature has no step in it anywhere. */
+    var lv3 = C.makeLive({});
+    var prevO = lv3.last('thOtrue'), jump = 0, cur;
+    function walkLive(n) {
+      var s;
+      for (s = 0; s < n; s++) {
+        lv3.step(1);
+        cur = lv3.last('thOtrue');
+        if (Math.abs(cur - prevO) > jump) jump = Math.abs(cur - prevO);
+        prevO = cur;
+      }
+    }
+    walkLive(30);
+    lv3.setFault(true);
+    walkLive(30);
+    lv3.setFault(false);          // toggled back in the middle of the blend
+    walkLive(30);
+    lv3.setFault(true);
+    walkLive(Math.round(6 * 60 / C.DEMO.dtMin));
+    lv3.setFault(false);
+    walkLive(Math.round(6 * 60 / C.DEMO.dtMin));
+    pass('plant top oil is continuous across every fault toggle', jump < 1,
+      'worst step ' + jump.toFixed(3) + ' K per ' + C.DEMO.dtMin + ' min');
+
+    /* ── 7 Level 3: the band widens with the horizon, the median forecast sits
+           on the nominal run, and the exceedance probability is a real
+           probability and not a rounded 0 or 1. */
+    var fc = C.forecast(1.0);
+    var i6 = Math.round(6 * 60 / fc.dtMin), iEnd = fc.t.length - 1;
+    var w6 = fc.q95[i6] - fc.q05[i6], w48 = fc.q95[iEnd] - fc.q05[iEnd];
+    pass('forecast band widens with the horizon', w48 > w6,
+      '6 h ' + w6.toFixed(2) + ' K, 48 h ' + w48.toFixed(2) + ' K');
+    var dMed = 0, i;
+    for (i = 0; i < fc.med.length; i++) dMed = Math.max(dMed, Math.abs(fc.med[i] - fc.nom[i]));
+    pass('ensemble median tracks the nominal run', dMed < 1.5, 'worst ' + dMed.toFixed(2) + ' K');
+    pass('P(hot spot > 98 C) is strictly between 0 and 1',
+      fc.pOver98 > 0 && fc.pOver98 < 1, (100 * fc.pOver98).toFixed(0) + ' %');
+
+    /* ── 8 Level 4: the three options are the same job at three different
+           hours, so the served energy has to match to the last decimal; only
+           then is the comparison a comparison of timing. A is over the 120 C
+           cyclic limit, B and C are under it, the winner is the feasible
+           option with the least ageing, and it wins by a margin a presenter
+           can point at rather than by rounding. */
+    var sc = C.scenarios();
+    var A = sc[0], B = sc[1], Cc = sc[2];
+    var eSpread = (Math.max(A.servedPuH, B.servedPuH, Cc.servedPuH) /
+      Math.min(A.servedPuH, B.servedPuH, Cc.servedPuH)) - 1;
+    pass('all three options serve the same energy', eSpread < 0.01,
+      A.servedPuH.toFixed(3) + ' / ' + B.servedPuH.toFixed(3) + ' / ' +
+      Cc.servedPuH.toFixed(3) + ' pu h, spread ' + (100 * eSpread).toFixed(2) + ' %');
+    pass('scenario A exceeds the 120 C cyclic limit', !A.feasible,
+      'peak ' + A.peak.toFixed(1) + ' C at ' + (A.peakAtMin / 60).toFixed(1) + ' h');
+    pass('scenario B is feasible', B.feasible, 'peak ' + B.peak.toFixed(1) + ' C');
+    pass('scenario C is feasible', Cc.feasible, 'peak ' + Cc.peak.toFixed(1) + ' C');
+    var rec = sc.filter(function (s) { return s.recommended; });
+    pass('exactly one option is recommended', rec.length === 1,
+      rec.map(function (s) { return s.id; }).join(''));
+    var feas = sc.filter(function (s) { return s.feasible; })
+      .sort(function (a, b) { return a.agingDays - b.agingDays; });
+    pass('the recommendation is the feasible option with the least ageing',
+      rec.length === 1 && feas.length > 0 && rec[0].id === feas[0].id,
+      feas.map(function (s) { return s.id + ' ' + s.agingDays.toFixed(2) + ' d'; }).join(', '));
+    pass('running now ages the paper faster than the recommendation',
+      feas.length > 0 && A.agingDays > feas[0].agingDays,
+      'A ' + A.agingDays.toFixed(2) + ' d against ' + feas[0].id + ' ' +
+      feas[0].agingDays.toFixed(2) + ' d');
+    var gap = feas.length > 1 ? feas[1].agingDays / feas[0].agingDays - 1 : 0;
+    pass('the winner beats the runner-up by more than 30 % ageing', gap > 0.30,
+      (100 * gap).toFixed(0) + ' %');
+
+    /* ── 9 Level 5: the loop escalates in the right order, never serves more
+           than is asked, never passes the emergency limit, and does not hunt
+           between cooling stages. */
+    var ar = C.autoRun();
+    var firstFan = null, firstLimit = null;
+    for (i = 0; i < ar.events.length; i++) {
+      if (firstFan === null && ar.events[i].act.indexOf('ONAN to ONAF') >= 0) firstFan = ar.events[i].tMin;
+      if (firstLimit === null && ar.events[i].act.indexOf('load capped') >= 0) firstLimit = ar.events[i].tMin;
+    }
+    pass('fans are used before the load is capped',
+      firstFan !== null && firstLimit !== null && firstFan < firstLimit,
+      'fans at ' + firstFan + ' min, cap at ' + firstLimit + ' min');
+    var okServe = true, okTemp = true;
+    for (i = 0; i < ar.t.length; i++) {
+      if (ar.Kserved[i] > ar.Kdem[i] + 1e-9) okServe = false;
+      if (ar.thH[i] >= C.DEMO.tripC) okTemp = false;
+    }
+    pass('served load never exceeds demand', okServe);
+    pass('hot spot stays below the 140 C emergency limit', okTemp,
+      'peak ' + maxOf(ar.thH).toFixed(1) + ' C');
+    var nSw = 0;
+    for (i = 1; i < ar.stage.length; i++) if (ar.stage[i] !== ar.stage[i - 1]) nSw++;
+    pass('at most four cooling stage changes in 48 h', nSw <= 4, nSw + ' changes');
+
+    console.log((fails === 0 ? 'ALL PASS' : fails + ' FAILURES') +
+      '   ' + (total - fails) + '/' + total + '   ' + (Date.now() - t0) + ' ms');
+  })();
+  </script>
+</body>
+</html>
