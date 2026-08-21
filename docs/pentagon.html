@@ -290,16 +290,26 @@
          tiles.
 
        PD is the same narrow sliver left of the H2 axis in both pentagons, and
-       both S polygons walk around it, exactly as the table has it. */
+       both S polygons walk around it.
 
-    var PD_POLY = [[0, 33], [-1, 33], [-1, 24.5], [0, 24.5]];
+       One deviation from the table, on purpose: published PD stops at y = 33,
+       which leaves the last third of a percent below the H2 corner as S. The
+       reachable set reaches y = 33.33 (pure H2), so a point that is almost
+       nothing but hydrogen, the textbook partial discharge, reads S. The
+       sliver is carried up to the corner instead: the top edge is replaced by
+       the two edges (0, 40) and (-1, 39.2737), the latter being where x = -1
+       cuts the drawn left edge of the pentagon. Nothing else moves, and S
+       walks around the taller sliver the same way it did around the short
+       one. */
+
+    var PD_POLY = [[0, 40], [-1, 39.2737], [-1, 24.5], [0, 24.5]];
     /* Four zones are shared: PD, D1, D2 and S are the same regions in both
        pentagons, coordinate for coordinate. Only the low-temperature corner
        is split differently. */
     var D1_POLY = [[0, 40], [38, 12], [32, -6.1], [4, 16], [0, 1.5]];
     var D2_POLY = [[4, 16], [32, -6.1], [24.3, -30], [0, -3], [0, 1.5]];
-    var S_POLY = [[0, 1.5], [-35, 3.1], [-38, 12.4], [0, 40],
-                  [0, 33], [-1, 33], [-1, 24.5], [0, 24.5]];
+    var S_POLY = [[0, 1.5], [-35, 3.1], [-38, 12.4],
+                  [-1, 39.2737], [-1, 24.5], [0, 24.5]];
 
     /* The three lower-left zones, per pentagon. Pentagon 1 meets at (-6, -4)
        and splits the bottom edge at x = 1 and x = -22.5; Pentagon 2 meets at
@@ -800,15 +810,11 @@
 
     const GASES = ['H₂', 'C₂H₆', 'CH₄', 'C₂H₄', 'C₂H₂'];
 
-    /* An aged unit with more than one thing going on: every gas present, C2H4
-       leading, real C2H2 underneath. Read off the nominal point it is a D2 on
-       both pentagons, a high-energy discharge, and nothing about that single
-       letter suggests a second opinion. Propagated at 25 percent it is D2
-       44.5 against T3 41.8, an arc against overheating above 700 C, which are
-       two different repairs on two different outage schedules. The margin
-       between them is smaller than the width of the laboratory's error bar.
-       That gap between the letter and the distribution is the page. */
-    const START_GAS = [150, 60, 120, 170, 55];
+    /* A neutral starting point: 20 ppm of every gas, so the nominal point sits
+       at the centroid of the pentagon and no diagnosis is preferred by the
+       initial condition. From here the user drags the point or edits the ppm
+       fields to build the case they want to look at. */
+    const START_GAS = [20, 20, 20, 20, 20];
     /* 25 percent relative on every gas is the upper end of what round-robin
        exercises report for laboratory DGA at these concentrations, and it is
        the value the talk quotes. */
@@ -816,18 +822,26 @@
 
     /* Sample counts the slider steps through. 20000 is the default: below it
        the contours wobble visibly, above it nothing on screen changes and the
-       recompute starts to be felt. The 500 at the bottom is deliberate and
-       looks as thin as it is: it is there to show what a handful of draws
-       does and does not tell you. */
-    const TRIALS = [500, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
-    const TRIALS_DEFAULT = 4;
-    /* While the point is dragged the count drops to this step, so the numbers
-       keep up with the cursor; the full count is computed again on release. */
+       recompute starts to be felt. The bottom of the ladder is deliberate and
+       looks as thin as it is: 30 draws is a number a person can count on
+       screen, and it does not tell you which side of a zone boundary you are
+       on. Below 5000 the dots are drawn larger, so a handful of samples reads
+       as a handful of samples rather than as dust. */
+    const TRIALS = [30, 100, 500, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
+    const TRIALS_DEFAULT = 6;
+    /* While the point is dragged the count drops to this ceiling, so the
+       numbers keep up with the cursor; the full count is computed again on
+       release. It is a ceiling, not a fixed count: if the slider is already
+       below it, dragging must not silently draw more samples than the slider
+       says. */
     const DRAG_TRIALS = 5000;
-    /* Drawing 200000 single pixels costs more than computing them. The cloud
-       shows a prefix of the sequence, which is itself a valid low-discrepancy
-       set, so it looks like the whole thing; the tallies use every point. */
-    const CLOUD_MAX = 20000;
+    /* The cloud used to stop at a 20000 point prefix. Since the sequence is
+       deterministic, that made every step from 20k upwards draw the identical
+       picture: the slider moved, the numbers moved, the canvas did not. The
+       whole set is drawn now. 200000 fills cost tens of milliseconds, which
+       is paid on a slider change or on release, never per frame: while the
+       point is dragged the count is capped at DRAG_TRIALS. */
+    const CLOUD_MAX = 200000;
 
     const COVERAGE = [{ p: 0.95, alpha: 0.6 }, { p: 0.5, alpha: 0.95 }];
     const PAD = 34;
@@ -933,11 +947,34 @@
 
         if (res && show === 'cloud') {
           const nDraw = Math.min(res.n, CLOUD_MAX);
+          /* Dot size follows the count below 5000: radius grows as
+             sqrt(5000 / n), so the ink on the canvas stays roughly constant
+             while the individual sample stays countable. Capped at 3.4 px,
+             which is just under the radius of the nominal marker, so a small
+             cloud can never be mistaken for a row of nominal points. Above
+             5000 nothing changes: 0.6 px half-width as before. */
+          const half = nDraw >= 5000
+            ? 0.6
+            : Math.min(3.4, 0.6 * Math.sqrt(5000 / Math.max(nDraw, 1)));
+          /* Above 5000 the dot size is fixed and the opacity carries the
+             count instead, as 0.3 * sqrt(5000 / n): total ink then grows as
+             sqrt(n) rather than as n, so each step up the slider reads as a
+             denser cloud instead of saturating into one flat blob. Floored at
+             0.03, which is still visible where points pile up and invisible
+             where a single draw strayed. */
           ctx.fillStyle = COL.accent;
-          ctx.globalAlpha = nDraw > 8000 ? 0.16 : 0.3;
+          ctx.globalAlpha = nDraw >= 5000
+            ? Math.max(0.03, 0.3 * Math.sqrt(5000 / nDraw))
+            : 0.5;
           for (let i = 0; i < nDraw; i++) {
             const q = toPx(res.pts[2 * i], res.pts[2 * i + 1]);
-            ctx.fillRect(q[0] - 0.6, q[1] - 0.6, 1.2, 1.2);
+            if (half > 1.5) {
+              ctx.beginPath();
+              ctx.arc(q[0], q[1], half, 0, 2 * Math.PI);
+              ctx.fill();
+            } else {
+              ctx.fillRect(q[0] - half, q[1] - half, 2 * half, 2 * half);
+            }
           }
           ctx.globalAlpha = 1;
         }
@@ -1080,7 +1117,7 @@
       const point = useMemo(() => C.centroid(shares), [shares]);
       const nominal = useMemo(() => C.zoneAt(point[0], point[1], zones), [point, zones]);
 
-      const n = dragging ? DRAG_TRIALS : TRIALS[trials];
+      const n = dragging ? Math.min(DRAG_TRIALS, TRIALS[trials]) : TRIALS[trials];
       const sigmas = useMemo(
         () => sig.map((v) => Math.min(60, Math.max(0, v)) / 100),
         [sig]
