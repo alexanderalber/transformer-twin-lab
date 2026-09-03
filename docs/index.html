@@ -81,10 +81,31 @@
     .tw-foot-fine a {
       color: inherit;
     }
+    /* The cross link to the sister project: one quiet line at the right edge,
+       set apart from the fine print so it does not read as more of it. */
+    .tw-foot-cross {
+      margin: 16px 0 0;
+      text-align: right;
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+    .tw-foot-cross a {
+      color: var(--tool-faint);
+      text-decoration: none;
+    }
+    .tw-foot-cross a:hover,
+    .tw-foot-cross a:focus {
+      color: var(--tool-label);
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <header class="container tw-head">
+  <!-- Same max-width as main and the footer below: Pico's .container is wider
+       than that on large screens, which parked the switchers well to the right
+       of the column they belong to. The demo pages keep the wide container,
+       their content is wide too. -->
+  <header class="container tw-head" style="max-width:820px">
     <div class="lang-switcher">
       <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
     </div>
@@ -166,6 +187,15 @@
            not break the offline rule. -->
       <a href="https://alber.me/datenschutz.html" data-i18n="privacy">Privacy notice</a>
     </p>
+    <!-- Cross link to the sister project on automata over infinite alphabets.
+         Same reasoning as the privacy link above: an external href makes no
+         request until it is followed, so the offline rule still holds. The
+         German line is not a translation of the English one. It plays on a
+         tourism slogan that only lands with German speakers, and those are
+         the ones sitting in the room. -->
+    <p class="tw-foot-cross">
+      <a href="https://alber.me/infinite-alphabets/" data-i18n="cross">Three gases is a very finite alphabet. There is an infinite one.</a>
+    </p>
   </footer>
 
   <!-- The German side of this page. English lives in the markup, German in one
@@ -188,6 +218,7 @@
 
       'sources': 'Quellen: IEC 60599 und CIGRE TB 771 (Fehlerzonen im Duval-Dreieck 1); Duval und Lamarre 2014 und CIGRE TB 771 (Duval-Pentagon 1 und 2); IEC 60076-7 (Belastungsrichtlinie); IEC 60076-2 (Grenzen der Übertemperatur); CIGRE TB 738 (Alterung unter Feuchte); Lundgaard et al. 2004 (Alterungskinetik); Parton und Logan 1981 (Tagesgang der Temperatur). Alles rechnet lokal im Browser, nichts wird hochgeladen.',
       'fine': 'frei zu benutzen und zu verlinken, für die Weiterverwendung des Codes bitte kurz fragen · ein privates Projekt im Kontext der CIGRE JWG A2/D2.65, ohne Verbindung zu einem Arbeitgeber',
+      'cross': 'Nett hier. Aber haben Sie schon mal ein unendliches Alphabet gesehen?',
       'thirdparty': 'Lizenzen Dritter',
       'privacy': 'Datenschutz'
     };
