@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
 <head>
   <meta charset="utf-8">
   <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Five levels of a digital twin</title>
   <meta name="description" content="Descriptive, diagnostic, predictive, prescriptive, autonomous: the same transformer and the same thermal model, one capability level at a time.">
@@ -321,12 +322,18 @@
 </head>
 <body>
   <header class="container tw-head">
-    <h1><a class="lv-crumb" href="index.html">twin-lab</a><span class="lv-sep">/</span>Five levels of a digital twin</h1>
+    <h1><a class="lv-crumb" href="index.html">twin-lab</a><span class="lv-sep">/</span><span
+      data-en="Five levels of a digital twin"
+      data-de="Fünf Stufen eines digitalen Zwillings">Five levels of a digital twin</span></h1>
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
     <div class="theme-switcher">
       <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
     </div>
   </header>
   <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
 
   <main>
     <div id="root">
@@ -1699,8 +1706,12 @@
       var P = Pan;
       var events = [];
 
-      function log(tMin, sense, decide, act) {
-        events.push({ tMin: tMin, sense: sense, decide: decide, act: act });
+      /* `d` is the same decision as data: what it was about, which way it
+         went, and the numbers behind it. The English wording above stays the
+         primary form and is what the selftest reads; the page formats the
+         record when it is showing another language. */
+      function log(tMin, sense, decide, act, d) {
+        events.push({ tMin: tMin, sense: sense, decide: decide, act: act, d: d });
       }
 
       /* "hot spot 88.4 C, forecast 96.1 C in 40 min": what the loop had in
@@ -1724,7 +1735,8 @@
           if (doLog) {
             log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
               'above the 140 C emergency limit, measured, not predicted',
-              'trip, load to zero, latched');
+              'trip, load to zero, latched',
+              { k: 'trip', th: st.thetaH });
           }
         }
 
@@ -1734,7 +1746,8 @@
           if (doLog && fans !== was) {
             log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
               fans ? 'above the 95 C fan-on threshold' : 'below the 85 C fan-off threshold',
-              fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
+              fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN',
+              { k: 'fansR', th: st.thetaH, on: fans });
           }
           P = fans ? Paf : Pan;
           if (!limited && st.thetaH >= armC) limited = true;
@@ -1744,7 +1757,8 @@
             log(tm, 'hot spot ' + st.thetaH.toFixed(1) + ' C',
               limited ? 'above the ' + armC + ' C limiter threshold'
                 : 'below the ' + offC + ' C release threshold',
-              limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu' : 'load limit released');
+              limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu' : 'load limit released',
+              { k: 'capR', th: st.thetaH, on: limited, arm: armC, off: offC, kmax: Kmax });
           }
           return predictAhead(st, P, tm, hzn, Kmax, o, dt);
         }
@@ -1761,7 +1775,8 @@
               hzn + ' min'
               : 'predicted to stay under the ' + DEMO.fanOffC +
                 ' C fan-off threshold without fans',
-            fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN');
+            fans ? 'cooling stage ONAN to ONAF' : 'cooling stage ONAF to ONAN',
+            { k: 'fansP', th: st.thetaH, pk: pk.v, mins: (pk.j + 1) * dt, hzn: hzn, on: fans });
         }
         P = fans ? Paf : Pan;
 
@@ -1778,7 +1793,9 @@
               : 'predicted peak below the ' + offC + ' C release threshold',
             limited ? 'load capped at ' + Kmax.toFixed(2) + ' pu, forecast peak held at ' +
               tgtC + ' C'
-              : 'load cap released');
+              : 'load cap released',
+            { k: 'capP', th: st.thetaH, pk: pkFree.v, mins: (pkFree.j + 1) * dt, hzn: hzn,
+              on: limited, arm: armC, off: offC, kmax: Kmax, tgt: tgtC });
         }
         return predictAhead(st, P, tm, hzn, Kmax, o, dt);
       }
@@ -1832,7 +1849,9 @@
             log(0, sense(st, p0),
               'forecast peak under the ' + armC + ' C cap threshold, no change due',
               'carried over from the night: cooling stage ' + (fans ? 'ONAF' : 'ONAN') +
-              ', no load cap');
+              ', no load cap',
+              { k: 'open', th: st.thetaH, pk: p0.v, mins: (p0.j + 1) * dt, arm: armC,
+                fans: fans });
           }
         }
         c++;
@@ -2130,7 +2149,7 @@
             aria-hidden="true"><path d="M5 3.6 12.4 8 5 12.4Z"/></svg>`;
       return html`
         <button type="button" className=${'lv-playbtn' + (running ? ' secondary' : '')}
-          aria-label=${running ? 'pause' : 'resume'} title=${running ? 'pause' : 'resume'}
+          aria-label=${running ? T.pause : T.resume} title=${running ? T.pause : T.resume}
           onClick=${onClick}>${mark}</button>
       `;
     }
@@ -2148,35 +2167,229 @@
       `;
     }
 
-    /* The five tabs. Levels 1, 2, 3 and 5 are drawn; level 4 still says what
-       it will show and lands in the next stage. */
-    const TABS = [
-      {
-        id: 'descriptive', label: 'Descriptive',
-        title: 'Level 1, what is happening',
-        body: 'Measured top-oil against the twin, on the same load and the same ambient. No claim beyond the two traces.'
+
+    /* -- Strings ---------------------------------------------------------
+       Every word the page shows. LANG and T stay module-level but are `let`:
+       App reassigns them from its own state before any child renders, which is
+       what makes the switch live rather than a reload (see assets/js/lang.js).
+       Units, clock times, pu, ONAN and ONAF read the same in both languages
+       and stay out of the table. The self-test block and the English event
+       strings the core emits stay English too: the test reads them, and the
+       German log is formatted here from the structured record next to them. */
+    const STRINGS = {
+      en: {
+        title: 'Five levels of a digital twin',
+        desc: 'Descriptive, diagnostic, predictive, prescriptive, autonomous: the same transformer and the same thermal model, one capability level at a time.',
+        tabs: {
+          descriptive: { label: 'Descriptive', title: 'Level 1, what is happening',
+            body: 'Measured top-oil against the twin, on the same load and the same ambient. No claim beyond the two traces.' },
+          diagnostic: { label: 'Diagnostic', title: 'Level 2, why it is happening',
+            body: 'The difference between the two traces, smoothed over 30 min, against a band measured on the healthy plant. Cooling degrades and the residual walks out of the band.' },
+          predictive: { label: 'Predictive', title: 'Level 3, what happens next',
+            body: 'Forty-eight hours ahead as an ensemble of 100 members, quantile band, and the probability of passing 98 C.' },
+          prescriptive: { label: 'Prescriptive', title: 'Level 4, what to do about it',
+            body: 'The same 4 h transfer offered at three different hours, scored on peak hot spot, feasibility against the 120 C cyclic limit, and days of insulation life consumed.' },
+          autonomous: { label: 'Autonomous', title: 'Level 5, doing it',
+            body: 'A heat wave with the loop closed: fans, then a load cap, then a trip. Sense, decide, act, logged with a timestamp.' }
+        },
+
+        pause: 'pause', resume: 'resume', now: 'now',
+        laneLoad: 'LOAD', laneTopOil: 'TOP OIL', laneHotSpot: 'HOT SPOT',
+        laneLoadBoth: 'LOAD, DEMANDED AND SERVED',
+        laneResid: (band) => 'RESIDUAL, MEASURED MINUS MODELLED, BAND ' + band + ' K',
+        cooling: 'cooling',
+        refAgeing: (v) => v + ' °C reference',
+        refAgeing2: (v) => v + ' °C, ageing reference',
+        refCyclic: (v) => v + ' °C, IEC 60076-7 normal cyclic limit',
+        refFans: (v) => v + ' °C, fans on',
+        refCap: (v) => v + ' °C, load cap',
+        refTrip: (v) => v + ' °C, trip',
+
+        legHotComputed: 'hot spot, computed',
+        legTopMeas: 'top oil, measured',
+        legTopModelled: 'top oil, modelled',
+        legAmbient: 'ambient',
+        legLoad: 'load',
+        legBand: 'band, 3.5 sigma of the smoothed residual, measured',
+        legFlag: 'flag',
+        legHistory: 'measured history',
+        legMedian: 'forecast median',
+        legQ2575: '25 to 75 %',
+        legQ0595: '5 to 95 %',
+        legPredicted: (m) => 'hot spot, predicted ' + m + ' min ahead',
+        legServed: 'load served',
+        legDemanded: 'load demanded',
+        legCurtailed: 'curtailed',
+        legFans: 'fans running',
+        legNoTransfer: 'same day, no transfer',
+        legWindow: 'transfer window',
+        legCyclic: (v) => v + ' °C, cyclic limit',
+        legHotOpt: (lab) => 'hot spot, ' + lab,
+
+        trailing: (clock, rate, paused) => 'trailing 48 h, ' + clock + ', ' + rate + (paused ? ', paused' : ''),
+        measured: 'measured',
+        faultStarts: 'cooling fault starts',
+        flaggedAfter: (min) => 'flagged, ' + min + ' min after onset',
+        chipFlagged: 'FLAGGED', chipOk: 'OK',
+        stDegrading: (pct, clock) => 'rated top-oil rise degrading by ' + pct + ' % since ' + clock,
+        stRecovering: (clock) => 'recovering, cooling restored at ' + clock,
+        stHealthy: 'healthy plant',
+        btnClear: 'Clear fault', btnInject: 'Inject cooling fault',
+
+        crossing: (pct, n, temp, hours) => pct + ' % of ' + n + ' members cross ' + temp + ' °C within ' + hours + ' h',
+        peakLoad: 'tomorrow\u2019s peak load',
+
+        tHotSpot: 'hot spot',
+        tPredicted: (m) => 'predicted, +' + m + ' min',
+        tServed: 'load served',
+        tCurtailed: 'curtailed',
+        tStage: 'cooling stage',
+        tDecisions: 'decisions taken',
+        btnReset: 'Reset', btnPlay: 'Play',
+        autoNote: (h, total) => 't = ' + h + ' h of ' + total + ' h, heat wave, 30 °C daily mean',
+        logHead: 'event log', logEmpty: 'no decisions yet',
+        logSense: 'SENSE', logDecide: 'DECIDE', logAct: 'ACT',
+
+        d4Lead: 'Neighbouring transformer lost. 1.30 pu must be carried for 4 h within the next 24 h.',
+        d4Group: 'transfer window',
+        d4Over: (v) => 'over the ' + v + ' °C limit',
+        d4Recommended: 'recommended', d4Feasible: 'feasible',
+        d4Peak: 'peak hot spot',
+        d4Ageing: 'ageing over 36 h',
+        d4Against: (v) => ', against ' + v + ' d with no transfer'
       },
-      {
-        id: 'diagnostic', label: 'Diagnostic',
-        title: 'Level 2, why it is happening',
-        body: 'The difference between the two traces, smoothed over 30 min, against a band measured on the healthy plant. Cooling degrades and the residual walks out of the band.'
-      },
-      {
-        id: 'predictive', label: 'Predictive',
-        title: 'Level 3, what happens next',
-        body: 'Forty-eight hours ahead as an ensemble of 100 members, quantile band, and the probability of passing 98 C.'
-      },
-      {
-        id: 'prescriptive', label: 'Prescriptive',
-        title: 'Level 4, what to do about it',
-        body: 'The same 4 h transfer offered at three different hours, scored on peak hot spot, feasibility against the 120 C cyclic limit, and days of insulation life consumed.'
-      },
-      {
-        id: 'autonomous', label: 'Autonomous',
-        title: 'Level 5, doing it',
-        body: 'A heat wave with the loop closed: fans, then a load cap, then a trip. Sense, decide, act, logged with a timestamp.'
+
+      de: {
+        title: 'Fünf Stufen eines digitalen Zwillings',
+        desc: 'Beschreibend, diagnostisch, vorhersagend, vorschlagend, autonom: derselbe Transformator und dasselbe thermische Modell, eine Fähigkeitsstufe nach der anderen.',
+        tabs: {
+          descriptive: { label: 'Beschreibend', title: 'Stufe 1, was passiert',
+            body: 'Gemessene Öltemperatur oben gegen den Zwilling, bei derselben Last und derselben Umgebung. Keine Aussage über die zwei Kurven hinaus.' },
+          diagnostic: { label: 'Diagnostisch', title: 'Stufe 2, warum es passiert',
+            body: 'Die Differenz der beiden Kurven, über 30 min geglättet, gegen ein Band, das an der gesunden Anlage gemessen wurde. Die Kühlung verschlechtert sich, und das Residuum läuft aus dem Band.' },
+          predictive: { label: 'Vorhersagend', title: 'Stufe 3, was als Nächstes kommt',
+            body: 'Achtundvierzig Stunden voraus als Ensemble aus 100 Mitgliedern, Quantilband, und die Wahrscheinlichkeit, 98 C zu überschreiten.' },
+          prescriptive: { label: 'Vorschlagend', title: 'Stufe 4, was zu tun ist',
+            body: 'Dieselbe Übernahme über 4 h, zu drei verschiedenen Stunden angeboten, bewertet nach Hotspot-Spitze, Zulässigkeit gegen die zyklische Grenze von 120 C und verbrauchten Tagen Isolationslebensdauer.' },
+          autonomous: { label: 'Autonom', title: 'Stufe 5, es tun',
+            body: 'Eine Hitzewelle mit geschlossenem Regelkreis: Lüfter, dann Lastbegrenzung, dann Abschaltung. Erfassen, entscheiden, handeln, mit Zeitstempel protokolliert.' }
+        },
+
+        pause: 'Pause', resume: 'weiter', now: 'jetzt',
+        laneLoad: 'LAST', laneTopOil: 'ÖL OBEN', laneHotSpot: 'HOTSPOT',
+        laneLoadBoth: 'LAST, ANGEFORDERT UND GELIEFERT',
+        laneResid: (band) => 'RESIDUUM, GEMESSEN MINUS MODELLIERT, BAND ' + band + ' K',
+        cooling: 'Kühlung',
+        refAgeing: (v) => v + ' °C Referenz',
+        refAgeing2: (v) => v + ' °C, Alterungsreferenz',
+        refCyclic: (v) => v + ' °C, zyklische Grenze nach IEC 60076-7',
+        refFans: (v) => v + ' °C, Lüfter ein',
+        refCap: (v) => v + ' °C, Lastbegrenzung',
+        refTrip: (v) => v + ' °C, Abschaltung',
+
+        legHotComputed: 'Hotspot, gerechnet',
+        legTopMeas: 'Öl oben, gemessen',
+        legTopModelled: 'Öl oben, modelliert',
+        legAmbient: 'Umgebung',
+        legLoad: 'Last',
+        legBand: 'Band, 3,5 Sigma des geglätteten Residuums, gemessen',
+        legFlag: 'Meldung',
+        legHistory: 'gemessene Historie',
+        legMedian: 'Prognosemedian',
+        legQ2575: '25 bis 75 %',
+        legQ0595: '5 bis 95 %',
+        legPredicted: (m) => 'Hotspot, ' + m + ' min voraus prognostiziert',
+        legServed: 'gelieferte Last',
+        legDemanded: 'angeforderte Last',
+        legCurtailed: 'abgeregelt',
+        legFans: 'Lüfter laufen',
+        legNoTransfer: 'derselbe Tag, ohne Übernahme',
+        legWindow: 'Übernahmefenster',
+        legCyclic: (v) => v + ' °C, zyklische Grenze',
+        legHotOpt: (lab) => 'Hotspot, ' + lab,
+
+        trailing: (clock, rate, paused) => 'letzte 48 h, ' + clock + ', ' + rate + (paused ? ', pausiert' : ''),
+        measured: 'gemessen',
+        faultStarts: 'Kühlungsfehler beginnt',
+        flaggedAfter: (min) => 'gemeldet, ' + min + ' min nach Beginn',
+        chipFlagged: 'GEMELDET', chipOk: 'OK',
+        stDegrading: (pct, clock) => 'Bemessungsübertemperatur des Öls verschlechtert sich um ' + pct + ' % seit ' + clock,
+        stRecovering: (clock) => 'erholt sich, Kühlung wiederhergestellt um ' + clock,
+        stHealthy: 'gesunde Anlage',
+        btnClear: 'Fehler beheben', btnInject: 'Kühlungsfehler auslösen',
+
+        crossing: (pct, n, temp, hours) => pct + ' % von ' + n + ' Mitgliedern überschreiten ' + temp + ' °C binnen ' + hours + ' h',
+        peakLoad: 'Lastspitze morgen',
+
+        tHotSpot: 'Hotspot',
+        tPredicted: (m) => 'prognostiziert, +' + m + ' min',
+        tServed: 'gelieferte Last',
+        tCurtailed: 'abgeregelt',
+        tStage: 'Kühlstufe',
+        tDecisions: 'Entscheidungen',
+        btnReset: 'Zurücksetzen', btnPlay: 'Start',
+        autoNote: (h, total) => 't = ' + h + ' h von ' + total + ' h, Hitzewelle, 30 °C im Tagesmittel',
+        logHead: 'Ereignisprotokoll', logEmpty: 'noch keine Entscheidungen',
+        logSense: 'ERFASSEN', logDecide: 'ENTSCHEIDEN', logAct: 'HANDELN',
+
+        d4Lead: 'Nachbartransformator ausgefallen. 1,30 pu müssen für 4 h innerhalb der nächsten 24 h übernommen werden.',
+        d4Group: 'Übernahmefenster',
+        d4Over: (v) => 'über der Grenze von ' + v + ' °C',
+        d4Recommended: 'empfohlen', d4Feasible: 'zulässig',
+        d4Peak: 'Hotspot-Spitze',
+        d4Ageing: 'Alterung über 36 h',
+        d4Against: (v) => ', gegen ' + v + ' d ohne Übernahme'
       }
-    ];
+    };
+    let LANG = document.documentElement.lang === 'de' ? 'de' : 'en';
+    let T = STRINGS[LANG];
+
+    /* The event log in German. The core emits the English wording and, next to
+       it, the structured record the decision was made from; the selftest reads
+       the English, this reads the record. Anything without a record falls back
+       to the English line, so a new event type shows up rather than vanishing. */
+    function logLine(e) {
+      if (LANG !== 'de' || !e.d) return { sense: e.sense, decide: e.decide, act: e.act };
+      const d = e.d;
+      const sense = d.pk != null
+        ? 'Hotspot ' + d.th.toFixed(1) + ' C, Prognose ' + d.pk.toFixed(1) + ' C in ' + d.mins + ' min'
+        : 'Hotspot ' + d.th.toFixed(1) + ' C';
+      let decide = '', act = '';
+      if (d.k === 'open') {
+        decide = 'prognostizierte Spitze unter der Begrenzerschwelle von ' + d.arm + ' C, kein Eingriff nötig';
+        act = 'aus der Nacht übernommen: Kühlstufe ' + (d.fans ? 'ONAF' : 'ONAN') + ', keine Lastbegrenzung';
+      } else if (d.k === 'trip') {
+        decide = 'über der Notgrenze von ' + C.DEMO.tripC + ' C, gemessen, nicht prognostiziert';
+        act = 'Abschaltung, Last auf null, verriegelt';
+      } else if (d.k === 'fansR') {
+        decide = d.on ? 'über der Lüfter-Ein-Schwelle von ' + C.DEMO.fanOnC + ' C'
+          : 'unter der Lüfter-Aus-Schwelle von ' + C.DEMO.fanOffC + ' C';
+        act = d.on ? 'Kühlstufe ONAN nach ONAF' : 'Kühlstufe ONAF nach ONAN';
+      } else if (d.k === 'fansP') {
+        decide = d.on
+          ? 'prognostiziert, die Lüfterschwelle von ' + C.DEMO.fanOnC + ' C binnen ' + d.hzn + ' min zu überschreiten'
+          : 'prognostiziert, ohne Lüfter unter der Lüfter-Aus-Schwelle von ' + C.DEMO.fanOffC + ' C zu bleiben';
+        act = d.on ? 'Kühlstufe ONAN nach ONAF' : 'Kühlstufe ONAF nach ONAN';
+      } else if (d.k === 'capR') {
+        decide = d.on ? 'über der Begrenzerschwelle von ' + d.arm + ' C'
+          : 'unter der Freigabeschwelle von ' + d.off + ' C';
+        act = d.on ? 'Last auf ' + d.kmax.toFixed(2) + ' pu begrenzt' : 'Lastbegrenzung aufgehoben';
+      } else if (d.k === 'capP') {
+        decide = d.on
+          ? 'prognostiziert, die Begrenzerschwelle von ' + d.arm + ' C binnen ' + d.hzn + ' min zu überschreiten'
+          : 'prognostizierte Spitze unter der Freigabeschwelle von ' + d.off + ' C';
+        act = d.on
+          ? 'Last auf ' + d.kmax.toFixed(2) + ' pu begrenzt, prognostizierte Spitze auf ' + d.tgt + ' C gehalten'
+          : 'Lastbegrenzung aufgehoben';
+      } else {
+        return { sense: e.sense, decide: e.decide, act: e.act };
+      }
+      return { sense: sense, decide: decide, act: act };
+    }
+
+    /* The five tabs. Their wording lives in T.tabs, keyed by id; this list is
+       only the order and the identity. */
+    const TAB_IDS = ['descriptive', 'diagnostic', 'predictive', 'prescriptive', 'autonomous'];
 
     /* ── The live strip ───────────────────────────────────────────────────
        Levels 1 and 2 are trends, not pictures of a finished run: the newest
@@ -2239,7 +2452,7 @@
        theme changes, and nothing else happens per frame except drawing.
        drawRef.current is read fresh every frame, so the parent may rebuild
        its draw closure on every render without restarting the loop. */
-    function StripCanvas({ height, drawRef, running, onFrame }) {
+    function StripCanvas({ height, drawRef, running, onFrame, lang }) {
       const cvRef = useRef(null);
       const [bumpN, bump] = useState(0);
       useEffect(() => {
@@ -2278,7 +2491,7 @@
         };
         raf = window.requestAnimationFrame(frame);
         return () => { alive = false; window.cancelAnimationFrame(raf); };
-      }, [height, running, bumpN]);
+      }, [height, running, bumpN, lang]);
       return html`<canvas ref=${cvRef} className="lv-canvas" style=${{ height: height + 'px' }}></canvas>`;
     }
 
@@ -2422,7 +2635,7 @@
 
         yAxis(ctx, x0, x1, yOfT, sc.lo, sc.hi, sc.step, ' °C');
         liveGrid(ctx, xOfT, t0, t1, D1.tT, D1.kB);
-        refLine(ctx, x0, x1, yOfT(C.DEMO.overTemp), C.DEMO.overTemp + ' °C reference', COL.faint);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.overTemp), T.refAgeing(C.DEMO.overTemp), COL.faint);
 
         // Temperatures, clipped to their lane.
         ctx.save();
@@ -2473,13 +2686,13 @@
         ctx.fillStyle = COL.note;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText('LOAD', x0 + 5, D1.sep + 5);
+        ctx.fillText(T.laneLoad, x0 + 5, D1.sep + 5);
         ctx.restore();
 
         xAxis(ctx, x0, x1, D1.kB, t0, t1, LIVE_TICK_MIN, clockOf);
 
         // The arrival edge, with every curve writing its value beside it.
-        liveEdge(ctx, x1, D1.tT, D1.kB, 'now');
+        liveEdge(ctx, x1, D1.tT, D1.kB, T.now);
         if (N > 0) {
           const j = ph(N - 1);
           edgeLabels(ctx, x1, [
@@ -2495,17 +2708,18 @@
 
       return html`
         <${React.Fragment}>
-          <${StripCanvas} height=${D1_H} drawRef=${drawRef} running=${running} onFrame=${onFrame} />
+          <${StripCanvas} height=${D1_H} drawRef=${drawRef} running=${running} onFrame=${onFrame}
+            lang=${LANG} />
           <${Legend} items=${[
-            { label: 'hot spot, computed', color: COL.accent },
-            { label: 'top oil, measured', color: COL.text },
-            { label: 'ambient', color: COL.note },
-            { label: 'load', color: COL.label }
+            { label: T.legHotComputed, color: COL.accent },
+            { label: T.legTopMeas, color: COL.text },
+            { label: T.legAmbient, color: COL.note },
+            { label: T.legLoad, color: COL.label }
           ]} />
           <div className="lv-act">
             <${PlayButton} running=${running} onClick=${() => setRunning(!running)} />
             <span className="lv-actnote">
-              ${'trailing 48 h, ' + clockOf(live.now()) + ', ' + LIVE_RATE_LABEL + (running ? '' : ', paused')}
+              ${T.trailing(clockOf(live.now()), LIVE_RATE_LABEL, !running)}
             </span>
           </div>
         <//>
@@ -2756,10 +2970,9 @@
           ctx.fillText(label, x + (right ? -6 : 7), atY);
           ctx.restore();
         };
-        mark(onsetMin, COL.note, 'cooling fault starts', [4, 4], D2.tT + 2, false);
+        mark(onsetMin, COL.note, T.faultStarts, [4, 4], D2.tT + 2, false);
         if (flagged && lagMin != null) {
-          mark(flagMin, COL.bad,
-            'flagged, ' + lagMin.toFixed(0) + ' min after onset', null, D2.rT + 28, true);
+          mark(flagMin, COL.bad, T.flaggedAfter(lagMin.toFixed(0)), null, D2.rT + 28, true);
         }
 
         xAxis(ctx, x0, x1, D2.rB, t0, t1, LIVE_TICK_MIN, clockOf);
@@ -2767,7 +2980,7 @@
         /* The arrival edge, carrying the numbers that used to sit in the tile
            row: the two top-oil traces and the smoothed residual, each written
            at the end of its own line. */
-        liveEdge(ctx, x1, D2.tT, D2.tB, 'now');
+        liveEdge(ctx, x1, D2.tT, D2.tB, T.now);
         liveEdge(ctx, x1, D2.rT, D2.rB, null);
         if (N > 0) {
           const j = ph(N - 1);
@@ -2786,9 +2999,8 @@
         ctx.fillStyle = COL.note;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText('TOP OIL', x0 + 5, D2.tT + 2);
-        ctx.fillText('RESIDUAL, MEASURED MINUS MODELLED, BAND ' +
-          live.band.toFixed(2) + ' K', x0 + 5, D2.sep + 5);
+        ctx.fillText(T.laneTopOil, x0 + 5, D2.tT + 2);
+        ctx.fillText(T.laneResid(live.band.toFixed(2)), x0 + 5, D2.sep + 5);
         ctx.restore();
 
         /* The verdict, as a chip inside the residual panel. It is the one thing
@@ -2798,7 +3010,7 @@
         ctx.font = '600 15px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        const chip = flagged ? 'FLAGGED' : 'OK';
+        const chip = flagged ? T.chipFlagged : T.chipOk;
         const cw = ctx.measureText(chip).width;
         ctx.fillStyle = flagged ? COL.bad : COL.good;
         ctx.globalAlpha = 0.16;
@@ -2814,24 +3026,25 @@
       const recovering = !faulted && clearMin != null &&
         (flagged || live.now() - clearMin < C.DEMO.faultBlendMin);
       const state = faulted
-        ? 'rated top-oil rise degrading by ' + pct + ' % since ' + clockOf(onsetMin)
+        ? T.stDegrading(pct, clockOf(onsetMin))
         : recovering
-          ? 'recovering, cooling restored at ' + clockOf(clearMin)
-          : 'healthy plant';
+          ? T.stRecovering(clockOf(clearMin))
+          : T.stHealthy;
 
       return html`
         <${React.Fragment}>
-          <${StripCanvas} height=${D2_H} drawRef=${drawRef} running=${true} onFrame=${onFrame} />
+          <${StripCanvas} height=${D2_H} drawRef=${drawRef} running=${true} onFrame=${onFrame}
+            lang=${LANG} />
           <${Legend} items=${[
-            { label: 'top oil, modelled', color: COL.accent },
-            { label: 'top oil, measured', color: COL.text },
-            { label: 'band, 3.5 sigma of the smoothed residual, measured', color: COL.accent, band: true },
-            { label: 'flag', color: COL.bad }
+            { label: T.legTopModelled, color: COL.accent },
+            { label: T.legTopMeas, color: COL.text },
+            { label: T.legBand, color: COL.accent, band: true },
+            { label: T.legFlag, color: COL.bad }
           ]} />
           <div className="lv-act">
             <button type="button" className=${faulted ? 'secondary' : ''}
               onClick=${() => setFaulted(!faulted)}>
-              ${faulted ? 'Clear fault' : 'Inject cooling fault'}
+              ${faulted ? T.btnClear : T.btnInject}
             </button>
             <span className="lv-actnote">
               ${state + ', ' + clockOf(live.now()) + ', ' + LIVE_RATE_LABEL}
@@ -2920,10 +3133,8 @@
         pathSeries(ctx, (k) => fc.med[k], 0, nF, xF, yOf, wPlot, false); ctx.stroke();
         ctx.restore();
 
-        refLine(ctx, x0, x1, yOf(C.DEMO.overTemp),
-          C.DEMO.overTemp + ' °C, ageing reference', COL.faint);
-        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
-          C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
+        refLine(ctx, x0, x1, yOf(C.DEMO.overTemp), T.refAgeing2(C.DEMO.overTemp), COL.faint);
+        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic), T.refCyclic(C.DEMO.limitCyclic), COL.faint);
 
         /* The one number on this tab that cannot be read off the chart: how
            much of the ensemble crosses the ageing reference at some point in
@@ -2940,8 +3151,7 @@
            two reference lines is empty in the first hours of every forecast
            this slider can produce, and the placement says the number is about
            what comes after now, not about the record. */
-        ctx.fillText((100 * fc.pOver98).toFixed(0) + ' % of ' + fc.n +
-          ' members cross ' + C.DEMO.overTemp + ' °C within ' + C.DEMO.fcstHours + ' h',
+        ctx.fillText(T.crossing((100 * fc.pOver98).toFixed(0), fc.n, C.DEMO.overTemp, C.DEMO.fcstHours),
           xOfH(0) + 10, yOf(C.DEMO.overTemp) - 6);
         ctx.restore();
 
@@ -2959,11 +3169,11 @@
         ctx.fillStyle = COL.emph;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText('now', xn + 6, P3.tT - 6);
+        ctx.fillText(T.now, xn + 6, P3.tT - 6);
         ctx.textAlign = 'right';
         ctx.font = '13px system-ui, sans-serif';
         ctx.fillStyle = COL.note;
-        ctx.fillText('measured', xn - 6, P3.tT - 6);
+        ctx.fillText(T.measured, xn - 6, P3.tT - 6);
         ctx.restore();
 
         xAxis(ctx, x0, x1, P3.tB, h0, h1, 12, (v) => (v > 0 ? '+' : '') + v + ' h');
@@ -2973,12 +3183,12 @@
         <${React.Fragment}>
           <canvas ref=${cvRef} className="lv-canvas" style=${{ height: P3_H + 'px' }}></canvas>
           <${Legend} items=${[
-            { label: 'measured history', color: COL.text },
-            { label: 'forecast median', color: COL.accent },
-            { label: '25 to 75 %', color: COL.accent, band: true },
-            { label: '5 to 95 %', color: COL.accent, band: true }
+            { label: T.legHistory, color: COL.text },
+            { label: T.legMedian, color: COL.accent },
+            { label: T.legQ2575, color: COL.accent, band: true },
+            { label: T.legQ0595, color: COL.accent, band: true }
           ]} />
-          <${Ctl} id="lv-p3-peak" label="tomorrow's peak load" min=${0.8} max=${1.3} step=${0.05}
+          <${Ctl} id="lv-p3-peak" label=${T.peakLoad} min=${0.8} max=${1.3} step=${0.05}
             value=${peakPu} onChange=${setPeakPu} format=${(v) => v.toFixed(2) + ' pu'} />
         <//>
       `;
@@ -3067,9 +3277,9 @@
         }
         ctx.restore();
 
-        refLine(ctx, x0, x1, yOfT(C.DEMO.fanOnC), C.DEMO.fanOnC + ' °C, fans on', COL.info);
-        refLine(ctx, x0, x1, yOfT(C.DEMO.limitOnC), C.DEMO.limitOnC + ' °C, load cap', COL.warn);
-        refLine(ctx, x0, x1, yOfT(C.DEMO.tripC), C.DEMO.tripC + ' °C, trip', COL.bad);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.fanOnC), T.refFans(C.DEMO.fanOnC), COL.info);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.limitOnC), T.refCap(C.DEMO.limitOnC), COL.warn);
+        refLine(ctx, x0, x1, yOfT(C.DEMO.tripC), T.refTrip(C.DEMO.tripC), COL.bad);
 
         ctx.save();
         ctx.beginPath(); ctx.rect(x0, A5.tT, wPlot, A5.tB - A5.tT); ctx.clip();
@@ -3179,12 +3389,12 @@
         ctx.fillStyle = COL.faint;
         ctx.fillText('0.5 pu', x0 - 10, yOfK(A5_KLO));
         ctx.fillStyle = COL.note;
-        ctx.fillText('cooling', x0 - 10, 0.5 * (A5.sgT + A5.sgB));
+        ctx.fillText(T.cooling, x0 - 10, 0.5 * (A5.sgT + A5.sgB));
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText('LOAD, DEMANDED AND SERVED', x0 + 5, A5.sep + 5);
-        ctx.fillText('HOT SPOT', x0 + 5, A5.tT + 2);
+        ctx.fillText(T.laneLoadBoth, x0 + 5, A5.sep + 5);
+        ctx.fillText(T.laneHotSpot, x0 + 5, A5.tT + 2);
         ctx.restore();
 
         xAxis(ctx, x0, x1, A5.sgB, 0, A5_HOURS, 6, (v) => v + ' h');
@@ -3217,25 +3427,24 @@
         <div className="lv-split">
           <div className="lv-main">
             <div className="lv-tiles">
-              <${Tile} label="hot spot" value=${run.thH[iNow].toFixed(1)} unit="°C" emph=${true} />
-              <${Tile} label=${'predicted, +' + run.horizonMin + ' min'}
+              <${Tile} label=${T.tHotSpot} value=${run.thH[iNow].toFixed(1)} unit="°C" emph=${true} />
+              <${Tile} label=${T.tPredicted(run.horizonMin)}
                 value=${predEnd.toFixed(1)} unit="°C" />
-              <${Tile} label="load served" value=${run.Kserved[iNow].toFixed(2)} unit="pu" />
-              <${Tile} label="curtailed" value=${curtail.toFixed(2)} unit="pu"
+              <${Tile} label=${T.tServed} value=${run.Kserved[iNow].toFixed(2)} unit="pu" />
+              <${Tile} label=${T.tCurtailed} value=${curtail.toFixed(2)} unit="pu"
                 color=${curtail > 0.005 ? COL.warn : null} />
-              <${Tile} label="cooling stage" value=${run.stage[iNow]} unit=""
+              <${Tile} label=${T.tStage} value=${run.stage[iNow]} unit=""
                 color=${run.stage[iNow] === 'ONAF' ? COL.info : null} />
-              <${Tile} label="decisions taken" value=${shown.length} unit="" />
+              <${Tile} label=${T.tDecisions} value=${shown.length} unit="" />
             </div>
             <canvas ref=${cvRef} className="lv-canvas" style=${{ height: A5_H + 'px' }}></canvas>
             <${Legend} items=${[
-              { label: 'hot spot, computed', color: COL.accent },
-              { label: 'hot spot, predicted ' + run.horizonMin + ' min ahead',
-                color: COL.accent, dash: true },
-              { label: 'load served', color: COL.accent },
-              { label: 'load demanded', color: COL.label },
-              { label: 'curtailed', color: COL.warn, band: true },
-              { label: 'fans running', color: COL.info, band: true }
+              { label: T.legHotComputed, color: COL.accent },
+              { label: T.legPredicted(run.horizonMin), color: COL.accent, dash: true },
+              { label: T.legServed, color: COL.accent },
+              { label: T.legDemanded, color: COL.label },
+              { label: T.legCurtailed, color: COL.warn, band: true },
+              { label: T.legFans, color: COL.info, band: true }
             ]} />
             <div className="lv-act">
               <button type="button" className=${started ? 'secondary' : ''}
@@ -3243,27 +3452,29 @@
                   if (started) { setPlaying(false); setRunKey((n) => n + 1); }
                   else setPlaying(true);
                 }}>
-                ${started ? 'Reset' : 'Play'}
+                ${started ? T.btnReset : T.btnPlay}
               </button>
               <span className="lv-actnote">
-                ${'t = ' + (tMin / 60).toFixed(1) + ' h of ' + A5_HOURS + ' h, heat wave, 30 °C daily mean'}
+                ${T.autoNote((tMin / 60).toFixed(1), A5_HOURS)}
               </span>
             </div>
           </div>
           <div className="lv-log" ref=${logRef}>
-            <div className="lv-logh">event log</div>
+            <div className="lv-logh">${T.logHead}</div>
             ${shown.length === 0
-              ? html`<div className="lv-logempty">no decisions yet</div>`
-              : shown.map((e, k) => html`
+              ? html`<div className="lv-logempty">${T.logEmpty}</div>`
+              : shown.map((e, k) => {
+                const l = logLine(e);
+                return html`
                 <div key=${k} className="lv-logline">
                   <span className="lv-logt">${hhmm(e.tMin)}</span>
                   <span className="lv-logb">
-                    <b>SENSE</b> ${e.sense}<br/>
-                    <b>DECIDE</b> ${e.decide}<br/>
-                    <b>ACT</b> ${e.act}
+                    <b>${T.logSense}</b> ${l.sense}<br/>
+                    <b>${T.logDecide}</b> ${l.decide}<br/>
+                    <b>${T.logAct}</b> ${l.act}
                   </span>
                 </div>
-              `)}
+              `; })}
           </div>
         </div>
       `;
@@ -3298,9 +3509,9 @@
     /* The verdict as a colour and as a phrase. Feasible but not recommended
        stays neutral: it is not an alarm and it is not the answer. */
     function d4Verdict(s) {
-      if (!s.feasible) return { text: 'over the ' + C.DEMO.limitCyclic + ' °C limit', color: COL.bad };
-      if (s.recommended) return { text: 'recommended', color: COL.good };
-      return { text: 'feasible', color: COL.text };
+      if (!s.feasible) return { text: T.d4Over(C.DEMO.limitCyclic), color: COL.bad };
+      if (s.recommended) return { text: T.d4Recommended, color: COL.good };
+      return { text: T.d4Feasible, color: COL.text };
     }
 
     function Prescriptive() {
@@ -3310,7 +3521,7 @@
       const [selId, setSelId] = useState(defaultId);
       const sel = opts.filter((s) => s.id === selId)[0] || opts[0];
       const verdict = d4Verdict(sel);
-      const T = D4_HOURS * 60;
+      const TOT = D4_HOURS * 60;   // minutes of the run, not the strings table
 
       const sc = useMemo(() => {
         let lo = Infinity, hi = C.DEMO.limitCyclic;
@@ -3327,7 +3538,7 @@
 
       const cvRef = useCanvas(D4_H, (ctx, w) => {
         const x0 = D4.padL, x1 = w - D4.padR, wPlot = x1 - x0;
-        const xOfT = (tm) => x0 + tm / T * wPlot;
+        const xOfT = (tm) => x0 + tm / TOT * wPlot;
         const yOf = (v) => D4.tB - (v - sc.lo) / (sc.hi - sc.lo) * (D4.tB - D4.tT);
 
         yAxis(ctx, x0, x1, yOf, sc.lo, sc.hi, sc.step, ' °C');
@@ -3373,8 +3584,7 @@
         ctx.stroke();
         ctx.restore();
 
-        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic),
-          C.DEMO.limitCyclic + ' °C, IEC 60076-7 normal cyclic limit', COL.faint);
+        refLine(ctx, x0, x1, yOf(C.DEMO.limitCyclic), T.refCyclic(C.DEMO.limitCyclic), COL.faint);
 
         /* No number is written at the peak. Every peak this tab can draw lands
            within a few kelvin of the 120 C line, and a label there collides
@@ -3392,9 +3602,8 @@
 
       return html`
         <${React.Fragment}>
-          <p className="lv-lead">Neighbouring transformer lost. 1.30 pu must be carried
-            for 4 h within the next 24 h.</p>
-          <div className="lv-seg" role="group" aria-label="transfer window">
+          <p className="lv-lead">${T.d4Lead}</p>
+          <div className="lv-seg" role="group" aria-label=${T.d4Group}>
             ${opts.map((s) => html`
               <button key=${s.id} type="button"
                 className=${s.id === sel.id ? 'active' : ''}
@@ -3404,15 +3613,14 @@
           </div>
           <canvas ref=${cvRef} className="lv-canvas" style=${{ height: D4_H + 'px' }}></canvas>
           <${Legend} items=${[
-            { label: 'hot spot, ' + sel.label, color: COL.accent },
-            { label: 'same day, no transfer', color: COL.faint },
-            { label: 'transfer window', color: verdict.color, band: true },
-            { label: C.DEMO.limitCyclic + ' °C, cyclic limit', color: COL.faint }
+            { label: T.legHotOpt(sel.label), color: COL.accent },
+            { label: T.legNoTransfer, color: COL.faint },
+            { label: T.legWindow, color: verdict.color, band: true },
+            { label: T.legCyclic(C.DEMO.limitCyclic), color: COL.faint }
           ]} />
           <div className="lv-result">
-            <span>peak hot spot <b>${sel.peak.toFixed(1)} °C</b></span>
-            <span>ageing over 36 h <b>${sel.agingDays.toFixed(2)} d</b>, against
-              ${' ' + base.agingDays.toFixed(2)} d with no transfer</span>
+            <span>${T.d4Peak} <b>${sel.peak.toFixed(1)} °C</b></span>
+            <span>${T.d4Ageing} <b>${sel.agingDays.toFixed(2)} d</b>${T.d4Against(base.agingDays.toFixed(2))}</span>
             <span className="lv-verdict" style=${{ color: verdict.color }}>${verdict.text}</span>
           </div>
         <//>
@@ -3433,9 +3641,26 @@
       const [tab, setTab] = useState(() => {
         const q = typeof location === 'undefined' ? null
           : new URLSearchParams(location.search).get('tab');
-        return TABS.some((x) => x.id === q) ? q : 'descriptive';
+        return TAB_IDS.indexOf(q) >= 0 ? q : 'descriptive';
       });
       const [, themeBump] = useState(0);
+      /* Language first, before anything below reads T. lang.js calls the hook
+         registered here; the header title is relabelled over there from its
+         data-en / data-de attributes. The charts drawn through useCanvas
+         redraw on every render anyway; the two live strips get `lang` as a
+         prop, because their paint sits behind a dependency list. */
+      const [lang, setLang] = useState(LANG);
+      LANG = lang;
+      T = STRINGS[lang];
+      useEffect(() => {
+        window.__setLang = (l) => setLang(l === 'de' ? 'de' : 'en');
+        return () => { delete window.__setLang; };
+      }, []);
+      useEffect(() => {
+        document.title = T.title;
+        const md = document.querySelector('meta[name="description"]');
+        if (md) md.setAttribute('content', T.desc);
+      }, [lang]);
       /* Whoever changes the skin, the canvases below re-read the palette and
          redraw. The individual charts listen too; this one exists so that
          anything drawn from plain markup follows as well. */
@@ -3444,10 +3669,11 @@
         window.addEventListener('themechange', on);
         return () => window.removeEventListener('themechange', on);
       }, []);
-      const cur = TABS.filter((x) => x.id === tab)[0];
+      const cur = T.tabs[tab];
       return html`
         <div className="lv-wrap">
-          <${Tabs} items=${TABS} value=${tab} onChange=${setTab} />
+          <${Tabs} items=${TAB_IDS.map((id) => ({ id: id, label: T.tabs[id].label }))}
+            value=${tab} onChange=${setTab} />
           <section className="lv-group">
             <h2 className="lv-h2">${cur.title}</h2>
             ${tab === 'descriptive' ? html`<${Descriptive} />`
