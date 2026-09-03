@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
 <head>
   <meta charset="utf-8">
   <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Duval Triangle 1, under measurement uncertainty</title>
   <meta name="description" content="One DGA result on the Duval triangle, and the region of diagnoses it could really mean.">
@@ -105,12 +106,18 @@
 </head>
 <body>
   <header class="container tw-head">
-    <h1><a class="dv-crumb" href="index.html">twin-lab</a><span class="dv-sep">/</span>Duval Triangle 1, under measurement uncertainty</h1>
+    <h1><a class="dv-crumb" href="index.html">twin-lab</a><span class="dv-sep">/</span><span
+      data-en="Duval Triangle 1, under measurement uncertainty"
+      data-de="Duval-Dreieck 1 unter Messunsicherheit">Duval Triangle 1, under measurement uncertainty</span></h1>
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
     <div class="theme-switcher">
       <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
     </div>
   </header>
   <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
 
   <main>
     <div id="root">
@@ -335,6 +342,34 @@
     readPalette();
 
     const GASES = ['CH₄', 'C₂H₄', 'C₂H₂'];
+
+    /* The page has few words, and all of them are here. LANG and T stay
+       module-level but are `let`: App reassigns them from its own state before
+       any child renders, which is what makes the switch live rather than a
+       reload (see assets/js/lang.js). Zone codes, gas formulas and units are
+       the same in both languages and stay out of the table. */
+    const STRINGS = {
+      en: {
+        title: 'Duval Triangle 1, under measurement uncertainty',
+        desc: 'One DGA result on the Duval triangle, and the region of diagnoses it could really mean.',
+        unc: 'relative uncertainty',
+        sample: 'sample',
+        diagnosis: 'diagnosis',
+        legend: 'inner contour holds 50% of coverage, outer contour 95%',
+        attrib: 'based on an idea by Tony McGrail'
+      },
+      de: {
+        title: 'Duval-Dreieck 1 unter Messunsicherheit',
+        desc: 'Ein DGA-Ergebnis im Duval-Dreieck, und das Gebiet der Diagnosen, das es wirklich bedeuten kann.',
+        unc: 'relative Unsicherheit',
+        sample: 'Probe',
+        diagnosis: 'Diagnose',
+        legend: 'innere Kontur umfasst 50% der Überdeckung, äußere Kontur 95%',
+        attrib: 'nach einer Idee von Tony McGrail'
+      }
+    };
+    let LANG = document.documentElement.lang === 'de' ? 'de' : 'en';
+    let T = STRINGS[LANG];
 
     /* The sample the page opens on, in ppm, together with the relative 1-sigma
        it is measured with.
@@ -562,6 +597,22 @@
       const [sig, setSig] = useState(START_SIG.slice());
       const [, themeBump] = useState(0);
 
+      /* Language first, before anything below reads T. lang.js calls the hook
+         it registers here; the rest of the page is relabelled from data-en /
+         data-de attributes over there. */
+      const [lang, setLang] = useState(LANG);
+      LANG = lang;
+      T = STRINGS[lang];
+      useEffect(() => {
+        window.__setLang = (l) => setLang(l === 'de' ? 'de' : 'en');
+        return () => { delete window.__setLang; };
+      }, []);
+      useEffect(() => {
+        document.title = T.title;
+        const md = document.querySelector('meta[name="description"]');
+        if (md) md.setAttribute('content', T.desc);
+      }, [lang]);
+
       useEffect(() => {
         const on = () => { readPalette(); themeBump((n) => n + 1); };
         window.addEventListener('themechange', on);
@@ -621,7 +672,7 @@
         <div className="dv-wrap">
           <div className="dv-grid">
             <div className="dv-col">
-              <h2>relative uncertainty <span className="dv-cased">(1σ)</span></h2>
+              <h2>${T.unc} <span className="dv-cased">(1σ)</span></h2>
               ${GASES.map((g, i) => html`
                 <label key=${g} className="dv-row">
                   <span>${g}</span>
@@ -632,7 +683,7 @@
                   </span>
                 </label>
               `)}
-              <h2>sample</h2>
+              <h2>${T.sample}</h2>
               ${GASES.map((g, i) => html`
                 <label key=${'s' + g} className="dv-row">
                   <span>${g}</span>
@@ -647,12 +698,12 @@
 
             <div>
               <${Triangle} comp=${comp} setComp=${setFromPoint} unc=${unc} height=${500} />
-              <p className="dv-legend">inner contour holds 50% of coverage, outer contour 95%</p>
-              <p className="dv-attrib">based on an idea by Tony McGrail</p>
+              <p className="dv-legend">${T.legend}</p>
+              <p className="dv-attrib">${T.attrib}</p>
             </div>
 
             <div className="dv-col">
-              <h2>diagnosis</h2>
+              <h2>${T.diagnosis}</h2>
               ${probs.map((e) => html`
                 <div key=${e.z} className=${'dv-diag' + (e.p < 0.005 ? ' dv-off' : '')}>
                   <span className="dv-z">${e.z}</span>

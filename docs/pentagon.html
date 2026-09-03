@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
 <head>
   <meta charset="utf-8">
   <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Duval Pentagon, under measurement uncertainty</title>
   <meta name="description" content="One DGA result on the Duval pentagon, and the region of diagnoses it could really mean.">
@@ -137,12 +138,18 @@
 </head>
 <body>
   <header class="container tw-head">
-    <h1><a class="pt-crumb" href="index.html">twin-lab</a><span class="pt-sep">/</span>Duval Pentagon, under measurement uncertainty</h1>
+    <h1><a class="pt-crumb" href="index.html">twin-lab</a><span class="pt-sep">/</span><span
+      data-en="Duval Pentagon, under measurement uncertainty"
+      data-de="Duval-Pentagon unter Messunsicherheit">Duval Pentagon, under measurement uncertainty</span></h1>
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
     <div class="theme-switcher">
       <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
     </div>
   </header>
   <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
 
   <main>
     <div id="root">
@@ -810,6 +817,48 @@
 
     const GASES = ['H₂', 'C₂H₆', 'CH₄', 'C₂H₄', 'C₂H₂'];
 
+    /* Every word on the page, both languages. LANG and T stay module-level but
+       are `let`: App reassigns them from its own state before any child
+       renders, which is what makes the switch live instead of a reload (see
+       assets/js/lang.js). Zone codes, gas formulas, units and the two pentagon
+       names read the same in both languages and stay out of the table. */
+    const STRINGS = {
+      en: {
+        title: 'Duval Pentagon, under measurement uncertainty',
+        desc: 'One DGA result on the Duval pentagon, and the region of diagnoses it could really mean.',
+        unc: 'relative uncertainty',
+        sample: 'sample',
+        diagnosis: 'diagnosis',
+        cloud: 'cloud',
+        contours: 'contours',
+        samples: 'samples',
+        samplesAria: 'number of samples',
+        outside: 'outside',
+        legendReach: 'dashed: the set of points a gas mixture can reach at all.',
+        legendCloud: ' dots: the measurement drawn again under its own uncertainty.',
+        legendContour: ' solid: 50 and 95 percent of those draws.',
+        attrib: 'pentagon after Duval and Lamarre 2014, zone limits as in CIGRE TB 771'
+      },
+      de: {
+        title: 'Duval-Pentagon unter Messunsicherheit',
+        desc: 'Ein DGA-Ergebnis im Duval-Pentagon, und das Gebiet der Diagnosen, das es wirklich bedeuten kann.',
+        unc: 'relative Unsicherheit',
+        sample: 'Probe',
+        diagnosis: 'Diagnose',
+        cloud: 'Wolke',
+        contours: 'Konturen',
+        samples: 'Ziehungen',
+        samplesAria: 'Anzahl der Ziehungen',
+        outside: 'außerhalb',
+        legendReach: 'gestrichelt: die Menge der Punkte, die ein Gasgemisch überhaupt erreichen kann.',
+        legendCloud: ' Punkte: die Messung, erneut unter ihrer eigenen Unsicherheit gezogen.',
+        legendContour: ' durchgezogen: 50 und 95 Prozent dieser Ziehungen.',
+        attrib: 'Pentagon nach Duval und Lamarre 2014, Zonengrenzen wie in CIGRE TB 771'
+      }
+    };
+    let LANG = document.documentElement.lang === 'de' ? 'de' : 'en';
+    let T = STRINGS[LANG];
+
     /* A neutral starting point: 20 ppm of every gas, so the nominal point sits
        at the centroid of the pentagon and no diagnosis is preferred by the
        initial condition. From here the user drags the point or edits the ppm
@@ -1095,6 +1144,22 @@
       const [dragging, setDragging] = useState(false);
       const [, setThemeBump] = useState(0);
 
+      /* Language first, before anything below reads T. lang.js calls the hook
+         registered here; the header title is relabelled over there from its
+         data-en / data-de attributes. */
+      const [lang, setLang] = useState(LANG);
+      LANG = lang;
+      T = STRINGS[lang];
+      useEffect(() => {
+        window.__setLang = (l) => setLang(l === 'de' ? 'de' : 'en');
+        return () => { delete window.__setLang; };
+      }, []);
+      useEffect(() => {
+        document.title = T.title;
+        const md = document.querySelector('meta[name="description"]');
+        if (md) md.setAttribute('content', T.desc);
+      }, [lang]);
+
       useEffect(() => {
         const on = () => setThemeBump((b) => b + 1);
         window.addEventListener('themechange', on);
@@ -1148,7 +1213,7 @@
       return html`<div class="pt-wrap">
         <div class="pt-grid">
           <div class="pt-col">
-            <h2>relative uncertainty <span class="pt-cased">(1σ)</span></h2>
+            <h2>${T.unc} <span class="pt-cased">(1σ)</span></h2>
             ${GASES.map((g, i) => html`<label class="pt-row" key=${'s' + i}>
               <span>${g}</span>
               <span>
@@ -1158,7 +1223,7 @@
                 <span class="pt-unit">%</span>
               </span>
             </label>`)}
-            <h2>sample</h2>
+            <h2>${T.sample}</h2>
             ${GASES.map((g, i) => html`<label class="pt-row" key=${'g' + i}>
               <span>${g}</span>
               <span>
@@ -1182,28 +1247,26 @@
               onDragState=${setDragging}/>
             <div class="pt-bar pt-under">
               <${Seg}
-                items=${[{ v: 'cloud', t: 'cloud' }, { v: 'contour', t: 'contours' }]}
+                items=${[{ v: 'cloud', t: T.cloud }, { v: 'contour', t: T.contours }]}
                 value=${show} onChange=${setShow}/>
               <span class="pt-slider">
                 <input
                   type="range" min="0" max=${TRIALS.length - 1} step="1" value=${trials}
-                  aria-label="number of samples"
+                  aria-label=${T.samplesAria}
                   onChange=${(e) => setTrials(parseInt(e.target.value, 10))}/>
                 <span class="pt-n">${TRIALS[trials] >= 1000 ? (TRIALS[trials] / 1000) + 'k' : TRIALS[trials]}</span>
-                <span>samples</span>
+                <span>${T.samples}</span>
               </span>
             </div>
             <p class="pt-legend">
-              dashed: the set of points a gas mixture can reach at all.
-              ${show === 'cloud'
-                ? ' dots: the measurement drawn again under its own uncertainty.'
-                : ' solid: 50 and 95 percent of those draws.'}
+              ${T.legendReach}
+              ${show === 'cloud' ? T.legendCloud : T.legendContour}
             </p>
-            <p class="pt-attrib">pentagon after Duval and Lamarre 2014, zone limits as in CIGRE TB 771</p>
+            <p class="pt-attrib">${T.attrib}</p>
           </div>
 
           <div class="pt-col">
-            <h2>diagnosis</h2>
+            <h2>${T.diagnosis}</h2>
             ${probs.map((r) => html`<div
               class=${'pt-diag' + (r.p < 0.005 ? ' pt-off' : '')} key=${r.z}>
               <span class="pt-z">${r.z}</span>
@@ -1211,7 +1274,7 @@
               <span class="pt-p">${(100 * r.p).toFixed(1)}</span>
             </div>`)}
             ${outside > 0 ? html`<div class="pt-diag">
-              <span class="pt-z">outside</span>
+              <span class="pt-z">${T.outside}</span>
               <span class="pt-bar-track"><i style=${{ width: (100 * outside).toFixed(1) + '%' }}></i></span>
               <span class="pt-p">${(100 * outside).toFixed(1)}</span>
             </div>` : null}
