@@ -231,19 +231,110 @@ html.theme-morph, html.theme-morph * {
   ::view-transition-new(root) { mask-image: none; }
 }
 
+/* === LANGUAGE CHANGE ANIMATION ===
+   The per-element fallback, driven by lang.js on browsers without view
+   transitions: the new wording washes down the page instead of appearing all at
+   once. Each element holds its old wording, comes apart, is retexted at the
+   trough and pulls itself back together.
+
+   Coming apart is a channel split: a red copy runs right, a cyan one left, the
+   glyph stays put. Two text-shadows rather than three real layers, because the
+   text nodes belong to React and cloning them would mean fighting it for them.
+   For a shift of a fraction of an em that is not a cheat but the same picture:
+   white where all three channels still overlap, red and cyan where they no
+   longer do. The offsets are in em, so a heading comes apart further than a
+   footnote and the effect keeps its proportions.
+
+   The 40% mark must stay in step with LANG_TROUGH in lang.js: that is where the
+   element is blank and the text is swapped unseen. `backwards` keeps it whole
+   during its delay, so nothing stirs before its turn. */
+.lang-swap { animation: lang-swap 0.42s ease-in-out backwards; }
+@keyframes lang-swap {
+  0%   { opacity: 1;   text-shadow: 0 0 rgba(255, 0, 0, 0),      0 0 rgba(0, 255, 255, 0); }
+  28%  { opacity: 0.5; text-shadow: 0.22em 0 rgba(255, 0, 0, 0.9), -0.22em 0 rgba(0, 255, 255, 0.9); }
+  40%  { opacity: 0;   text-shadow: 0.3em 0 rgba(255, 0, 0, 0.9), -0.3em 0 rgba(0, 255, 255, 0.9); }
+  58%  { opacity: 0.5; text-shadow: 0.22em 0 rgba(255, 0, 0, 0.9), -0.22em 0 rgba(0, 255, 255, 0.9); }
+  100% { opacity: 1;   text-shadow: 0 0 rgba(255, 0, 0, 0),      0 0 rgba(0, 255, 255, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lang-swap { animation: none; }
+}
+
+/* The same swap as a post effect on the whole rendered page, wherever view
+   transitions exist. lang.js sets .lang-vt on <html> for the duration, both to
+   keep the theme sweep's unscoped rules off these snapshots and to make the
+   pair of rules easy to find. The old page comes apart into its channels while
+   the new one wipes down over it, so rules, panels and the canvas break up
+   along with the text. The wipe replaces the per-element wave: with the page
+   frozen as a texture there is nothing left to stagger.
+
+   Both snapshots run the same walk, and its band is where the wipe's edge is,
+   so the page comes apart just ahead of the edge and closes up just behind it.
+   The disturbance travels instead of happening everywhere at once.
+
+   @keyframes lang-vt-wave is not here but in lang.js, which generates it
+   alongside the filters it steps through: `filter` interpolates discretely, so
+   the movement is one filter per band position, and the two have to agree. */
+html.lang-vt::view-transition-old(root) {
+  animation: lang-vt-wave 1.1s linear both;
+}
+/* Same construction as the theme sweep, but straight down: an oversized mask
+   whose soft edge travels from the top of the viewport to the bottom.
+
+   The numbers are all about where the soft edge is, and they are tied to each
+   other. The edge has to travel from just above the viewport to just below it,
+   0.2 of a screen ahead of and behind the visible run, or it appears to start
+   and stop on screen. That travel has to happen while the tile's opaque end
+   still covers everything above the edge: mask-position must not go below 0,
+   because past that the top of the tile drops below the top of the screen, and
+   with no-repeat everything above it counts as clear. The new page is then
+   un-revealed in a strip at the top for the last stretch of the run, which
+   looks like the header flickering back to the old language just as the wave
+   finishes.
+
+   So the overshoot is bought with tile height instead: the tile is three
+   viewports tall, the 50% stop sits at 37.3% of it, which puts the edge 1.12
+   screens down at position 0, and the run starts at 62%, which puts it 0.12
+   screens above the top. Timing is linear, because a wave that accelerates in
+   the middle and dawdles at the ends does not read as a wave at all, it reads
+   as the whole page changing at once. LANG_TRAVEL in lang.js is the same -0.12
+   to 1.12 and has to stay in step, or the band and the edge drift apart. */
+html.lang-vt::view-transition-new(root) {
+  mask-image: linear-gradient(to bottom,
+    rgb(0 0 0) 34%, rgb(0 0 0 / 0.5) 37.3%, transparent 40.7%);
+  mask-size: 100% 300%;
+  mask-repeat: no-repeat;
+  animation: lang-vt-wipe 1.1s linear both,
+             lang-vt-wave 1.1s linear both;
+}
+@keyframes lang-vt-wipe {
+  from { mask-position: 50% 62%; }
+  to   { mask-position: 50% 0%; }
+}
+
+/* The language switcher sits next to the theme switcher in the page header;
+   the two are separate groups, so a gap keeps them from reading as one
+   six-button control. */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
 /* === PAGE LAYOUT (shared by the demo pages) === */
 .tw-head {
   display: flex;
   justify-content: flex-end;
   padding-top: 14px;
 }
-/* With a title in the same row the switcher moves to the other end of it. */
+/* With a title in the same row the switchers move to the other end of it. Not
+   space-between: with two switchers in the row that would push them apart
+   instead of keeping them together at the right. */
 .tw-head:has(h1) {
-  justify-content: space-between;
   align-items: center;
   gap: 20px;
 }
-.tw-head h1 { margin: 0; }
+.tw-head h1 { margin: 0; margin-right: auto; }
 .tw-stage {
   display: block;
   width: 100%;
