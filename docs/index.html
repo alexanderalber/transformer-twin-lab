@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
 <head>
   <meta charset="utf-8">
   <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>transformer-twin-lab</title>
   <meta name="description" content="Interactive demos on uncertainty in transformer digital twins.">
@@ -84,16 +85,20 @@
 </head>
 <body>
   <header class="container tw-head">
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
     <div class="theme-switcher">
       <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
     </div>
   </header>
   <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
 
   <main class="container" style="max-width:820px">
     <hgroup style="margin-top:2rem">
       <h1>transformer-twin-lab</h1>
-      <p style="color:var(--tool-label)">Interactive demos on uncertainty in transformer digital twins.</p>
+      <p style="color:var(--tool-label)" data-i18n="sub">Interactive demos on uncertainty in transformer digital twins.</p>
     </hgroup>
     <ul class="tw-linklist">
       <li>
@@ -102,8 +107,8 @@
           <circle cx="19.5" cy="22" r="1.7" fill="currentColor" stroke="none"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="duval.html">Duval Triangle 1, under measurement uncertainty</a></p>
-          <p class="tw-link-desc">One DGA result in Duval Triangle 1, and the cloud of diagnoses it could equally have meant. Push the relative measurement uncertainty from 5 to 35 percent and the point starts crossing zone boundaries.</p>
+          <p class="tw-link-title"><a href="duval.html" data-i18n="t.duval">Duval Triangle 1, under measurement uncertainty</a></p>
+          <p class="tw-link-desc" data-i18n="d.duval">One DGA result in Duval Triangle 1, and the cloud of diagnoses it could equally have meant. Push the relative measurement uncertainty from 5 to 35 percent and the point starts crossing zone boundaries.</p>
         </div>
       </li>
       <li>
@@ -112,8 +117,8 @@
           <circle cx="18.7" cy="17.6" r="1.7" fill="currentColor" stroke="none"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="pentagon.html">Duval Pentagon 1 and 2, under measurement uncertainty</a></p>
-          <p class="tw-link-desc">The same question in five gases. One point in Duval Pentagon 1 and 2, and the region of diagnoses that the laboratory error bar really covers.</p>
+          <p class="tw-link-title"><a href="pentagon.html" data-i18n="t.pentagon">Duval Pentagon 1 and 2, under measurement uncertainty</a></p>
+          <p class="tw-link-desc" data-i18n="d.pentagon">The same question in five gases. One point in Duval Pentagon 1 and 2, and the region of diagnoses that the laboratory error bar really covers.</p>
         </div>
       </li>
       <li>
@@ -127,8 +132,8 @@
           <line x1="20.5" y1="15" x2="25" y2="15"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="thermal.html">Thermal mini-twin, IEC 60076-7</a></p>
-          <p class="tw-link-desc">A year of top-oil and hot-spot temperature computed from a load profile, and four ways to propagate the uncertainty in it into the remaining life of the insulation.</p>
+          <p class="tw-link-title"><a href="thermal.html" data-i18n="t.thermal">Thermal mini-twin, IEC 60076-7</a></p>
+          <p class="tw-link-desc" data-i18n="d.thermal">A year of top-oil and hot-spot temperature computed from a load profile, and four ways to propagate the uncertainty in it into the remaining life of the insulation.</p>
         </div>
       </li>
       <li>
@@ -136,14 +141,14 @@
           <polyline points="4,28 4,23.2 8.8,23.2 8.8,18.4 13.6,18.4 13.6,13.6 18.4,13.6 18.4,8.8 23.2,8.8 23.2,4 28,4"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="levels.html">Five levels of a digital twin</a></p>
-          <p class="tw-link-desc">One transformer, one thermal model, five jobs: describe the state, diagnose a cooling fault, forecast the next 48 hours, choose between dispatch options, and close the loop.</p>
+          <p class="tw-link-title"><a href="levels.html" data-i18n="t.levels">Five levels of a digital twin</a></p>
+          <p class="tw-link-desc" data-i18n="d.levels">One transformer, one thermal model, five jobs: describe the state, diagnose a cooling fault, forecast the next 48 hours, choose between dispatch options, and close the loop.</p>
         </div>
       </li>
     </ul>
   </main>
   <footer class="container tw-foot" style="max-width:820px">
-    <p class="tw-foot-sources">
+    <p class="tw-foot-sources" data-i18n="sources">
       Sources: IEC 60599 and CIGRE TB 771 (Duval Triangle 1 fault zones); Duval and Lamarre 2014
       and CIGRE TB 771 (Duval Pentagon 1 and 2); IEC 60076-7 (loading guide);
       IEC 60076-2 (temperature-rise limits); CIGRE TB 738 (aging under moisture); Lundgaard et al. 2004
@@ -152,15 +157,68 @@
     </p>
     <p class="tw-foot-fine">
       Copyright 2026 Alexander Alber · <a href="mailto:feedback@alber.me">feedback@alber.me</a> ·
-      free to use and to link to, please ask before reusing the code ·
-      a personal project in a CIGRE JWG A2/D2.65 context, not affiliated with any employer ·
-      <a href="assets/THIRD-PARTY.md">Third-party licences</a> ·
+      <span data-i18n="fine">free to use and to link to, please ask before reusing the code ·
+      a personal project in a CIGRE JWG A2/D2.65 context, not affiliated with any employer</span> ·
+      <a href="assets/THIRD-PARTY.md" data-i18n="thirdparty">Third-party licences</a> ·
       <!-- Written out in full rather than as /datenschutz.html: the pages have to
            work from file:// as well, where a root-relative path points at the
            filesystem. A link makes no request until it is followed, so this does
            not break the offline rule. -->
-      <a href="https://alber.me/datenschutz.html">Privacy notice</a>
+      <a href="https://alber.me/datenschutz.html" data-i18n="privacy">Privacy notice</a>
     </p>
   </footer>
+
+  <!-- The German side of this page. English lives in the markup, German in one
+       table here, keyed by data-i18n; the same split the author's personal site
+       uses on its one page without React. window.__setLang is what makes
+       lang.js switch live (with the channel split) instead of reloading. -->
+  <script>
+  (function () {
+    var DE = {
+      'sub': 'Interaktive Demos zur Unsicherheit in digitalen Zwillingen von Leistungstransformatoren.',
+
+      't.duval': 'Duval-Dreieck 1 unter Messunsicherheit',
+      'd.duval': 'Ein DGA-Ergebnis im Duval-Dreieck 1, und die Wolke der Diagnosen, die es genauso gut hätte bedeuten können. Zieht man die relative Messunsicherheit von 5 auf 35 Prozent hoch, wandert der Punkt über Zonengrenzen.',
+      't.pentagon': 'Duval-Pentagon 1 und 2 unter Messunsicherheit',
+      'd.pentagon': 'Dieselbe Frage in fünf Gasen. Ein Punkt im Duval-Pentagon 1 und 2, und das Gebiet der Diagnosen, das der Fehlerbalken des Labors tatsächlich abdeckt.',
+      't.thermal': 'Thermischer Mini-Zwilling, IEC 60076-7',
+      'd.thermal': 'Ein Jahr Öl- und Hotspot-Temperatur, aus einem Lastprofil gerechnet, und vier Wege, deren Unsicherheit in die Restlebensdauer der Isolierung fortzupflanzen.',
+      't.levels': 'Fünf Stufen eines digitalen Zwillings',
+      'd.levels': 'Ein Transformator, ein thermisches Modell, fünf Aufgaben: den Zustand beschreiben, einen Kühlungsfehler diagnostizieren, die nächsten 48 Stunden vorhersagen, zwischen Fahrweisen entscheiden und den Regelkreis schließen.',
+
+      'sources': 'Quellen: IEC 60599 und CIGRE TB 771 (Fehlerzonen im Duval-Dreieck 1); Duval und Lamarre 2014 und CIGRE TB 771 (Duval-Pentagon 1 und 2); IEC 60076-7 (Belastungsrichtlinie); IEC 60076-2 (Grenzen der Übertemperatur); CIGRE TB 738 (Alterung unter Feuchte); Lundgaard et al. 2004 (Alterungskinetik); Parton und Logan 1981 (Tagesgang der Temperatur). Alles rechnet lokal im Browser, nichts wird hochgeladen.',
+      'fine': 'frei zu benutzen und zu verlinken, für die Weiterverwendung des Codes bitte kurz fragen · ein privates Projekt im Kontext der CIGRE JWG A2/D2.65, ohne Verbindung zu einem Arbeitgeber',
+      'thirdparty': 'Lizenzen Dritter',
+      'privacy': 'Datenschutz'
+    };
+
+    /* The English wording is taken off the markup once, into a map rather than
+       a data-en attribute: lang.js relabels [data-en][data-de] elements itself,
+       and the page content has no business showing up in that query. */
+    var els = document.querySelectorAll('[data-i18n]');
+    var EN = new Map();
+    els.forEach(function (e) { EN.set(e, e.textContent); });
+
+    var META = {
+      en: { title: 'transformer-twin-lab', desc: 'Interactive demos on uncertainty in transformer digital twins.' },
+      de: { title: 'transformer-twin-lab', desc: 'Interaktive Demos zur Unsicherheit in digitalen Zwillingen von Leistungstransformatoren.' }
+    };
+
+    function apply(lang) {
+      var de = lang === 'de';
+      els.forEach(function (e) {
+        var s = DE[e.dataset.i18n];
+        e.textContent = de && s ? s : EN.get(e);
+      });
+      var m = META[de ? 'de' : 'en'];
+      document.title = m.title;
+      var md = document.querySelector('meta[name="description"]');
+      if (md) md.setAttribute('content', m.desc);
+    }
+
+    window.__setLang = apply;
+    if (document.documentElement.lang === 'de') apply('de');
+  })();
+  </script>
 </body>
 </html>
