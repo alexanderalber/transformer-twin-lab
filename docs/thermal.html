@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="grey" data-theme-live>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
 <head>
   <meta charset="utf-8">
   <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Thermal mini-twin, IEC 60076-7</title>
   <meta name="description" content="A year of top-oil and hot-spot temperature from a load profile, and what the uncertainty in it does to insulation ageing.">
@@ -381,12 +382,18 @@
 </head>
 <body>
   <header class="container tw-head">
-    <h1><a class="th-crumb" href="index.html">twin-lab</a><span class="th-sep">/</span>Thermal mini-twin, IEC 60076-7</h1>
+    <h1><a class="th-crumb" href="index.html">twin-lab</a><span class="th-sep">/</span><span
+      data-en="Thermal mini-twin, IEC 60076-7"
+      data-de="Thermischer Mini-Zwilling, IEC 60076-7">Thermal mini-twin, IEC 60076-7</span></h1>
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
     <div class="theme-switcher">
       <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
     </div>
   </header>
   <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
 
   <main>
     <div id="root">
@@ -2678,6 +2685,212 @@
     }
     readPalette();
 
+    /* ── Strings ──────────────────────────────────────────────────────────
+       Every word the page shows, in both languages. LANG and T stay
+       module-level but are `let`: App reassigns them from its own state before
+       any child renders, which is what makes the switch live rather than a
+       reload (see assets/js/lang.js). Units, gas and zone codes, DP, pu and
+       the method name Monte Carlo read the same in both languages and stay out
+       of the table. The debug overlay behind #perf stays English: it is a
+       measurement readout, not page copy. */
+    const STRINGS = {
+      en: {
+        title: 'Thermal mini-twin, IEC 60076-7',
+        desc: 'A year of top-oil and hot-spot temperature from a load profile, and what the uncertainty in it does to insulation ageing.',
+        tabs: { transformer: 'Transformer', live: 'Live', lifetime: 'Lifetime', model: 'Model' },
+        scen: { desert: 'Desert', nyc: 'City / overload', northern: 'Northern', eaf: 'EAF', custom: 'Custom' },
+
+        play: 'play', pause: 'pause',
+        day: 'day', year: 'year',
+        speed: 'speed', confidence: 'confidence',
+        treat: 'oil treatment', leak: 'leakage', over: 'emergency overload',
+        export: 'use this year in Lifetime',
+        ambient: 'ambient', topOil: 'top-oil', hotSpot: 'hot-spot',
+        nowHot: 'now: hot-spot', nowOil: ', top-oil', nowLoad: ', load',
+        nowPaper: ', paper', nowRate: ', rate',
+        site: 'site',
+        bandOver: (ci, n) => ci + ' % band over ' + n + ' draws',
+        bandOff: 'band off', ensembleBusy: 'ensemble computing',
+
+        groupSite: 'site', groupAir: 'air around the tank', groupLoad: 'load',
+        groupPaper: 'paper', groupSigma: 'how well do we know it',
+        sigmaCased: '(1 sigma)',
+        season: 'busiest season', summer: 'summer', winter: 'winter',
+        seasonInfo: 'Which half of the year carries the seasonal load peak. Summer means cooling load, so heavy load meets warm oil; winter means electric heating, so heavy load meets cold oil, which is much kinder to the paper.',
+        noteAria: (open, label) => (open ? 'hide' : 'show') + ' note on ' + label,
+        noteClose: 'close note',
+
+        f: {
+          ambMean: ['yearly average', 'Air temperature around the tank, averaged over the year, in degrees C.'],
+          ambYearAmp: ['seasonal swing', 'Half the difference between the warmest and the coldest time of year, in kelvin.'],
+          ambDayAmp: ['day/night swing', 'Peak-to-peak spread over one day is twice this number, in kelvin. Diurnal shape after Parton and Logan (1981): a truncated sine by day, an exponential decay by night.'],
+          ambLat: ['latitude', 'Site latitude in degrees, north or south alike; sets how the day length varies over the year.'],
+          loadBase: ['average load', 'Mean load in per unit of nameplate current.'],
+          loadDayAmp: ['day/night swing', 'Half the difference between the daily peak and the daily minimum, in per unit.'],
+          loadDayPeakH: ['peak at hour', 'Clock hour of the daily load peak, 0 to 23.'],
+          loadSeasonAmp: ['seasonal swing', 'Half the difference between the busiest and the quietest season, in per unit.'],
+          loadFastAmp: ['furnace ripple', 'Strength of minute-scale load swings, as a multiple of the arc-furnace preset. 0 is a smooth feeder; 1 swings between about 0.3 and 1.1 pu within minutes.'],
+          oilFloor: ['oil heater floor', 'Lowest top-oil temperature the tank heaters hold, in degrees C. Set it far below the local winter and it simply never acts.'],
+          moist: ['paper moisture', 'Water in the insulation paper, in percent of paper mass. It multiplies the ageing rate: 1.5 % ages about five times as fast as dry paper at the same hot spot, 3.5 % about thirty-three times.'],
+          dp0: ['DP today', 'Degree of polymerisation of the paper right now. New paper is about 1000, end of life is 200.'],
+          sigAmbient: ['ambient sensor', 'Measurement error of the ambient probe, one standard deviation, in kelvin. Sun on the sensor or a badly placed one is worth several kelvin.'],
+          sigModel: ['parameters', 'Spread of the type-test values within heat-run tolerances, one standard deviation, in percent. It scales the rated top-oil rise, and twice that the oil time constant.'],
+          sigHs: ['model residual', 'What is left once ambient and parameters are right: the model class itself misses measured hot spots by a few kelvin (hot-spot factor, exponents, harmonics), as fibre-optic probes show wherever they are installed.'],
+          sigMoist: ['moisture', 'Uncertainty on the paper moisture, one standard deviation, in percent of paper mass. Moisture is rarely measured directly, so this is usually large.'],
+          sigDp0: ['DP today', 'Uncertainty on the current degree of polymerisation, one standard deviation. Without a paper sample this is an educated guess.']
+        },
+
+        methods: { lin: 'linearised', ut: 'unscented', utskew: 'unscented, skew fit', mc: 'Monte Carlo' },
+        methodNote: {
+          lin: 'One gradient at the nominal point, one sigma per input. Cheapest, symmetric by construction.',
+          ut: 'Thirteen deterministic runs, then a Gaussian fitted to their mean and variance. The points are drawn on the axis: their spread is not symmetric, the fitted curve is.',
+          utskew: 'The same thirteen runs, but mean, variance and skewness are matched to a shifted lognormal instead of a Gaussian. Three moments, still thirteen runs.',
+          mc: 'A thousand full years, no distributional assumption at all.'
+        },
+        basedOn: 'based on: ',
+        srcConfig: 'configuration',
+        srcExported: 'exported live year',
+        srcExportedStale: 'exported live year, site edited since',
+        backToConfig: 'back to config',
+        survivalH: 'survival, P(remaining > t)',
+        rateH: 'relative aging rate, year mean',
+        computing: 'computing',
+        stMean: 'mean ', stMedian: 'median ', stSd: ', sd ', stSkew: ', skew ',
+        stDeciles: ', p10 to p90 ', stTo: ' to ', stPneg: ', P(<0) ',
+        stSymmetric: ', symmetric, no skew fit', stBeyond: ' % beyond the axis',
+        stP10: 'p10 ', stMedianA: ' a, median ', stP90: ' a, p90 ',
+        stMeanRate: 'mean x', stMedianRate: ', median x',
+        nominal: 'nominal: rate x', nominalRest: ', remaining ',
+        markMeanMed: 'mean = median ', markMean: 'mean ', markMedian: 'median ',
+
+        months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        laneLoad: 'LOAD',
+        laneRate: 'aging rate, dry paper at 98 C = 1',
+        lanePaper: ', paper ', laneLeaking: ', leaking',
+        sigmaPts: 'sigma points',
+        axRemaining: 'remaining years to DP 200',
+        axYears: 'years',
+        survStarts: 'starts at ', survAtZero: ' at t = 0',
+        survMedian: 'median ', survAt: ' at ',
+
+        model: {
+          h1: 'thermal model',
+          p1: 'IEC 60076-7 loading guide, difference-equation form, cooling fixed at ONAN, integrated with a second-order scheme. Load factor and ambient temperature go in; top-oil and hot-spot temperature come out. Constants are the standard’s values for medium and large power transformers. Ambient is low-passed with the oil time constant before the tank feels it; a steel box holding tonnes of oil does not read the thermometer in real time.',
+          h2: 'the compressed year',
+          p2: 'The Live tab shows 20 representative days: the seasonal envelope sweeps January to December once while the daily cycle runs 20 times, and each displayed day is thermally a real day. The daily temperature shape follows Parton and Logan (1981), with day length from latitude. A warm-up run makes the year periodic. All scenarios are synthetic; no real site data is involved.',
+          h3: 'aging',
+          p3: 'Paper ages with temperature and water. The rate follows Ekenstam kinetics, 1/DP − 1/DP0 = k·t with k = A·exp(−Ea/RT); A grows roughly thirtyfold from dry paper to 3-4 % water (Lundgaard 2004, CIGRE TB 738). The rate lane is normalised so dry paper at a 98 °C hot-spot reads 1. End of life is DP 200. Oil treatment, leakage and emergency overload are display-time events: they change the Live curves from the moment they happen and change nothing else.',
+          h4: 'lifetime',
+          p4: 'The Lifetime tab simulates one full year from the configuration, converts that year’s DP consumption into remaining years, and assumes the year repeats until DP 200. Every number on that tab inherits this assumption. The Live animation and its events stay out of it, unless you press "use this year in Lifetime", which swaps the exported year in as the one that repeats.',
+          h5: 'uncertainty',
+          p5: 'Six inputs are uncertain: ambient offset, two model parameters, hot-spot error, moisture, starting DP. Four methods propagate them. Linearisation assumes the model is linear; it is not, and the resulting Gaussian contains transformers that fail before they were built. The unscented transform sends 13 points through the model and estimates the width more honestly, which puts more mass below zero, not less; the shape was the problem, not the width. The skew fit keeps the third moment of those same 13 points. Monte Carlo runs the model a thousand times and counts. The methods disagree. The switch is there so you can watch them do it.',
+          p6: 'The skew fit uses a shifted lognormal because the mechanism is multiplicative: the aging rate is exponential in temperature, so Gaussian temperature errors become factors on the rate, and remaining life is a budget divided by that rate. The log of such a quantity is close to Gaussian, so the fit happens on the right scale; the shift is the third parameter that lets mean, width and skew all match.',
+          h6: 'deliberately missing',
+          p7: 'Fans (ONAN only), manufacturer data. Every number comes from public standards and papers.',
+          src: 'Sources: IEC 60076-7:2018; IEC 60076-2; CIGRE TB 738 (2018); Lundgaard et al., IEEE Trans. Power Delivery 19(1), 2004; Parton and Logan, Agricultural Meteorology 23, 1981.'
+        }
+      },
+
+      de: {
+        title: 'Thermischer Mini-Zwilling, IEC 60076-7',
+        desc: 'Ein Jahr Öl- und Hotspot-Temperatur aus einem Lastprofil, und was die Unsicherheit darin mit der Alterung der Isolierung macht.',
+        tabs: { transformer: 'Transformator', live: 'Live', lifetime: 'Lebensdauer', model: 'Modell' },
+        scen: { desert: 'Wüste', nyc: 'Stadt / Überlast', northern: 'Norden', eaf: 'Lichtbogenofen', custom: 'Eigen' },
+
+        play: 'Start', pause: 'Pause',
+        day: 'Tag', year: 'Jahr',
+        speed: 'Tempo', confidence: 'Konfidenz',
+        treat: 'Ölbehandlung', leak: 'Leckage', over: 'Notüberlast',
+        export: 'dieses Jahr in Lebensdauer übernehmen',
+        ambient: 'Umgebung', topOil: 'Öl oben', hotSpot: 'Hotspot',
+        nowHot: 'jetzt: Hotspot', nowOil: ', Öl oben', nowLoad: ', Last',
+        nowPaper: ', Papier', nowRate: ', Rate',
+        site: 'Standort',
+        bandOver: (ci, n) => ci + ' % Band über ' + n + ' Ziehungen',
+        bandOff: 'Band aus', ensembleBusy: 'Ensemble rechnet',
+
+        groupSite: 'Standort', groupAir: 'Luft um den Kessel', groupLoad: 'Last',
+        groupPaper: 'Papier', groupSigma: 'wie gut wissen wir das',
+        sigmaCased: '(1 Sigma)',
+        season: 'Lastspitze im', summer: 'Sommer', winter: 'Winter',
+        seasonInfo: 'In welcher Jahreshälfte die saisonale Lastspitze liegt. Sommer heißt Kühllast, schwere Last trifft also auf warmes Öl; Winter heißt Elektroheizung, schwere Last trifft auf kaltes Öl, was das Papier deutlich schont.',
+        noteAria: (open, label) => 'Hinweis zu ' + label + (open ? ' verbergen' : ' anzeigen'),
+        noteClose: 'Hinweis schließen',
+
+        f: {
+          ambMean: ['Jahresmittel', 'Lufttemperatur um den Kessel, über das Jahr gemittelt, in Grad C.'],
+          ambYearAmp: ['Jahresschwankung', 'Halbe Differenz zwischen der wärmsten und der kältesten Zeit des Jahres, in Kelvin.'],
+          ambDayAmp: ['Tag/Nacht-Schwankung', 'Der Spitze-Spitze-Hub über einen Tag ist das Doppelte dieser Zahl, in Kelvin. Tagesform nach Parton und Logan (1981): tagsüber ein abgeschnittener Sinus, nachts ein exponentieller Abfall.'],
+          ambLat: ['Breitengrad', 'Geografische Breite des Standorts in Grad, nördlich wie südlich; bestimmt, wie stark die Tageslänge über das Jahr schwankt.'],
+          loadBase: ['mittlere Last', 'Mittlere Last in per unit des Bemessungsstroms.'],
+          loadDayAmp: ['Tag/Nacht-Schwankung', 'Halbe Differenz zwischen Tagesspitze und Tagesminimum, in per unit.'],
+          loadDayPeakH: ['Spitze zur Stunde', 'Uhrzeit der täglichen Lastspitze, 0 bis 23.'],
+          loadSeasonAmp: ['Jahresschwankung', 'Halbe Differenz zwischen der stärksten und der schwächsten Jahreszeit, in per unit.'],
+          loadFastAmp: ['Ofenrippel', 'Stärke der Lastschwankungen im Minutentakt, als Vielfaches der Lichtbogenofen-Vorgabe. 0 ist ein glatter Abgang; 1 schwankt binnen Minuten zwischen etwa 0,3 und 1,1 pu.'],
+          oilFloor: ['Ölheizung, Minimum', 'Niedrigste Öltemperatur oben, die die Kesselheizung hält, in Grad C. Weit unter den örtlichen Winter gesetzt, wirkt sie schlicht nie.'],
+          moist: ['Papierfeuchte', 'Wasser im Isolierpapier, in Prozent der Papiermasse. Sie multipliziert die Alterungsrate: 1,5 % altert bei gleichem Hotspot etwa fünfmal so schnell wie trockenes Papier, 3,5 % etwa dreiunddreißigmal.'],
+          dp0: ['DP heute', 'Polymerisationsgrad des Papiers heute. Neues Papier liegt bei etwa 1000, das Lebensende bei 200.'],
+          sigAmbient: ['Umgebungssensor', 'Messfehler des Umgebungsfühlers, eine Standardabweichung, in Kelvin. Sonne auf dem Fühler oder ein schlecht gesetzter Fühler sind mehrere Kelvin wert.'],
+          sigModel: ['Parameter', 'Streuung der Typprüfwerte innerhalb der Erwärmungstoleranzen, eine Standardabweichung, in Prozent. Sie skaliert die Bemessungsübertemperatur des Öls, und doppelt so stark die Ölzeitkonstante.'],
+          sigHs: ['Modellrest', 'Was übrig bleibt, wenn Umgebung und Parameter stimmen: die Modellklasse selbst verfehlt gemessene Hotspots um einige Kelvin (Hotspot-Faktor, Exponenten, Oberschwingungen), wie faseroptische Fühler überall dort zeigen, wo sie eingebaut sind.'],
+          sigMoist: ['Feuchte', 'Unsicherheit der Papierfeuchte, eine Standardabweichung, in Prozent der Papiermasse. Feuchte wird selten direkt gemessen, deshalb ist sie meist groß.'],
+          sigDp0: ['DP heute', 'Unsicherheit des heutigen Polymerisationsgrads, eine Standardabweichung. Ohne Papierprobe ist das eine begründete Schätzung.']
+        },
+
+        methods: { lin: 'linearisiert', ut: 'unscented', utskew: 'unscented, Schiefe-Fit', mc: 'Monte Carlo' },
+        methodNote: {
+          lin: 'Ein Gradient im Nominalpunkt, ein Sigma je Eingang. Am billigsten, symmetrisch schon per Konstruktion.',
+          ut: 'Dreizehn deterministische Läufe, dann eine Gaußkurve, an deren Mittelwert und Varianz angepasst. Die Punkte stehen auf der Achse: ihre Streuung ist nicht symmetrisch, die angepasste Kurve schon.',
+          utskew: 'Dieselben dreizehn Läufe, aber Mittelwert, Varianz und Schiefe werden an eine verschobene Lognormalverteilung angepasst statt an eine Gaußkurve. Drei Momente, immer noch dreizehn Läufe.',
+          mc: 'Tausend volle Jahre, ganz ohne Verteilungsannahme.'
+        },
+        basedOn: 'Grundlage: ',
+        srcConfig: 'Konfiguration',
+        srcExported: 'übernommenes Live-Jahr',
+        srcExportedStale: 'übernommenes Live-Jahr, Standort seither geändert',
+        backToConfig: 'zurück zur Konfiguration',
+        survivalH: 'Überleben, P(Rest > t)',
+        rateH: 'relative Alterungsrate, Jahresmittel',
+        computing: 'rechnet',
+        stMean: 'Mittel ', stMedian: 'Median ', stSd: ', s ', stSkew: ', Schiefe ',
+        stDeciles: ', p10 bis p90 ', stTo: ' bis ', stPneg: ', P(<0) ',
+        stSymmetric: ', symmetrisch, kein Schiefe-Fit', stBeyond: ' % außerhalb der Achse',
+        stP10: 'p10 ', stMedianA: ' a, Median ', stP90: ' a, p90 ',
+        stMeanRate: 'Mittel x', stMedianRate: ', Median x',
+        nominal: 'nominal: Rate x', nominalRest: ', Rest ',
+        markMeanMed: 'Mittel = Median ', markMean: 'Mittel ', markMedian: 'Median ',
+
+        months: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+        laneLoad: 'LAST',
+        laneRate: 'Alterungsrate, trockenes Papier bei 98 C = 1',
+        lanePaper: ', Papier ', laneLeaking: ', undicht',
+        sigmaPts: 'Sigma-Punkte',
+        axRemaining: 'verbleibende Jahre bis DP 200',
+        axYears: 'Jahre',
+        survStarts: 'beginnt bei ', survAtZero: ' bei t = 0',
+        survMedian: 'Median ', survAt: ' bei ',
+
+        model: {
+          h1: 'thermisches Modell',
+          p1: 'IEC 60076-7, Belastungsrichtlinie, in Differenzengleichungsform, Kühlung fest auf ONAN, integriert mit einem Verfahren zweiter Ordnung. Hinein gehen Lastfaktor und Umgebungstemperatur, heraus kommen Öltemperatur oben und Hotspot-Temperatur. Die Konstanten sind die Werte der Norm für mittlere und große Leistungstransformatoren. Die Umgebung wird mit der Ölzeitkonstante tiefpassgefiltert, bevor der Kessel sie spürt; ein Stahlkasten mit Tonnen von Öl liest das Thermometer nicht in Echtzeit.',
+          h2: 'das komprimierte Jahr',
+          p2: 'Der Live-Tab zeigt 20 repräsentative Tage: die Jahreseinhüllende läuft einmal von Januar bis Dezember, während der Tagesgang 20-mal durchläuft, und jeder gezeigte Tag ist thermisch ein echter Tag. Die Tagesform der Temperatur folgt Parton und Logan (1981), die Tageslänge kommt aus der geografischen Breite. Ein Vorlauf macht das Jahr periodisch. Alle Szenarien sind synthetisch; es stecken keine echten Standortdaten darin.',
+          h3: 'Alterung',
+          p3: 'Papier altert mit Temperatur und Wasser. Die Rate folgt der Ekenstam-Kinetik, 1/DP − 1/DP0 = k·t mit k = A·exp(−Ea/RT); A wächst von trockenem Papier bis 3-4 % Wasser etwa um das Dreißigfache (Lundgaard 2004, CIGRE TB 738). Die Ratenspur ist so normiert, dass trockenes Papier bei 98 °C Hotspot 1 ergibt. Lebensende ist DP 200. Ölbehandlung, Leckage und Notüberlast sind Ereignisse in der Anzeigezeit: sie ändern die Live-Kurven ab dem Moment, in dem sie passieren, und sonst nichts.',
+          h4: 'Lebensdauer',
+          p4: 'Der Lebensdauer-Tab simuliert ein volles Jahr aus der Konfiguration, rechnet den DP-Verbrauch dieses Jahres in verbleibende Jahre um und nimmt an, dass sich das Jahr bis DP 200 wiederholt. Jede Zahl auf diesem Tab erbt diese Annahme. Die Live-Animation und ihre Ereignisse bleiben außen vor, außer man drückt "dieses Jahr in Lebensdauer übernehmen"; dann ist das übernommene Jahr das, was sich wiederholt.',
+          h5: 'Unsicherheit',
+          p5: 'Sechs Eingänge sind unsicher: Umgebungsoffset, zwei Modellparameter, Hotspot-Fehler, Feuchte, Start-DP. Vier Methoden pflanzen sie fort. Die Linearisierung nimmt an, das Modell sei linear; das ist es nicht, und die entstehende Gaußkurve enthält Transformatoren, die ausfallen, bevor sie gebaut wurden. Die Unscented Transform schickt 13 Punkte durch das Modell und schätzt die Breite ehrlicher, was mehr Masse unter null legt, nicht weniger; das Problem war die Form, nicht die Breite. Der Schiefe-Fit behält das dritte Moment derselben 13 Punkte. Monte Carlo rechnet das Modell tausendmal und zählt. Die Methoden widersprechen einander. Der Umschalter ist da, damit man ihnen dabei zusehen kann.',
+          p6: 'Der Schiefe-Fit nimmt eine verschobene Lognormalverteilung, weil der Mechanismus multiplikativ ist: die Alterungsrate ist exponentiell in der Temperatur, gaußsche Temperaturfehler werden also zu Faktoren auf der Rate, und die Restlebensdauer ist ein Budget geteilt durch diese Rate. Der Logarithmus einer solchen Größe ist nahe gaußsch, der Fit passiert also auf der richtigen Skala; die Verschiebung ist der dritte Parameter, der Mittelwert, Breite und Schiefe gleichzeitig treffen lässt.',
+          h6: 'bewusst nicht enthalten',
+          p7: 'Lüfter (nur ONAN), Herstellerdaten. Jede Zahl kommt aus öffentlichen Normen und Veröffentlichungen.',
+          src: 'Quellen: IEC 60076-7:2018; IEC 60076-2; CIGRE TB 738 (2018); Lundgaard et al., IEEE Trans. Power Delivery 19(1), 2004; Parton und Logan, Agricultural Meteorology 23, 1981.'
+        }
+      }
+    };
+    let LANG = document.documentElement.lang === 'de' ? 'de' : 'en';
+    let T = STRINGS[LANG];
+
     /* ── Compressed year ──────────────────────────────────────────────────
        20 representative days: the diurnal cycle runs 20 times while the season
        sweeps January to December once. The mapping and the simulation both
@@ -3022,13 +3235,12 @@
       ctx.closePath();
     }
 
-    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const MONTH_START = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
     function dateLabel(dayOfYear) {
       let m = 11;
       for (let i = 0; i < 12; i++) if (dayOfYear >= MONTH_START[i]) m = i;
-      return (dayOfYear - MONTH_START[m] + 1) + ' ' + MONTHS[m];
+      return (dayOfYear - MONTH_START[m] + 1) + ' ' + T.months[m];
     }
 
     /* ── The strip chart ──────────────────────────────────────────────────
@@ -3063,7 +3275,7 @@
     const posOfSpeed = (v) => Math.round(1000 * Math.log(v / SPEED_MIN) / Math.log(SPEED_MAX / SPEED_MIN));
     const fmtSpeed = (v) => (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + 'x';
 
-    function LiveCanvas({ sim, view, moist, leak, ci, height, cursorRef, drawRef }) {
+    function LiveCanvas({ sim, view, moist, leak, ci, height, cursorRef, drawRef, lang }) {
       const cvRef = useRef(null);
       const [bumpN, bump] = useState(0);
       /* Glide state of the rate lane: current limits, the wall clock they were
@@ -3201,7 +3413,7 @@
             for (let c = 0; c <= 1; c++) {
               for (let m = 0; m < 12; m++) {
                 const t = base + c * COMP_MIN + MONTH_START[m] / 365 * COMP_MIN;
-                if (t >= t0 && t <= t1) marks.push([t, MONTHS[m]]);
+                if (t >= t0 && t <= t1) marks.push([t, T.months[m]]);
               }
             }
           }
@@ -3285,7 +3497,7 @@
           ctx.fillStyle = COL.note;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
-          ctx.fillText('LOAD', x0 + 4, LANE.sep1 + 5);
+          ctx.fillText(T.laneLoad, x0 + 4, LANE.sep1 + 5);
           ctx.restore();
 
           // Ageing-rate lane, log axis: the same year spans decades.
@@ -3294,8 +3506,8 @@
           ctx.fillStyle = COL.note;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
-          ctx.fillText('aging rate, dry paper at 98 C = 1'
-            + ', paper ' + moist.cur.toFixed(2) + ' %' + (leak ? ', leaking' : ''),
+          ctx.fillText(T.laneRate
+            + T.lanePaper + moist.cur.toFixed(2) + ' %' + (leak ? T.laneLeaking : ''),
             x0 + 4, LANE.sep2 + 5);
           ctx.textAlign = 'right';
           ctx.textBaseline = 'middle';
@@ -3390,7 +3602,7 @@
         drawRef.current = draw;
         draw();
         return () => { if (drawRef.current === draw) drawRef.current = null; };
-      }, [sim, view, moist, leak, ci, height, bumpN, cursorRef, drawRef]);
+      }, [sim, view, moist, leak, ci, height, bumpN, cursorRef, drawRef, lang]);
 
       return html`
         <canvas ref=${cvRef} className="tw-stage th-stage"
@@ -3437,61 +3649,29 @@
        is deliberately absent. It answers the questions the other tabs raise,
        in the order they come up. */
     function Model() {
+      const m = T.model;
       return html`
         <div className="th-model">
-          <h3>thermal model</h3>
-          <p>IEC 60076-7 loading guide, difference-equation form, cooling fixed at ONAN,
-            integrated with a second-order scheme. Load factor and ambient temperature go in;
-            top-oil and hot-spot temperature come out. Constants are the standard's values for
-            medium and large power transformers. Ambient is low-passed with the oil time
-            constant before the tank feels it; a steel box holding tonnes of oil does not
-            read the thermometer in real time.</p>
+          <h3>${m.h1}</h3>
+          <p>${m.p1}</p>
 
-          <h3>the compressed year</h3>
-          <p>The Live tab shows 20 representative days: the seasonal envelope sweeps January
-            to December once while the daily cycle runs 20 times, and each displayed day is
-            thermally a real day. The daily temperature shape follows Parton and Logan (1981),
-            with day length from latitude. A warm-up run makes the year periodic. All
-            scenarios are synthetic; no real site data is involved.</p>
+          <h3>${m.h2}</h3>
+          <p>${m.p2}</p>
 
-          <h3>aging</h3>
-          <p>Paper ages with temperature and water. The rate follows Ekenstam kinetics,
-            1/DP − 1/DP0 = k·t with k = A·exp(−Ea/RT); A grows roughly thirtyfold from dry
-            paper to 3-4 % water (Lundgaard 2004, CIGRE TB 738). The rate lane is normalised
-            so dry paper at a 98 °C hot-spot reads 1. End of life is DP 200. Oil treatment,
-            leakage and emergency overload are display-time events: they change the Live
-            curves from the moment they happen and change nothing else.</p>
+          <h3>${m.h3}</h3>
+          <p>${m.p3}</p>
 
-          <h3>lifetime</h3>
-          <p>The Lifetime tab simulates one full year from the configuration, converts that
-            year's DP consumption into remaining years, and assumes the year repeats until
-            DP 200. Every number on that tab inherits this assumption. The Live animation
-            and its events stay out of it, unless you press "use this year in Lifetime",
-            which swaps the exported year in as the one that repeats.</p>
+          <h3>${m.h4}</h3>
+          <p>${m.p4}</p>
 
-          <h3>uncertainty</h3>
-          <p>Six inputs are uncertain: ambient offset, two model parameters, hot-spot error,
-            moisture, starting DP. Four methods propagate them. Linearisation assumes the
-            model is linear; it is not, and the resulting Gaussian contains transformers that
-            fail before they were built. The unscented transform sends 13 points through the
-            model and estimates the width more honestly, which puts more mass below zero, not
-            less; the shape was the problem, not the width. The skew fit keeps the third
-            moment of those same 13 points. Monte Carlo runs the model a thousand times and
-            counts. The methods disagree. The switch is there so you can watch them do it.</p>
-          <p>The skew fit uses a shifted lognormal because the mechanism is multiplicative:
-            the aging rate is exponential in temperature, so Gaussian temperature errors
-            become factors on the rate, and remaining life is a budget divided by that rate.
-            The log of such a quantity is close to Gaussian, so the fit happens on the right
-            scale; the shift is the third parameter that lets mean, width and skew all
-            match.</p>
+          <h3>${m.h5}</h3>
+          <p>${m.p5}</p>
+          <p>${m.p6}</p>
 
-          <h3>deliberately missing</h3>
-          <p>Fans (ONAN only), manufacturer data. Every number comes from public standards
-            and papers.</p>
+          <h3>${m.h6}</h3>
+          <p>${m.p7}</p>
 
-          <p className="th-src">Sources: IEC 60076-7:2018; IEC 60076-2; CIGRE TB 738 (2018);
-            Lundgaard et al., IEEE Trans. Power Delivery 19(1), 2004; Parton and Logan,
-            Agricultural Meteorology 23, 1981.</p>
+          <p className="th-src">${m.src}</p>
         </div>
       `;
     }
@@ -3517,7 +3697,7 @@
     function InfoBtn({ open, toggle, label }) {
       return html`
         <button type="button" className="th-info" onClick=${toggle} aria-expanded=${open}
-          aria-label=${(open ? 'hide' : 'show') + ' note on ' + label}>i</button>
+          aria-label=${T.noteAria(open, label)}>i</button>
       `;
     }
 
@@ -3557,7 +3737,7 @@
         <div className="th-pop" ref=${ref} role="tooltip"
           style=${{ transform: 'translateX(calc(-50% + ' + dx + 'px))', '--arrow': 'calc(50% - ' + dx + 'px)' }}>
           <button type="button" className="th-popclose" onClick=${close}
-            aria-label="close note">×</button>
+            aria-label=${T.noteClose}>×</button>
           ${children}
         </div>
       `;
@@ -3570,51 +3750,37 @@
        so every label says what the number does instead. The unit stays in its
        own slot on the right, and every row carries one sentence of background
        behind the info button. */
+    /* The rows carry only what is numeric; the label and the note behind the
+       info button are looked up in T.f by the same key, so a field is defined
+       once and worded twice. */
     const SITE_AMBIENT = [
-      { k: 'ambMean', label: 'yearly average', unit: 'C', min: -40, max: 45, step: 1,
-        info: 'Air temperature around the tank, averaged over the year, in degrees C.' },
-      { k: 'ambYearAmp', label: 'seasonal swing', unit: 'K', min: 0, max: 30, step: 0.5,
-        info: 'Half the difference between the warmest and the coldest time of year, in kelvin.' },
-      { k: 'ambDayAmp', label: 'day/night swing', unit: 'K', min: 0, max: 25, step: 0.5,
-        info: 'Peak-to-peak spread over one day is twice this number, in kelvin. Diurnal shape after Parton and Logan (1981): a truncated sine by day, an exponential decay by night.' },
-      { k: 'ambLat', label: 'latitude', unit: 'deg', min: 0, max: 66, step: 1,
-        info: 'Site latitude in degrees, north or south alike; sets how the day length varies over the year.' }
+      { k: 'ambMean', unit: 'C', min: -40, max: 45, step: 1 },
+      { k: 'ambYearAmp', unit: 'K', min: 0, max: 30, step: 0.5 },
+      { k: 'ambDayAmp', unit: 'K', min: 0, max: 25, step: 0.5 },
+      { k: 'ambLat', unit: 'deg', min: 0, max: 66, step: 1 }
     ];
     const SITE_LOAD = [
-      { k: 'loadBase', label: 'average load', unit: 'pu', min: 0.05, max: 1.4, step: 0.01,
-        info: 'Mean load in per unit of nameplate current.' },
-      { k: 'loadDayAmp', label: 'day/night swing', unit: 'pu', min: 0, max: 0.6, step: 0.01,
-        info: 'Half the difference between the daily peak and the daily minimum, in per unit.' },
-      { k: 'loadDayPeakH', label: 'peak at hour', unit: 'h', min: 0, max: 23, step: 1,
-        info: 'Clock hour of the daily load peak, 0 to 23.' },
-      { k: 'loadSeasonAmp', label: 'seasonal swing', unit: 'pu', min: 0, max: 0.5, step: 0.01,
-        info: 'Half the difference between the busiest and the quietest season, in per unit.' },
-      { k: 'loadFastAmp', label: 'furnace ripple', unit: 'x', min: 0, max: 2, step: 0.05,
-        info: 'Strength of minute-scale load swings, as a multiple of the arc-furnace preset. 0 is a smooth feeder; 1 swings between about 0.3 and 1.1 pu within minutes.' },
-      { k: 'oilFloor', label: 'oil heater floor', unit: 'C', min: -40, max: 40, step: 1,
-        info: 'Lowest top-oil temperature the tank heaters hold, in degrees C. Set it far below the local winter and it simply never acts.' }
+      { k: 'loadBase', unit: 'pu', min: 0.05, max: 1.4, step: 0.01 },
+      { k: 'loadDayAmp', unit: 'pu', min: 0, max: 0.6, step: 0.01 },
+      { k: 'loadDayPeakH', unit: 'h', min: 0, max: 23, step: 1 },
+      { k: 'loadSeasonAmp', unit: 'pu', min: 0, max: 0.5, step: 0.01 },
+      { k: 'loadFastAmp', unit: 'x', min: 0, max: 2, step: 0.05 },
+      { k: 'oilFloor', unit: 'C', min: -40, max: 40, step: 1 }
     ];
     const PAPER_FIELDS = [
-      { k: 'moist', label: 'paper moisture', unit: '%', min: 0.3, max: 6, step: 0.1,
-        info: 'Water in the insulation paper, in percent of paper mass. It multiplies the ageing rate: 1.5 % ages about five times as fast as dry paper at the same hot spot, 3.5 % about thirty-three times.' },
-      { k: 'dp0', label: 'DP today', unit: '', min: 400, max: 1400, step: 10,
-        info: 'Degree of polymerisation of the paper right now. New paper is about 1000, end of life is 200.' }
+      { k: 'moist', unit: '%', min: 0.3, max: 6, step: 0.1 },
+      { k: 'dp0', unit: '', min: 400, max: 1400, step: 10 }
     ];
     /* Three disjoint error sources, in the order they enter the model: what
        goes in, what the model is parametrised with, and what the model class
        gets wrong after both of those are right. Named that way on purpose, so
        the three do not read as three tries at the same number. */
     const SIGMA_FIELDS = [
-      { k: 'sigAmbient', label: 'ambient sensor', unit: 'K', min: 0, max: 5, step: 0.1,
-        info: 'Measurement error of the ambient probe, one standard deviation, in kelvin. Sun on the sensor or a badly placed one is worth several kelvin.' },
-      { k: 'sigModel', label: 'parameters', unit: '%', min: 0, max: 15, step: 0.5,
-        info: 'Spread of the type-test values within heat-run tolerances, one standard deviation, in percent. It scales the rated top-oil rise, and twice that the oil time constant.' },
-      { k: 'sigHs', label: 'model residual', unit: 'K', min: 0, max: 6, step: 0.1,
-        info: 'What is left once ambient and parameters are right: the model class itself misses measured hot spots by a few kelvin (hot-spot factor, exponents, harmonics), as fibre-optic probes show wherever they are installed.' },
-      { k: 'sigMoist', label: 'moisture', unit: '%', min: 0, max: 1.5, step: 0.05,
-        info: 'Uncertainty on the paper moisture, one standard deviation, in percent of paper mass. Moisture is rarely measured directly, so this is usually large.' },
-      { k: 'sigDp0', label: 'DP today', unit: '', min: 0, max: 200, step: 5,
-        info: 'Uncertainty on the current degree of polymerisation, one standard deviation. Without a paper sample this is an educated guess.' }
+      { k: 'sigAmbient', unit: 'K', min: 0, max: 5, step: 0.1 },
+      { k: 'sigModel', unit: '%', min: 0, max: 15, step: 0.5 },
+      { k: 'sigHs', unit: 'K', min: 0, max: 6, step: 0.1 },
+      { k: 'sigMoist', unit: '%', min: 0, max: 1.5, step: 0.05 },
+      { k: 'sigDp0', unit: '', min: 0, max: 200, step: 5 }
     ];
     const SITE_FIELDS = SITE_AMBIENT.concat(SITE_LOAD);
     const KNOB_DEF = { sigAmbient: 2, sigModel: 5, sigHs: 3, moist: 1.5, sigMoist: 0.7, dp0: 1000, sigDp0: 100 };
@@ -3626,10 +3792,10 @@
       return html`
         <div className="th-row">
           <span className="th-anchor">
-            <label htmlFor=${id}>${spec.label}</label>
-            <${InfoBtn} open=${open} label=${spec.label}
+            <label htmlFor=${id}>${T.f[spec.k][0]}</label>
+            <${InfoBtn} open=${open} label=${T.f[spec.k][0]}
               toggle=${() => setOpen(open ? null : spec.k)} />
-            ${open ? html`<${Popover} close=${() => setOpen(null)}>${spec.info}<//>` : null}
+            ${open ? html`<${Popover} close=${() => setOpen(null)}>${T.f[spec.k][1]}<//>` : null}
           </span>
           <span>
             <input id=${id} type="number" min=${spec.min} max=${spec.max} step=${spec.step}
@@ -3659,35 +3825,35 @@
 
     function Transformer({ site, cfg, setSite, setCfgField, knobs, setKnob }) {
       const [openInfo, setOpenInfo] = useState(null);
-      const chips = C.SCENARIOS.map((s) => ({ id: s.id, label: s.label }))
-        .concat([{ id: 'custom', label: 'Custom' }]);
+      const chips = C.SCENARIOS.map((s) => ({ id: s.id, label: T.scen[s.id] || s.label }))
+        .concat([{ id: 'custom', label: T.scen.custom }]);
       const rows = (specs, values, onChange) => specs.map((s) => html`
         <${NumRow} key=${s.k} spec=${s} value=${values[s.k]} onChange=${onChange}
           open=${openInfo === s.k} setOpen=${setOpenInfo} />
       `);
       return html`
         <div className="th-cfg">
-          <${Group} className="th-cfgsite" title="site">
+          <${Group} className="th-cfgsite" title=${T.groupSite}>
             <${Seg} className="th-chips" items=${chips} value=${site} onChange=${setSite} />
           <//>
 
           <div className="th-cfgcol th-cfgleft">
-            <${Group} title="air around the tank">
+            <${Group} title=${T.groupAir}>
               ${rows(SITE_AMBIENT, cfg, setCfgField)}
             <//>
-            <${Group} title="load">
+            <${Group} title=${T.groupLoad}>
               ${rows(SITE_LOAD, cfg, setCfgField)}
               <div className="th-row">
                 <span className="th-anchor">
-                  <span>busiest season</span>
-                  <${InfoBtn} open=${openInfo === 'season'} label="busiest season"
+                  <span>${T.season}</span>
+                  <${InfoBtn} open=${openInfo === 'season'} label=${T.season}
                     toggle=${() => setOpenInfo(openInfo === 'season' ? null : 'season')} />
                   ${openInfo === 'season' ? html`<${Popover} close=${() => setOpenInfo(null)}>
-                    Which half of the year carries the seasonal load peak. Summer means cooling load, so heavy load meets warm oil; winter means electric heating, so heavy load meets cold oil, which is much kinder to the paper.
+                    ${T.seasonInfo}
                   <//>` : null}
                 </span>
                 <span>
-                  <${Seg} items=${[{ id: 0, label: 'summer' }, { id: 1, label: 'winter' }]}
+                  <${Seg} items=${[{ id: 0, label: T.summer }, { id: 1, label: T.winter }]}
                     value=${cfg.loadWinterPeak ? 1 : 0}
                     onChange=${(v) => setCfgField('loadWinterPeak', v)} />
                 </span>
@@ -3696,10 +3862,10 @@
           </div>
 
           <div className="th-cfgcol th-cfgright">
-            <${Group} title="paper">
+            <${Group} title=${T.groupPaper}>
               ${rows(PAPER_FIELDS, knobs, setKnob)}
             <//>
-            <${Group} title=${html`how well do we know it <span className="th-cased">(1 sigma)</span>`}>
+            <${Group} title=${html`${T.groupSigma} <span className="th-cased">${T.sigmaCased}</span>`}>
               ${rows(SIGMA_FIELDS, knobs, setKnob)}
             <//>
           </div>
@@ -3849,10 +4015,10 @@
         ctx.fillText(text, Math.max(x0 + half, Math.min(x1 - half, x)), y);
       };
       if (Math.abs(xMean - xMed) < 8) {
-        put(xMean, yT - 36, 'mean = median ' + labMean);
+        put(xMean, yT - 36, T.markMeanMed + labMean);
       } else {
-        put(xMean, yT - 36, 'mean ' + labMean);
-        put(xMed, yT - 20, 'median ' + labMed);
+        put(xMean, yT - 36, T.markMean + labMean);
+        put(xMed, yT - 20, T.markMedian + labMed);
       }
       ctx.restore();
     }
@@ -3956,7 +4122,7 @@
           ctx.fillStyle = COL.faint;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'bottom';
-          ctx.fillText('sigma points', x0 + 2, yB - 20);
+          ctx.fillText(T.sigmaPts, x0 + 2, yB - 20);
           ctx.restore();
         }
 
@@ -3966,7 +4132,7 @@
         ctx.fillStyle = COL.faint;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
-        ctx.fillText('remaining years to DP 200', x1, yB + 6);
+        ctx.fillText(T.axRemaining, x1, yB + 6);
         ctx.restore();
         markers(ctx, xOf(stat.mean), xOf(stat.median), yT, yB, x0, x1,
           fmtYears(stat.mean), fmtYears(stat.median));
@@ -4080,7 +4246,7 @@
             ctx.fillStyle = COL.note;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'bottom';
-            ctx.fillText('starts at ' + s0.toFixed(2) + ' at t = 0', x0 + 6, yOf(1) - 3);
+            ctx.fillText(T.survStarts + s0.toFixed(2) + T.survAtZero, x0 + 6, yOf(1) - 3);
             ctx.restore();
           }
         }
@@ -4101,7 +4267,7 @@
         ctx.fillStyle = COL.label;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('median ' + fmtYears(dec.median) + ' a', Math.min(xm + 6, x1 - 96), ym - 5);
+        ctx.fillText(T.survMedian + fmtYears(dec.median) + ' a', Math.min(xm + 6, x1 - 96), ym - 5);
         ctx.restore();
 
         // Where the ninth and the first decile land on the same curve.
@@ -4115,7 +4281,7 @@
           ctx.fillStyle = COL.note;
           ctx.textAlign = d[1] > 0.5 ? 'left' : 'right';
           ctx.textBaseline = d[1] > 0.5 ? 'top' : 'bottom';
-          const lab = d[1].toFixed(1) + ' at ' + fmtYears(d[0]) + ' a';
+          const lab = d[1].toFixed(1) + T.survAt + fmtYears(d[0]) + ' a';
           ctx.fillText(lab, x + (d[1] > 0.5 ? 7 : -7), y + (d[1] > 0.5 ? 4 : -5));
         });
         ctx.restore();
@@ -4126,7 +4292,7 @@
         ctx.fillStyle = COL.faint;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('years', x1, yT + 10);
+        ctx.fillText(T.axYears, x1, yT + 10);
         ctx.restore();
       });
       return html`<canvas ref=${cvRef} className="tw-stage" style=${{ height: height + 'px' }} />`;
@@ -4231,18 +4397,9 @@
     const R2_H = 200;
     const RATE_NB = 48;
 
-    const METHODS = [
-      { id: 'lin', label: 'linearised' },
-      { id: 'ut', label: 'unscented' },
-      { id: 'utskew', label: 'unscented, skew fit' },
-      { id: 'mc', label: 'Monte Carlo' }
-    ];
-    const METHOD_NOTE = {
-      lin: 'One gradient at the nominal point, one sigma per input. Cheapest, symmetric by construction.',
-      ut: 'Thirteen deterministic runs, then a Gaussian fitted to their mean and variance. The points are drawn on the axis: their spread is not symmetric, the fitted curve is.',
-      utskew: 'The same thirteen runs, but mean, variance and skewness are matched to a shifted lognormal instead of a Gaussian. Three moments, still thirteen runs.',
-      mc: 'A thousand full years, no distributional assumption at all.'
-    };
+    /* The four propagations, in the order they are argued for. Their names and
+       the one-line note under the switch live in T.methods / T.methodNote. */
+    const METHOD_IDS = ['lin', 'ut', 'utskew', 'mc'];
 
     /* ── Frozen axes ─────────────────────────────────────────────────────
        Every range on this tab is set ONCE per result set, from the three
@@ -4404,17 +4561,17 @@
       const stat = life ? life[YEAR_STAT[method]] : null;
       const rateStat = life ? life[RATE_STAT[method]] : null;
       const statLine = (s) => {
-        if (!s) return 'computing';
-        let t = 'mean ' + fmtYears(s.mean) + ' a, median ' + fmtYears(s.median) + ' a'
-          + ', sd ' + fmtYears(s.sd != null ? s.sd : s.sigma) + ' a';
-        if (s.skew != null) t += ', skew ' + s.skew.toFixed(2);
-        if (s.p10 != null) t += ', p10 to p90 ' + fmtYears(s.p10) + ' to ' + fmtYears(s.p90) + ' a';
-        if (s.pNeg != null && s.pNeg > 0.005) t += ', P(<0) ' + (100 * s.pNeg).toFixed(0) + ' %';
-        if (s.fallback) t += ', symmetric, no skew fit';
+        if (!s) return T.computing;
+        let t = T.stMean + fmtYears(s.mean) + ' a, ' + T.stMedian + fmtYears(s.median) + ' a'
+          + T.stSd + fmtYears(s.sd != null ? s.sd : s.sigma) + ' a';
+        if (s.skew != null) t += T.stSkew + s.skew.toFixed(2);
+        if (s.p10 != null) t += T.stDeciles + fmtYears(s.p10) + T.stTo + fmtYears(s.p90) + ' a';
+        if (s.pNeg != null && s.pNeg > 0.005) t += T.stPneg + (100 * s.pNeg).toFixed(0) + ' %';
+        if (s.fallback) t += T.stSymmetric;
         /* The axis is fixed before the samples arrive, so a few of them can
            land outside it. Saying how many is cheaper than moving the axis. */
         if (method === 'mc' && view && view.bins && view.bins.out > 0.0005) {
-          t += ', ' + (100 * view.bins.out).toFixed(1) + ' % beyond the axis';
+          t += ', ' + (100 * view.bins.out).toFixed(1) + T.stBeyond;
         }
         return t;
       };
@@ -4425,15 +4582,15 @@
         if (!stat) return '';
         const d = method === 'mc' ? stat : decilesOf(stat);
         if (!d) return '';
-        return 'p10 ' + fmtYears(d.p10) + ' a, median ' + fmtYears(d.median) +
-          ' a, p90 ' + fmtYears(d.p90) + ' a';
+        return T.stP10 + fmtYears(d.p10) + T.stMedianA + fmtYears(d.median) +
+          T.stP90 + fmtYears(d.p90) + ' a';
       })();
       const rateNote = (() => {
         if (!rateStat) return '';
         const d = method === 'mc' ? rateStat : decilesOf(rateStat);
-        let t = 'mean x' + fmtRate(rateStat.mean) + ', median x' + fmtRate(d.median);
+        let t = T.stMeanRate + fmtRate(rateStat.mean) + T.stMedianRate + fmtRate(d.median);
         if (rateStat.pNeg != null && rateStat.pNeg > 0.005) {
-          t += ', P(<0) ' + (100 * rateStat.pNeg).toFixed(0) + ' %';
+          t += T.stPneg + (100 * rateStat.pNeg).toFixed(0) + ' %';
         }
         return t;
       })();
@@ -4441,7 +4598,7 @@
       const mcN = life ? life.mcN : 0;
       const mcTotal = C.LIFE.mcN;
       const nominal = life && life.nom
-        ? 'nominal: rate x' + fmtRate(life.nom.rate) + ', remaining ' + fmtYears(life.nom.years) + ' a'
+        ? T.nominal + fmtRate(life.nom.rate) + T.nominalRest + fmtYears(life.nom.years) + ' a'
         : '';
 
       return html`
@@ -4449,7 +4606,8 @@
           <div className="th-life-top">
             <div>
               <div className="th-hrow">
-                <${Seg} className="th-methods" items=${METHODS} value=${method} onChange=${setMethod} />
+                <${Seg} className="th-methods" items=${METHOD_IDS.map((id) => ({ id: id, label: T.methods[id] }))}
+                  value=${method} onChange=${setMethod} />
                 ${method === 'mc' && mcN < mcTotal
                   ? html`<span className="th-hnote">n = ${mcN} / ${mcTotal}</span>`
                   : null}
@@ -4460,13 +4618,13 @@
             <div>
               <h2 className="th-h2">${siteLabel}</h2>
               <p className="th-source">
-                <span>based on: ${exported
-                  ? (stale ? 'exported live year, site edited since' : 'exported live year')
-                  : 'configuration'}</span>
+                <span>${T.basedOn}${exported
+                  ? (stale ? T.srcExportedStale : T.srcExported)
+                  : T.srcConfig}</span>
                 ${exported ? html`<button type="button" className="lang-seg th-seg th-chip"
-                  onClick=${clearExport}>back to config</button>` : null}
+                  onClick=${clearExport}>${T.backToConfig}</button>` : null}
               </p>
-              <p className="th-explain">${METHOD_NOTE[method]}</p>
+              <p className="th-explain">${T.methodNote[method]}</p>
               <p className="th-explain" style=${{ marginTop: 12 }}>${nominal}</p>
             </div>
           </div>
@@ -4474,14 +4632,14 @@
           <div className="th-r2">
             <div>
               <div className="th-hrow">
-                <h2 className="th-h2">survival, P(remaining > t)</h2>
+                <h2 className="th-h2">${T.survivalH}</h2>
                 <span className="th-hnote">${survNote}</span>
               </div>
               <${SurvivalPanel} method=${method} life=${life} view=${view} height=${R2_H} />
             </div>
             <div>
               <div className="th-hrow">
-                <h2 className="th-h2">relative aging rate, year mean</h2>
+                <h2 className="th-h2">${T.rateH}</h2>
                 <span className="th-hnote">${rateNote}</span>
               </div>
               <${RatePanel} method=${method} life=${life} view=${view} height=${R2_H} />
@@ -4502,6 +4660,15 @@
          clock is gated on the tab (see playRef below), so the cursor does not
          move and no display time is spent while nobody is watching. */
       const [tab, setTab] = useState('transformer');
+      /* Language first, before anything below reads T. lang.js calls the hook
+         registered here; the header title is relabelled over there from its
+         data-en / data-de attributes. The canvases redraw on every render
+         (useCanvas has no dependency array), so they pick the new wording up
+         with the same commit; the strip chart gets `lang` in its deps below,
+         because its draw effect is the one that does have them. */
+      const [lang, setLang] = useState(LANG);
+      LANG = lang;
+      T = STRINGS[lang];
       const [site, setSite] = useState({ id: 'nyc', cfg: null });
       const [knobs, setKnobs] = useState(KNOB_DEF);
       const [view, setView] = useState('day');
@@ -4572,6 +4739,16 @@
       }, []);
 
       const setKnob = useCallback((k, v) => setKnobs((p) => Object.assign({}, p, { [k]: v })), []);
+
+      useEffect(() => {
+        window.__setLang = (l) => setLang(l === 'de' ? 'de' : 'en');
+        return () => { delete window.__setLang; };
+      }, []);
+      useEffect(() => {
+        document.title = T.title;
+        const md = document.querySelector('meta[name="description"]');
+        if (md) md.setAttribute('content', T.desc);
+      }, [lang]);
 
       /* All three Live buttons are stage events now: they act from the instant
          they are pressed and nothing they do is part of the signature, so no
@@ -4769,13 +4946,13 @@
       }, [tab, lifeSig]);
 
       const rNow = readout ? readout.rate : null;
-      const siteLabel = sc.label;
+      const siteLabel = T.scen[site.id] || sc.label;
 
       const tabs = [
-        { id: 'transformer', label: 'Transformer' },
-        { id: 'live', label: 'Live' },
-        { id: 'lifetime', label: 'Lifetime' },
-        { id: 'model', label: 'Model' }
+        { id: 'transformer', label: T.tabs.transformer },
+        { id: 'live', label: T.tabs.live },
+        { id: 'lifetime', label: T.tabs.lifetime },
+        { id: 'model', label: T.tabs.model }
       ];
 
       return html`
@@ -4793,42 +4970,42 @@
                 <div className="th-row1">
                   <div className="th-transport">
                     <button type="button" className="lang-seg th-seg th-play"
-                      onClick=${() => setPlaying((p) => !p)}>${playing ? 'pause' : 'play'}</button>
-                    <${Seg} items=${[{ id: 'day', label: 'day' }, { id: 'year', label: 'year' }]}
+                      onClick=${() => setPlaying((p) => !p)}>${playing ? T.pause : T.play}</button>
+                    <${Seg} items=${[{ id: 'day', label: T.day }, { id: 'year', label: T.year }]}
                       value=${view} onChange=${setView} />
                   </div>
-                  <${Ctl} id="th-speed" label="speed" min=${0} max=${1000} step=${1}
+                  <${Ctl} id="th-speed" label=${T.speed} min=${0} max=${1000} step=${1}
                     value=${posOfSpeed(speed)} onChange=${(p) => setSpeed(speedOfPos(p))}
                     format=${() => fmtSpeed(speed)} />
-                  <${Ctl} id="th-ci" label="confidence" min=${0} max=${99} step=${1}
+                  <${Ctl} id="th-ci" label=${T.confidence} min=${0} max=${99} step=${1}
                     value=${ci} onChange=${setCi} format=${(v) => v.toFixed(0) + ' %'} />
                   <div className="th-stage-btns">
                     <button type="button"
                       className=${'lang-seg th-seg' + (flash ? ' th-fire' : '')}
-                      onClick=${onTreat}>oil treatment</button>
+                      onClick=${onTreat}>${T.treat}</button>
                     <button type="button"
                       className=${'lang-seg th-seg' + (leak ? ' active' : '')}
                       aria-pressed=${leak ? 'true' : 'false'}
-                      onClick=${() => setLeak((v) => !v)}>leakage</button>
+                      onClick=${() => setLeak((v) => !v)}>${T.leak}</button>
                     <button type="button"
                       className=${'lang-seg th-seg' + (over ? ' active' : '')}
                       aria-pressed=${over ? 'true' : 'false'}
-                      onClick=${() => setOver((v) => !v)}>emergency overload</button>
+                      onClick=${() => setOver((v) => !v)}>${T.over}</button>
                   </div>
                   <button type="button" className="lang-seg th-seg th-export"
-                    disabled=${!(sim && sim.ready)} onClick=${onExport}>use this year in Lifetime</button>
+                    disabled=${!(sim && sim.ready)} onClick=${onExport}>${T.export}</button>
                 </div>
 
                 <${LiveCanvas} sim=${sim} view=${view} moist=${moistRef.current}
-                  leak=${leak} ci=${ci}
+                  leak=${leak} ci=${ci} lang=${lang}
                   height=${LIVE_H} cursorRef=${cursorRef} drawRef=${drawRef} />
 
                 <div className="th-legend">
-                  <span style=${{ color: 'var(--tool-note)' }}><i /> ambient</span>
-                  <span style=${{ color: 'var(--tool-text)' }}><i /> top-oil</span>
-                  <span style=${{ color: 'var(--pico-primary)' }}><i /> hot-spot</span>
-                  <span className="th-now">now: hot-spot <b>${readout ? readout.thH.toFixed(1) : '-'} C</b>, top-oil <b>${readout ? readout.thO.toFixed(1) : '-'} C</b>, load <b>${readout ? readout.K.toFixed(2) : '-'} pu</b>, paper <b>${readout ? readout.moist.toFixed(2) : '-'} %</b>, rate <b>x${rNow === null ? '-' : fmtV(rNow)}</b></span>
-                  <span className="th-legend-note">site <b className="th-which">${siteLabel}</b>, ${sim && sim.ready ? (ci > 0 ? ci + ' % band over ' + ENS_N + ' draws' : 'band off') : 'ensemble computing'}</span>
+                  <span style=${{ color: 'var(--tool-note)' }}><i /> ${T.ambient}</span>
+                  <span style=${{ color: 'var(--tool-text)' }}><i /> ${T.topOil}</span>
+                  <span style=${{ color: 'var(--pico-primary)' }}><i /> ${T.hotSpot}</span>
+                  <span className="th-now">${T.nowHot} <b>${readout ? readout.thH.toFixed(1) : '-'} C</b>${T.nowOil} <b>${readout ? readout.thO.toFixed(1) : '-'} C</b>${T.nowLoad} <b>${readout ? readout.K.toFixed(2) : '-'} pu</b>${T.nowPaper} <b>${readout ? readout.moist.toFixed(2) : '-'} %</b>${T.nowRate} <b>x${rNow === null ? '-' : fmtV(rNow)}</b></span>
+                  <span className="th-legend-note">${T.site} <b className="th-which">${siteLabel}</b>, ${sim && sim.ready ? (ci > 0 ? T.bandOver(ci, ENS_N) : T.bandOff) : T.ensembleBusy}</span>
                 </div>
               <//>
             `
