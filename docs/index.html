@@ -159,11 +159,27 @@
       </li>
       <li>
         <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
-          <polyline points="4,28 4,23.2 8.8,23.2 8.8,18.4 13.6,18.4 13.6,13.6 18.4,13.6 18.4,8.8 23.2,8.8 23.2,4 28,4"/>
+          <!-- Closed like the triangle and the pentagon next to it: the two
+               extra edges are the right side down to the baseline and the
+               baseline itself, so the staircase encloses an area. -->
+          <polygon points="4,28 4,23.2 8.8,23.2 8.8,18.4 13.6,18.4 13.6,13.6 18.4,13.6 18.4,8.8 23.2,8.8 23.2,4 28,4 28,28"/>
         </svg>
         <div>
           <p class="tw-link-title"><a href="levels.html" data-i18n="t.levels">Five levels of a digital twin</a></p>
           <p class="tw-link-desc" data-i18n="d.levels">One transformer, one thermal model, five jobs: describe the state, diagnose a cooling fault, forecast the next 48 hours, choose between dispatch options, and close the loop.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <!-- A droplet inside a tank wall, both closed like the shapes beside
+               them. The droplet sits low and off to one side, where the water
+               in the demo actually collects. -->
+          <rect x="4" y="4" width="24" height="24" rx="3"/>
+          <path d="M13 11c3.4 4.1 5.1 6.6 5.1 8.6a5.1 5.1 0 0 1-10.2 0C7.9 17.6 9.6 15.1 13 11Z"/>
+        </svg>
+        <div>
+          <p class="tw-link-title"><a href="moisture.html" data-i18n="t.moisture">Moisture twin, paper and oil</a></p>
+          <p class="tw-link-desc" data-i18n="d.moisture">Where the water actually sits. The same reading in ppm means very different moisture in the paper depending on temperature, and drying the oil barely touches the paper at all.</p>
         </div>
       </li>
     </ul>
@@ -173,7 +189,9 @@
       Sources: IEC 60599 and CIGRE TB 771 (Duval Triangle 1 fault zones); Duval and Lamarre 2014
       and CIGRE TB 771 (Duval Pentagon 1 and 2); IEC 60076-7 (loading guide);
       IEC 60076-2 (temperature-rise limits); CIGRE TB 738 (aging under moisture); Lundgaard et al. 2004
-      (aging kinetics); Parton and Logan 1981 (diurnal temperature shape).
+      (aging kinetics); Parton and Logan 1981 (diurnal temperature shape);
+      CIGRE TB 349 (moisture in oil and paper); Guidi and Fullerton 1974 and Garcia et al. 2005
+      (moisture diffusion in paper).
       Everything runs locally in your browser, nothing is uploaded.
     </p>
     <p class="tw-foot-fine">
@@ -215,8 +233,10 @@
       'd.thermal': 'Ein Jahr Öl- und Hotspot-Temperatur, aus einem Lastprofil gerechnet, und vier Wege, deren Unsicherheit in die Restlebensdauer der Isolierung fortzupflanzen.',
       't.levels': 'Fünf Stufen eines digitalen Zwillings',
       'd.levels': 'Ein Transformator, ein thermisches Modell, fünf Aufgaben: den Zustand beschreiben, einen Kühlungsfehler diagnostizieren, die nächsten 48 Stunden vorhersagen, zwischen Fahrweisen entscheiden und den Regelkreis schließen.',
+      't.moisture': 'Feuchtezwilling, Papier und Öl',
+      'd.moisture': 'Wo das Wasser wirklich sitzt. Derselbe ppm-Wert bedeutet je nach Temperatur sehr unterschiedliche Feuchte im Papier, und eine Öltrocknung rührt das Papier kaum an.',
 
-      'sources': 'Quellen: IEC 60599 und CIGRE TB 771 (Fehlerzonen im Duval-Dreieck 1); Duval und Lamarre 2014 und CIGRE TB 771 (Duval-Pentagon 1 und 2); IEC 60076-7 (Belastungsrichtlinie); IEC 60076-2 (Grenzen der Übertemperatur); CIGRE TB 738 (Alterung unter Feuchte); Lundgaard et al. 2004 (Alterungskinetik); Parton und Logan 1981 (Tagesgang der Temperatur). Alles rechnet lokal im Browser, nichts wird hochgeladen.',
+      'sources': 'Quellen: IEC 60599 und CIGRE TB 771 (Fehlerzonen im Duval-Dreieck 1); Duval und Lamarre 2014 und CIGRE TB 771 (Duval-Pentagon 1 und 2); IEC 60076-7 (Belastungsrichtlinie); IEC 60076-2 (Grenzen der Übertemperatur); CIGRE TB 738 (Alterung unter Feuchte); Lundgaard et al. 2004 (Alterungskinetik); Parton und Logan 1981 (Tagesgang der Temperatur); CIGRE TB 349 (Feuchte in Öl und Papier); Guidi und Fullerton 1974 und Garcia et al. 2005 (Feuchtediffusion im Papier). Alles rechnet lokal im Browser, nichts wird hochgeladen.',
       'fine': 'frei zu benutzen und zu verlinken, für die Weiterverwendung des Codes bitte kurz fragen · ein privates Projekt im Kontext der CIGRE JWG A2/D2.65, ohne Verbindung zu einem Arbeitgeber',
       'cross': 'Nett hier. Aber haben Sie schon mal ein unendliches Alphabet gesehen?',
       'thirdparty': 'Lizenzen Dritter',

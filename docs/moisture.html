@@ -1,0 +1,3353 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-skin="grey" data-theme-live data-lang-default="en">
+<head>
+  <meta charset="utf-8">
+  <script>(function(){var d='grey',P={light:'light',dark:'dark',grey:'dark'},k=function(v){return typeof P[v]=='string'},e=document.documentElement,t=new URLSearchParams(location.search).get('theme');if(k(t)){try{localStorage.setItem('theme',t)}catch(x){}}else{try{t=localStorage.getItem('theme')}catch(x){}}if(!k(t))t=d;e.dataset.skin=t;e.dataset.theme=P[t];e.dataset.themeDefault=d;e.style.colorScheme=P[t];})();</script>
+  <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moisture twin, paper and oil</title>
+  <meta name="description" content="Where the water sits in a transformer. The same measured ppm in the oil means very different moisture in the paper depending on temperature, and drying the oil barely touches the paper.">
+  <link rel="stylesheet" href="assets/css/pico.min.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
+       A single fixed stroke colour would vanish against one of the two tab
+       bars, so the SVG carries its own prefers-color-scheme rule: dark ink on
+       a light tab bar, white on a dark one. Same mark on all pages. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cstyle%3Epath%7Bstroke:%231b1e23%7D@media(prefers-color-scheme:dark)%7Bpath%7Bstroke:%23fff%7D%7D%3C/style%3E%3Cpath%20d='M16%205%2028%2027H4Z'%20fill='none'%20stroke-width='2.5'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    /* Same sizing pattern as the Duval page: one width for the whole page, so
+       the header row and the columns below it share an edge. Wider than the
+       triangle page because a year of temperature is a wide plot. */
+    html { --th-w: 1240px; }
+    .th-wrap { width: 100%; max-width: var(--th-w); margin: 0 auto; padding: 0 0 16px; }
+    body > header.tw-head {
+      width: 100%; max-width: var(--th-w); margin-inline: auto;
+      padding: 10px 0 0; font-size: 1.3rem;
+    }
+    body > header.tw-head h1 { font-size: 1.3rem; color: var(--tool-emph); }
+    /* Breadcrumb back to the overview: quieter than the page title, so the
+       title still reads as the title. */
+    .th-crumb { color: var(--tool-note); text-decoration: none; background: none; }
+    .th-crumb:hover, .th-crumb:focus-visible { color: var(--pico-primary); text-decoration: underline; }
+    .th-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
+    .th-note { margin: 0; font-size: 12px; color: var(--tool-note); }
+
+    /* Tabs: the house pattern for choosing a VIEW, as opposed to .lang-seg,
+       which chooses a SETTING. The distinction is the point: as a segmented
+       control the tab switch would look exactly like the half dozen settings
+       under it. Underlined tabs say "these are the sections" instead.
+       The strip carries the baseline and the active tab overpaints it thicker,
+       so the underline must sit ON the strip's line, hence the negative bottom
+       margin on the buttons. */
+    .tabstrip {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--tool-hairline);
+      /* A line of air under the strip, for every tab at once. Each tab keeps
+         its own margin on top of this for whatever else it needs; putting the
+         common part here is what stops the four from drifting apart. */
+      margin-bottom: 20px;
+    }
+    .tabstrip > button {
+      margin: 0 0 -1px;
+      padding: 4px 2px 6px;
+      width: auto;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--tool-label);
+      cursor: pointer;
+    }
+    /* Pico redefines colour and border on button:is(:hover,:active,:focus);
+       both have to be taken back explicitly or the tab grows a blue box. */
+    .tabstrip > button:hover:not(.active),
+    .tabstrip > button:focus:not(.active) {
+      background: transparent;
+      border-color: transparent;
+      border-bottom-color: var(--tool-hairline);
+      color: var(--tool-emph);
+    }
+    .tabstrip > button.active,
+    .tabstrip > button.active:hover,
+    .tabstrip > button.active:focus {
+      background: transparent;
+      color: var(--pico-primary);
+      border-bottom-color: var(--pico-primary);
+      font-weight: 600;
+    }
+    .tabstrip > button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Row 1: the stage controls of the current tab. One line, no wrapping.
+       Not a height budget, a reading one: wrapped, the transport, the sliders
+       and the stage buttons stop reading as one control row. */
+    .th-row1 {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; height: 44px;
+    }
+    .th-segs { display: flex; align-items: center; }
+    /* Which site the numbers on this tab belong to, quiet on purpose: the
+       presenter should never have to switch tabs to find out. */
+    .th-which { font-size: 13px; color: var(--tool-note); white-space: nowrap; }
+    .th-which b { color: var(--tool-label); font-weight: 600; }
+    /* One slider plus its label, inline in the control row. The track may give
+       way when the row gets tight: shrinking a slider is the only thing on that
+       row that costs nothing to read. */
+    .th-ctl { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--tool-label); min-width: 0; }
+    .th-ctl input[type="range"] { width: 108px; min-width: 60px; margin: 0; flex: 0 1 auto; }
+    .th-ctl .th-ctlval {
+      color: var(--tool-emph); font-variant-numeric: tabular-nums;
+      min-width: 42px; text-align: right;
+    }
+    /* The shared segmented control is sized for body text; on a beamer it needs
+       to be readable from the back of the room. */
+    .th-seg { font-size: 14px; padding: 5px 12px; line-height: 1.5; }
+    .th-transport { display: flex; align-items: center; gap: 12px; }
+    .th-play {
+      width: auto; min-width: 82px; margin: 0; padding: 5px 14px;
+      font-size: 14px; line-height: 1.5;
+    }
+    /* The plot is a wide strip, not a card, and now that "now" is pinned to the
+       right-hand edge there is nothing on it to click. */
+    .th-stage { cursor: default; }
+
+    /* One line under the strip chart: what the colours are, and what they read
+       at the right-hand edge. Quiet and fixed-width, so it does not jitter
+       while the chart scrolls. */
+    .th-legend {
+      display: flex; align-items: center; gap: 18px;
+      margin: 5px 2px 0; font-size: 13px; color: var(--tool-note);
+      font-variant-numeric: tabular-nums;
+    }
+    .th-legend i {
+      display: inline-block; width: 16px; height: 0;
+      border-top: 2.5px solid currentColor; vertical-align: middle; margin-right: 6px;
+    }
+    .th-legend-note { margin-left: auto; color: var(--tool-faint); }
+    .th-now { color: var(--tool-text); }
+    .th-now b { color: var(--tool-emph); font-weight: 600; }
+
+    .th-h2 {
+      margin: 0 0 2px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--tool-note); line-height: 1.3;
+    }
+    /* Uppercasing a lowercase sigma turns it into a capital one, which is a
+       different quantity. This part keeps its case. */
+    .th-h2 .th-cased { text-transform: none; letter-spacing: 0.03em; }
+    .th-hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .th-hnote {
+      font-size: 12px; color: var(--tool-faint); text-transform: none;
+      letter-spacing: 0; font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Model tab ───────────────────────────────────────────────────────
+       A reading column, not a control surface: narrower than the page so
+       the lines stay scannable, quiet headers in the .th-h2 voice. */
+    .th-model { max-width: 780px; margin-top: 18px; }
+    .th-model h3 {
+      margin: 16px 0 3px; font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.09em; text-transform: uppercase; color: var(--tool-note);
+    }
+    .th-model h3:first-child { margin-top: 0; }
+    .th-model p { margin: 0 0 6px; font-size: 15px; line-height: 1.55; color: var(--tool-text); }
+    .th-model .th-src { margin-top: 14px; font-size: 12.5px; color: var(--tool-faint); }
+
+    /* ── Transformer tab ─────────────────────────────────────────────────
+       Two rows, two columns, placed explicitly rather than by auto-flow.
+       The site picker owns the first row on its own, because it is the master
+       switch: everything below it describes the site it selects. The second
+       row carries two stacks, the site's own parameters on the left and the
+       paper and its uncertainties on the right, and both stacks START on that
+       row, so their frames are flush at the top.
+       Each stack is a flex column, not further grid rows: inside a stack the
+       blocks have to close up under one another, and grid rows would instead
+       align the second block of the right stack with the second block of the
+       left one and leave a hole. */
+    .th-cfg {
+      display: grid; grid-template-columns: 470px 320px;
+      column-gap: 65px; row-gap: 12px;
+      align-items: start;
+      /* On top of the strip's own 20 px: the first frame needs more air than
+         the old bare heading did, because its legend rides half above the top
+         border and would otherwise sit close to the tabs. */
+      margin-top: 14px;
+    }
+    .th-cfg > .th-cfgsite { grid-column: 1; grid-row: 1; }
+    .th-cfg > .th-cfgleft { grid-column: 1; grid-row: 2; }
+    .th-cfg > .th-cfgright { grid-column: 2; grid-row: 2; }
+    .th-cfgcol { display: flex; flex-direction: column; gap: 12px; }
+    /* Each labelled block gets a frame, and its title rides ON the frame the
+       way a fieldset legend does. Not only decoration: a title inside the box
+       would add its line height to all five blocks for nothing, since the
+       line already exists as the heading. On the border it costs the padding
+       alone, and the frame reads as one closed group rather than as a rule
+       with text above it.
+       The frame is a softened --tool-border rather than --tool-hairline:
+       hairline disappears on the dark skin, and full --tool-border is pure
+       white on the grey skin, which would put five loud boxes on the page. */
+    .th-group {
+      position: relative;
+      display: flex; flex-direction: column; gap: 7px;
+      border: 1px solid color-mix(in srgb, var(--tool-border) 55%, transparent);
+      border-radius: 7px;
+      padding: 12px 14px 11px;
+    }
+    /* The legend sits half above the top border and paints the page ground
+       over it, so the frame appears to break around the words. */
+    .th-group > .th-h2 {
+      position: absolute; top: 0; left: 11px; transform: translateY(-50%);
+      margin: 0; padding: 0 6px; white-space: nowrap;
+      background: var(--page-bg);
+    }
+    /* Five chips have to sit on ONE line inside the 470 px column: wrapped they
+       read as two broken rows rather than one control. Slightly tighter than
+       the other segmented controls on the page, which is the price. */
+    .th-chips { display: flex; flex-wrap: nowrap; gap: 0; margin-bottom: 4px; }
+    /* Inside a frame the block padding already does the spacing. */
+    .th-group > .th-chips { margin-bottom: 0; }
+    .th-chips .th-seg { font-size: 13px; padding: 4px 9px; white-space: nowrap; }
+    .th-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin: 0; font-size: 15px; line-height: 1.5; min-height: 28px;
+      color: var(--tool-text); font-variant-numeric: tabular-nums;
+    }
+    /* The popover is absolutely positioned, so it is out of flow and cannot
+       add to the row height. */
+    .th-row > .th-anchor { min-width: 0; }
+    .th-row input { width: 72px; margin: 0; padding: 2px 6px; font-size: 15px; height: auto; text-align: right; }
+    /* No spinner arrows: too small to hit on a beamer, and the keyboard sets
+       the value anyway. */
+    .th-row input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+    .th-row input[type="number"]::-webkit-outer-spin-button,
+    .th-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .th-row .th-unit {
+      display: inline-block; width: 30px; margin-left: 7px; text-align: right;
+      color: var(--tool-note); font-size: 13px;
+    }
+    /* The one non-numeric site input: which half of the year the load peaks in. */
+    .th-row .th-seg { font-size: 13px; padding: 2px 9px; }
+
+    /* Round "i" next to a label, and the note it opens. The note floats above
+       the page rather than expanding inline, so opening one never pushes the
+       rows below it out of view. */
+    /* Pico makes both `label` and `button` block-level and gives them a bottom
+       margin, which put the info button on its own line and doubled the height
+       of every parameter row. Label, button and the value slot have to share
+       one line at the row's existing height, so both are forced back inline
+       here and their margins are zeroed. */
+    .th-anchor { position: relative; display: inline-flex; align-items: baseline; }
+    .th-anchor > label {
+      display: inline; width: auto; margin: 0; padding: 0;
+      cursor: pointer; line-height: inherit;
+    }
+    .th-anchor > span { line-height: inherit; }
+    .th-anchor > .th-info {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex: 0 0 auto;
+      width: 16px; height: 16px; min-width: 0; margin: 0 0 0 6px; padding: 0;
+      align-self: center;
+      border: 1px solid var(--tool-faint); border-radius: 50%; background: none;
+      color: var(--tool-label); font-size: 11px; line-height: 1; font-weight: 700;
+      cursor: pointer;
+    }
+    .th-anchor > .th-info:hover, .th-anchor > .th-info:focus-visible,
+    .th-anchor > .th-info[aria-expanded="true"] {
+      background: none; border-color: var(--tool-sig-info); color: var(--tool-sig-info);
+    }
+    .th-pop {
+      position: absolute; z-index: 40; top: calc(100% + 8px); left: 50%;
+      width: min(340px, calc(100vw - 28px)); max-height: min(58vh, 420px); overflow-y: auto;
+      background: var(--tool-surface); border: 1px solid var(--tool-border); border-radius: 8px;
+      box-shadow: var(--tool-panel-shadow);
+      padding: 11px 30px 11px 13px; font-size: 13px; line-height: 1.55;
+      color: var(--tool-label); font-weight: 400; text-align: left; cursor: auto;
+      font-variant-numeric: normal;
+    }
+    .th-pop::before {
+      content: ""; position: absolute; top: -5px; left: var(--arrow, 50%);
+      width: 8px; height: 8px; margin-left: -4px; background: var(--tool-surface);
+      border-left: 1px solid var(--tool-border); border-top: 1px solid var(--tool-border);
+      transform: rotate(45deg);
+    }
+    .th-popclose {
+      position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+      display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0;
+      border: none; border-radius: 5px; background: none; color: var(--tool-note);
+      font-size: 16px; line-height: 1; cursor: pointer;
+    }
+    .th-popclose:hover { background: var(--tool-hairline); color: var(--tool-text); }
+
+    /* Segmented buttons take their outline from --pico-muted-border-color,
+       which is #262e3a on the dark skin and #d8e0ea on the light one: both sit
+       at about 1.4:1 against their own background and disappear on a beamer.
+       The grey skin is the reference here, #9aa1a6 on #55595f at about 2.6:1,
+       and is deliberately left exactly as it is. --tool-faint lands at about
+       3.0:1 on the other two (#566472 on #14181f, #8b96a1 on #ffffff), which
+       reads as a group of buttons without shouting. Hover, focus and the active
+       state keep the accent, hence the three exclusions; scoped to .th-wrap, so
+       the theme switcher in the page header stays identical across the site. */
+    html[data-skin="dark"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus),
+    html[data-skin="light"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus) {
+      border-color: var(--tool-faint);
+    }
+
+    /* Range sliders. Pico leaves the thumb to the browser, and the browser
+       default is a pale disc that disappears on the grey skin from six metres
+       away. Both vendor prefixes are needed: they are separate pseudo-elements
+       and a shared rule would be dropped by both engines. The fill is the
+       accent of the active skin (grey teal, dark blue-grey, light blue) and
+       the ring is --tool-emph, which is white on both dark skins and near-black
+       on the light one, so the thumb keeps a hard edge everywhere. */
+    .th-wrap input[type="range"] {
+      appearance: none; -webkit-appearance: none; background: none; height: 20px;
+    }
+    .th-wrap input[type="range"]:focus { outline: none; }
+    .th-wrap input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .th-wrap input[type="range"]::-moz-range-track {
+      height: 6px; border-radius: 3px; background: var(--tool-hairline);
+      border: 1px solid var(--tool-border);
+    }
+    .th-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px;
+      border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .th-wrap input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: var(--pico-primary);
+      border: 2px solid var(--tool-emph); cursor: pointer;
+    }
+    .th-wrap input[type="range"]:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+    .th-wrap input[type="range"]:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--pico-primary-focus);
+    }
+
+    /* The three stage buttons of the Live tab. Oil treatment is a one-shot, so
+       it never latches: it flashes for a moment instead. */
+    .th-stage-btns { display: flex; align-items: center; gap: 0; }
+    .th-fire {
+      background: var(--pico-primary); border-color: var(--pico-primary);
+      color: var(--pico-primary-inverse);
+    }
+    /* Hands the year in the ring over to the Lifetime tab. Not one of the stage
+       buttons: it changes nothing on this tab, so it stands on its own. */
+    /* One notch smaller than the stage buttons: the row is full, and this is
+       the label that pays for the space the site name used to take. */
+    .th-export { white-space: nowrap; font-size: 13px; padding: 4px 10px; }
+    .th-export:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Lifetime tab ────────────────────────────────────────────────────
+       One large distribution with a method switch above it, then the two
+       wide panels. 760 + 40 + 440 is the page width. */
+    /* Below the design width the page keeps a gutter, same as the Duval page. */
+    @media (max-width: 1260px) {
+      .th-wrap, body > header.tw-head { padding-inline: 16px; }
+    }
+    /* ── The maps ─────────────────────────────────────────────────────────
+       Two canvases with the same geometry, one for paper moisture and one for
+       oil temperature, so they can be read against each other by flipping a
+       tab without anything moving. */
+    .ms-maprow { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; }
+    .ms-stage {
+      position: relative; border: 1px solid var(--tool-hairline);
+      border-radius: 6px; background: var(--pico-card-background-color);
+      padding: 8px 10px 6px;
+    }
+    .ms-stage canvas { display: block; width: 100%; }
+
+    /* Span readout under the map. The radial spread is the smaller of the two
+       signals by an order of magnitude, so it gets a number rather than being
+       left to the colours. */
+    .ms-spans {
+      display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap;
+      font-size: 13px; color: var(--tool-note); margin: 6px 0 0;
+    }
+    .ms-spans b { color: var(--tool-emph); font-weight: 600; }
+    .ms-spans .ms-sp-note { margin-left: auto; color: var(--tool-faint); }
+
+    /* Treatment control: a duration choice and a button that arms it. */
+    .ms-treat { display: flex; align-items: center; gap: 0; }
+    .ms-treatbtn {
+      white-space: nowrap; font-size: 13px; padding: 4px 12px; margin-left: 8px;
+      position: relative; overflow: hidden;
+    }
+    .ms-treatbtn:disabled { opacity: 0.55; cursor: default; }
+    /* Progress fill while the plant runs, drawn behind the label. */
+    .ms-treatbtn .ms-fill {
+      position: absolute; inset: 0 auto 0 0; background: var(--pico-primary);
+      opacity: 0.22; pointer-events: none;
+    }
+    .ms-treatbtn span.ms-lbl { position: relative; }
+  </style>
+  <script src="assets/js/react.production.min.js"></script>
+  <script src="assets/js/react-dom.production.min.js"></script>
+  <script src="assets/js/htm.js"></script>
+</head>
+<body>
+  <header class="container tw-head">
+    <h1><a class="th-crumb" href="index.html">twin-lab</a><span class="th-sep">/</span><span
+      data-en="Moisture twin, paper and oil"
+      data-de="Feuchtezwilling, Papier und Öl">Moisture twin, paper and oil</span></h1>
+    <div class="lang-switcher">
+      <button class="lang-seg" data-lang="en">EN</button><button class="lang-seg" data-lang="de">DE</button>
+    </div>
+    <div class="theme-switcher">
+      <button class="lang-seg theme-seg" data-theme-set="light" aria-label="Light theme" title="Light"></button><button class="lang-seg theme-seg" data-theme-set="grey" aria-label="Grey theme" title="Grey"></button><button class="lang-seg theme-seg" data-theme-set="dark" aria-label="Dark theme" title="Dark"></button>
+    </div>
+  </header>
+  <script src="assets/js/theme.js"></script>
+  <script src="assets/js/lang.js"></script>
+
+  <main>
+    <div id="root">
+      <div class="th-wrap"></div>
+    </div>
+  </main>
+
+  <!-- ──────────────────────────────────────────────────────────────────────
+       Moisture core: plain JS, no JSX and no DOM.
+       The thermal half is the IEC 60076-7 exponential-solution equivalent,
+       carried over unchanged from the thermal page. On top of it sits the
+       water: solubility in oil, the paper isotherm in relative saturation,
+       and Fickian diffusion through the insulation, solved implicitly on a
+       radial grid at each of several winding heights.
+       ────────────────────────────────────────────────────────────────────── -->
+  <script id="moisturecore">
+var MoistureCore = (function () {
+  'use strict';
+    var YEAR_MIN = 525600;   // 365 d, no leap handling: the demo is periodic
+    var DAY_MIN = 1440;
+    var IEC = {
+      k11: 0.5, k21: 2.0, k22: 2.0,
+      tauO: 210, tauW: 10,
+      x: 0.8, y: 1.3,
+      R: 10,
+      dThOr: 45,
+      dThHr: 26
+    };
+
+
+    /* Deterministic RNG, so the arc-furnace profile is the same on every
+       reload and the plots do not shimmer. */
+    function mulberry32(seed) {
+      var a = seed >>> 0;
+      return function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        var t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    /* Box-Muller on top of a given uniform source, one spare cached. */
+    function gaussFactory(rnd) {
+      var spare = null;
+      return function () {
+        if (spare !== null) { var v = spare; spare = null; return v; }
+        var u1, u2, r, t;
+        do { u1 = rnd(); } while (u1 <= 1e-12);
+        u2 = rnd();
+        r = Math.sqrt(-2 * Math.log(u1)); t = 2 * Math.PI * u2;
+        spare = r * Math.sin(t);
+        return r * Math.cos(t);
+      };
+    }
+
+    /* Value noise for the arc-furnace load: a fixed table of nodes, smoothstep
+       between them. Deterministic and cheap, and a pure function of tMin, so
+       the profile can be evaluated out of order. */
+    var NOISE_N = 4096;
+    var NOISE_STEP = 23;   // min per node, incommensurate with 4, 7 and 13
+    var NOISE = (function () {
+      var rnd = mulberry32(20260820), a = new Float64Array(NOISE_N), i;
+      for (i = 0; i < NOISE_N; i++) a[i] = rnd() * 2 - 1;
+      return a;
+    })();
+    function valueNoise(tMin) {
+      var u = tMin / NOISE_STEP, i0 = Math.floor(u), f = u - i0;
+      var s = f * f * (3 - 2 * f);
+      var a = NOISE[((i0 % NOISE_N) + NOISE_N) % NOISE_N];
+      var b = NOISE[(((i0 + 1) % NOISE_N) + NOISE_N) % NOISE_N];
+      return a + (b - a) * s;
+    }
+
+    var MID_JULY = 196 * DAY_MIN;    // yearly ambient peak, northern hemisphere
+    var MID_JANUARY = 15 * DAY_MIN;  // yearly heating-load peak
+
+    /* Four sites, chosen so that the same transformer ages very differently.
+       Ambient: mean plus a yearly and a diurnal cosine, amplitudes are half
+       swings in kelvin. Load: base per unit plus a diurnal and a seasonal
+       cosine, plus a fast component for the arc furnace. */
+    var SCENARIOS = [
+      {
+        id: 'desert', label: 'Desert', dtMin: 5,
+        ambient: { mean: 28, yearAmp: 12, yearPeak: MID_JULY, dayAmp: 17, lat: 30 },
+        /* Air conditioning: the load peak sits on the temperature peak instead
+           of after it, which is the worst phase for the hot spot. */
+        load: { base: 0.58, dayAmp: 0.115, dayPeak: 15 * 60, seasonAmp: 0.06, seasonPeak: MID_JULY, fast: null }
+      },
+      {
+        id: 'nyc', label: 'City / overload', dtMin: 5,
+        ambient: { mean: 13, yearAmp: 12, yearPeak: MID_JULY, dayAmp: 6, lat: 41 },
+        /* Systematically run over nameplate: base plus both cosines put the
+           summer evening peak at K = 1.20, which is where the hot spot starts
+           to matter. */
+        load: { base: 0.78, dayAmp: 0.26, dayPeak: 19 * 60, seasonAmp: 0.16, seasonPeak: MID_JULY, fast: null }
+      },
+      {
+        id: 'northern', label: 'Northern', dtMin: 5,
+        ambient: { mean: 4, yearAmp: 18, yearPeak: MID_JULY, dayAmp: 5, lat: 53 },
+        /* Cold climate, winter-peaking load: electric heating puts the seasonal
+           load peak in anti-phase with ambient, so the heavy load arrives with
+           cold oil. */
+        load: { base: 0.60, dayAmp: 0.10, dayPeak: 19 * 60, seasonAmp: 0.25, seasonPeak: MID_JANUARY, fast: null },
+        /* Tank heaters hold a minimum oil temperature, modelled as a floor, no
+           control dynamics. */
+        oilFloor: 10
+      },
+      {
+        id: 'eaf', label: 'EAF', dtMin: 1,
+        /* Indoor enclosure near the furnace, ambient largely decoupled from
+           weather: a high mean and only a few kelvin of daily and seasonal
+           swing left. That, not the load, is what makes this the hard-ridden
+           site: the same violent minute-scale load on 40 C air puts the hot
+           spot over 100 C. The diurnal shape stays the Parton-Logan one; it
+           carries unit peak-to-peak whatever the amplitude, so a small swing
+           scales it down and nothing degenerates. */
+        ambient: { mean: 40, yearAmp: 3, yearPeak: MID_JULY, dayAmp: 2, lat: 48 },
+        /* Minute-scale swings: three incommensurate sinusoids so the pattern
+           never repeats within a day, plus value noise for the melt cycles.
+           Amplitudes sum to 0.50 pu around a base of 0.70, so K normally sweeps
+           about 0.3 to 1.1 within minutes. dtMin is 1 here because tauW is
+           10 min. */
+        load: {
+          base: 0.70, dayAmp: 0.05, dayPeak: 19 * 60, seasonAmp: 0.0, seasonPeak: MID_JULY,
+          fast: { sin: [[4, 0.14], [7, 0.11], [13, 0.09]], noiseAmp: 0.16, min: 0.05, max: 1.4 }
+        }
+      }
+    ];
+
+    function scenarioById(id) {
+      for (var i = 0; i < SCENARIOS.length; i++) if (SCENARIOS[i].id === id) return SCENARIOS[i];
+      return SCENARIOS[0];
+    }
+
+    /* ── Custom site ──────────────────────────────────────────────────────
+       The four presets above are the shipped sites; the Transformer tab also
+       lets a site be edited. A flat config object is what the number inputs
+       bind to, scenarioFromConfig turns it back into the nested form the model
+       reads, and configFromScenario seeds the editor from whichever preset was
+       selected when the first edit happened.
+       Two things are simplified against the preset form. The seasonal load peak
+       is a sign rather than a free date (summer peak = cooling, winter peak =
+       heating; anything between is not a story anyone tells). The fast term is
+       one amplitude that scales the whole arc-furnace block, so a single number
+       takes a site from smooth to minute-scale. */
+    var EAF_FAST = { sin: [[4, 0.14], [7, 0.11], [13, 0.09]], noiseAmp: 0.16, min: 0.05, max: 1.4 };
+
+    function configFromScenario(sc) {
+      var l = sc.load, a = sc.ambient;
+      var fastAmp = l.fast ? l.fast.noiseAmp / EAF_FAST.noiseAmp : 0;
+      return {
+        ambMean: a.mean, ambYearAmp: a.yearAmp, ambDayAmp: a.dayAmp,
+        ambLat: a.lat == null ? DEFAULT_LAT : a.lat,
+        loadBase: l.base, loadDayAmp: l.dayAmp, loadDayPeakH: l.dayPeak / 60,
+        loadSeasonAmp: l.seasonAmp, loadWinterPeak: l.seasonPeak === MID_JANUARY ? 1 : 0,
+        loadFastAmp: fastAmp,
+        /* A site without tank heaters gets a floor far below anything its
+           ambient can reach, so the same input exists on every site and simply
+           never binds. */
+        oilFloor: sc.oilFloor == null ? -40 : sc.oilFloor
+      };
+    }
+
+    function scenarioFromConfig(cfg, id, label) {
+      var f = cfg.loadFastAmp > 0.001;
+      var sc = {
+        id: id || 'custom', label: label || 'Custom',
+        /* A fast site needs a 1 min step, tauW is 10 min; a smooth one does
+           not, and 5 min keeps the compressed year cheap. */
+        dtMin: f ? 1 : 5,
+        ambient: {
+          mean: cfg.ambMean, yearAmp: cfg.ambYearAmp, yearPeak: MID_JULY,
+          dayAmp: cfg.ambDayAmp, lat: cfg.ambLat
+        },
+        load: {
+          base: cfg.loadBase, dayAmp: cfg.loadDayAmp, dayPeak: cfg.loadDayPeakH * 60,
+          seasonAmp: cfg.loadSeasonAmp,
+          seasonPeak: cfg.loadWinterPeak ? MID_JANUARY : MID_JULY,
+          fast: f ? {
+            sin: EAF_FAST.sin.map(function (s) { return [s[0], s[1] * cfg.loadFastAmp]; }),
+            noiseAmp: EAF_FAST.noiseAmp * cfg.loadFastAmp,
+            min: EAF_FAST.min, max: EAF_FAST.max
+          } : null
+        }
+      };
+      sc.oilFloor = cfg.oilFloor;
+      return sc;
+    }
+
+    var TWO_PI = 2 * Math.PI;
+
+    /* ── Diurnal air temperature, Parton and Logan (1981) ─────────────────
+       Source: Parton, W.J. and Logan, J.A. (1981), "A model for diurnal
+       variation in soil and air temperature", Agricultural Meteorology
+       23:205-216.
+
+       A day of air temperature is not a cosine. The paper's shape is a
+       truncated sine through the daylight hours whose peak lags solar noon,
+       and an exponential decay through the night towards the next morning's
+       minimum. The asymmetry matters here: the load peak of a city feeder sits
+       in the evening, on the steep side of that curve, and a cosine puts the
+       air several kelvin away from where it really is at that hour.
+
+       PL_A  hours by which the daily maximum lags solar noon
+       PL_B  night-time decay coefficient, per night length
+       PL_C  hours by which the minimum lags sunrise; the paper's value is
+             negative, the coldest moment is about ten minutes BEFORE sunrise,
+             because the ground keeps radiating until the direct beam arrives. */
+    var PL_A = 1.86;
+    var PL_B = 2.20;
+    var PL_C = -0.17;
+
+    /* The piecewise construction matches its two branches in VALUE at sunset
+       and at the morning minimum, never in SLOPE, so it has a corner at each.
+       A corner in the forcing is not something a real day has, and it repeats
+       every cycle, so it would be a periodic artefact rather than a one-off.
+       The fix keeps the paper's TIMING, which is the validated part, and
+       replaces the piecewise evaluation: the normalised shape is projected onto
+       a Fourier series over the 24 h period and each coefficient is multiplied
+       by exp(-(k omega sigma)^2/2), which is exactly a convolution with a
+       Gaussian of width sigma in time. The result is periodic and smooth by
+       construction, corners and the midnight wrap together, with no case
+       distinction left in the evaluator.
+       The series is carried to where the taper has actually killed the
+       coefficients (exp(-x^2/2) at x = 4.5 is 4e-5), not to two or three
+       harmonics: a brick-wall truncation that low moves the extremes by hours.
+       The Gaussian taper is what makes the truncation harmless. */
+    var PL_OMEGA = 2 * Math.PI / 24;   // rad per hour
+    var PL_SIGMA_H = 0.30;             // mollifier width, hours
+    var PL_TAPER_CUTOFF = 4.5;
+    var PL_PROJ_N = 2880;              // projection samples, 30 s
+
+    /* Normalised Parton-Logan shape, argument in hours since the daily
+       minimum: 0 at the minimum, 1 at the daylight peak. */
+    function plShapeFactory(dayLen, a, b) {
+      var nightLen = 24 - dayLen;
+      var k = Math.PI / (dayLen + 2 * a);
+      var gSunset = Math.sin(k * dayLen);
+      /* The raw night branch does not return to the minimum at the next
+         sunrise, it leaves a step of gSunset*exp(-b). Harmless for a one-off
+         daily curve, fatal here, because that step would inject a spurious
+         thermal impulse every cycle. Renormalising the decay to
+         (e^-x - e^-b)/(1 - e^-b) keeps the shape and the time constant and
+         forces exact closure. */
+      var expNegB = Math.exp(-b);
+      var scale = gSunset / (1 - expNegB);
+      var invNight = 1 / nightLen;
+      return function (m) {
+        m = m - 24 * Math.floor(m / 24);
+        if (m <= dayLen) return Math.sin(k * m);
+        return scale * (Math.exp(-b * (m - dayLen) * invNight) - expNegB);
+      };
+    }
+
+    /* Project a 24 h periodic shape onto cos and sin and apply the taper. The
+       harmonics are stepped by a rotation recurrence, so there is one cos and
+       one sin per sample and none per harmonic. */
+    function plHarmonics(shape, sigma) {
+      var K = Math.max(2, Math.ceil(PL_TAPER_CUTOFF / (PL_OMEGA * sigma)));
+      var N = PL_PROJ_N;
+      var a = new Float64Array(K + 1), b = new Float64Array(K + 1);
+      var dth = 2 * Math.PI / N;
+      var cD = Math.cos(dth), sD = Math.sin(dth);
+      var cB = 1, sB = 0, i, k, ck, sk, cn, sn, v, x, taper;
+      for (i = 0; i < N; i++) {
+        v = shape(24 * i / N);
+        a[0] += v;
+        ck = 1; sk = 0;
+        for (k = 1; k <= K; k++) {
+          cn = ck * cB - sk * sB; sn = sk * cB + ck * sB;
+          ck = cn; sk = sn;
+          a[k] += v * ck; b[k] += v * sk;
+        }
+        cn = cB * cD - sB * sD; sn = sB * cD + cB * sD;
+        cB = cn; sB = sn;
+      }
+      a[0] /= N;
+      for (k = 1; k <= K; k++) {
+        x = k * PL_OMEGA * sigma;
+        taper = Math.exp(-0.5 * x * x) * 2 / N;
+        a[k] *= taper; b[k] *= taper;
+      }
+      return { a: a, b: b, K: K };
+    }
+
+    function plHarmonicValue(h, m) {
+      var th = PL_OMEGA * m;
+      var cB = Math.cos(th), sB = Math.sin(th);
+      var a = h.a, b = h.b, K = h.K;
+      var s = a[0], ck = 1, sk = 0, cn, sn, k;
+      for (k = 1; k <= K; k++) {
+        cn = ck * cB - sk * sB; sn = sk * cB + ck * sB;
+        ck = cn; sk = sn;
+        s += a[k] * ck + b[k] * sk;
+      }
+      return s;
+    }
+
+    /* ── The shape as a table ─────────────────────────────────────────────
+       Evaluating fifty-odd harmonics per call would be fine once a day and is
+       not fine here: a year of the arc-furnace site is half a million ambient
+       evaluations, and the compressed year has a CONTINUOUS season, so there
+       is no "once per day" to hang a cache on.
+       So the shape is tabulated once, at page load, over a grid of day lengths
+       by minute of the day, and read back with a bilinear interpolation. The
+       simulation steps on whole minutes, so the time axis is hit exactly at
+       every step it ever takes and only the day-length axis interpolates.
+       Each row is normalised to mean 0 and peak-to-peak 1, which is what makes
+       the two Transformer-tab inputs mean exactly what they say: the yearly
+       average stays the daily mean and the day/night swing stays the daily
+       peak-to-peak, whatever the shape does in between. */
+    var PL_DL_LO = 5, PL_DL_HI = 19.5, PL_DL_STEP = 0.25;
+    var PL_DL_N = Math.round((PL_DL_HI - PL_DL_LO) / PL_DL_STEP) + 1;
+    var PL_TIME_N = 1440;
+
+    var PL_TAB = (function () {
+      var tab = new Float32Array(PL_DL_N * PL_TIME_N);
+      var row = new Float64Array(PL_TIME_N);
+      var r, i, dayLen, harm, sum, mn, mx, span, v;
+      for (r = 0; r < PL_DL_N; r++) {
+        dayLen = PL_DL_LO + r * PL_DL_STEP;
+        harm = plHarmonics(plShapeFactory(dayLen, PL_A, PL_B), PL_SIGMA_H);
+        sum = 0; mn = Infinity; mx = -Infinity;
+        for (i = 0; i < PL_TIME_N; i++) {
+          v = plHarmonicValue(harm, 24 * i / PL_TIME_N);
+          row[i] = v; sum += v;
+          if (v < mn) mn = v;
+          if (v > mx) mx = v;
+        }
+        sum /= PL_TIME_N;
+        span = mx - mn;
+        if (!(span > 1e-12)) span = 1;
+        for (i = 0; i < PL_TIME_N; i++) tab[r * PL_TIME_N + i] = (row[i] - sum) / span;
+      }
+      return tab;
+    })();
+
+    function plTableAt(dayLen, m) {
+      var x = (dayLen - PL_DL_LO) / PL_DL_STEP;
+      if (x < 0) x = 0;
+      if (x > PL_DL_N - 1) x = PL_DL_N - 1;
+      var r = Math.floor(x), fr = x - r;
+      if (r >= PL_DL_N - 1) { r = PL_DL_N - 2; fr = 1; }
+      var u = m / 24 * PL_TIME_N;
+      var c0 = Math.floor(u), fc = u - c0;
+      c0 = ((c0 % PL_TIME_N) + PL_TIME_N) % PL_TIME_N;
+      var c1 = c0 + 1 === PL_TIME_N ? 0 : c0 + 1;
+      var o0 = r * PL_TIME_N, o1 = o0 + PL_TIME_N;
+      var v0 = PL_TAB[o0 + c0] + (PL_TAB[o0 + c1] - PL_TAB[o0 + c0]) * fc;
+      var v1 = PL_TAB[o1 + c0] + (PL_TAB[o1 + c1] - PL_TAB[o1 + c0]) * fc;
+      return v0 + (v1 - v0) * fr;
+    }
+
+    /* Zero-mean, unit peak-to-peak diurnal shape at a clock hour. Sunrise is
+       taken symmetric about noon: the demo has no longitude and no equation of
+       time, and neither changes the shape, only the clock it is drawn on. */
+    function plShapeZ(dayLen, hour) {
+      var t0 = 12 - 0.5 * dayLen + PL_C;   // clock time of the daily minimum
+      var m = hour - t0;
+      m -= 24 * Math.floor(m / 24);
+      return plTableAt(dayLen, m);
+    }
+
+    /* ── Day length ───────────────────────────────────────────────────────
+       Declination after Cooper (1969), sunrise hour angle from the standard
+       geometry, tabulated once per latitude because the compressed year sweeps
+       the seasons continuously and would otherwise call acos on every step. */
+    var DEFAULT_LAT = 45;
+    var DAYLEN_CACHE = {};
+
+    function dayLengthTable(latDeg) {
+      var key = latDeg.toFixed(2);
+      if (DAYLEN_CACHE[key]) return DAYLEN_CACHE[key];
+      var t = new Float64Array(367);
+      var tanPhi = Math.tan(latDeg * Math.PI / 180);
+      var i, dec, cosW;
+      for (i = 0; i <= 366; i++) {
+        dec = 23.45 * Math.PI / 180 * Math.sin(TWO_PI * (284 + i) / 365);
+        cosW = -tanPhi * Math.tan(dec);
+        /* Polar day and polar night: clamp rather than produce a NaN. The
+           shape table is clamped to its own range on top of that. */
+        if (cosW < -1) cosW = -1;
+        if (cosW > 1) cosW = 1;
+        t[i] = 2 * Math.acos(cosW) * 24 / TWO_PI;
+      }
+      DAYLEN_CACHE[key] = t;
+      return t;
+    }
+
+    function dayLengthAt(doy, latDeg) {
+      var t = dayLengthTable(latDeg == null ? DEFAULT_LAT : latDeg);
+      var d = doy - 365 * Math.floor(doy / 365);
+      var i = Math.floor(d), f = d - i;
+      return t[i] + (t[i + 1] - t[i]) * f;
+    }
+
+    /* The two drivers split into a seasonal clock and a diurnal clock. In the
+       real year both are the same minute count; the compressed year of the live
+       view runs the season slowly and the day fast, so it needs them apart.
+       Keeping the split in the core means the compressed year is built from the
+       same expressions as the real one instead of a second copy.
+         tSeason  minutes into the year, drives the yearly cosines
+         tDay     minutes into the day, drives the diurnal cosines
+         tFast    minutes on the real clock, drives the minute-scale terms
+       offset shifts the whole ambient series, which is how a warmer site is
+       modelled. */
+    function ambientSplit(tSeason, tDay, sc, offset) {
+      var a = sc.ambient;
+      var mean = a.mean + (offset || 0)
+        + a.yearAmp * Math.cos(TWO_PI * (tSeason - a.yearPeak) / YEAR_MIN);
+      /* Seasonal part: still the yearly cosine. Diurnal part: the Parton and
+         Logan shape above, whose day length comes from the site latitude and
+         the day of the year, so summer days are long and flat-topped and
+         winter days are short and steep. The shape carries mean 0 and
+         peak-to-peak 1, so dayAmp stays the half swing it always was. */
+      var dayLen = dayLengthAt(tSeason / DAY_MIN, a.lat);
+      var hour = (tDay - DAY_MIN * Math.floor(tDay / DAY_MIN)) / 60;
+      return mean + 2 * a.dayAmp * plShapeZ(dayLen, hour);
+    }
+
+    /* Load factor K in per unit of rated current. Clamped to a range a real
+       feeder could plausibly sit in. */
+    function loadSplit(tSeason, tDay, tFast, sc) {
+      var l = sc.load;
+      var K = l.base
+        + l.dayAmp * Math.cos(TWO_PI * (tDay - l.dayPeak) / DAY_MIN)
+        + l.seasonAmp * Math.cos(TWO_PI * (tSeason - l.seasonPeak) / YEAR_MIN);
+      if (l.fast) {
+        var i;
+        for (i = 0; i < l.fast.sin.length; i++) {
+          K += l.fast.sin[i][1] * Math.sin(TWO_PI * tFast / l.fast.sin[i][0]);
+        }
+        K += l.fast.noiseAmp * valueNoise(tFast);
+        K = Math.max(l.fast.min, Math.min(l.fast.max, K));
+      }
+      return Math.max(0.05, Math.min(1.5, K));
+    }
+
+    /* tMin is minutes since 1 January 00:00: one clock for all three. */
+    function ambientAt(tMin, sc, offset) { return ambientSplit(tMin, tMin, sc, offset); }
+    function loadAt(tMin, sc) { return loadSplit(tMin, tMin, tMin, sc); }
+
+    /* ── Compressed year ──────────────────────────────────────────────────
+       The live view runs 20 representative days: the diurnal cycle runs 20
+       times while the season sweeps January to December once. The season is a
+       CONTINUOUS function of display time (tDisp / COMP_MIN of a year), not a
+       per-day lookup: a day-indexed season steps about 18 days at every
+       midnight, and an 18 day step in the ambient mean is a visible jump in
+       every curve on the page.
+       Both endpoints agree: at tDisp 0 and at tDisp COMP_MIN the season is a
+       whole year apart and the day phase is identical, so the compressed year
+       is periodic in its drivers and can be scrolled through without a seam. */
+    var DAYS_SHOWN = 20;
+    var COMP_MIN = DAYS_SHOWN * DAY_MIN;
+
+    function compSeason(tDisp) { return tDisp / COMP_MIN * YEAR_MIN; }
+    function compAmbient(tDisp, sc, offset) {
+      return ambientSplit(compSeason(tDisp), tDisp % DAY_MIN, sc, offset);
+    }
+    /* The fast term keeps the real clock: an arc furnace swings in real
+       minutes, and the displayed day is a real day. */
+    function compLoad(tDisp, sc) {
+      return loadSplit(compSeason(tDisp), tDisp % DAY_MIN, tDisp, sc);
+    }
+    /* Day of the year the cursor is standing on, for the date label. */
+    function compDayOfYear(tDisp) {
+      return Math.max(0, Math.min(364, Math.floor(tDisp / COMP_MIN * 365)));
+    }
+
+    /* Storage grid of the live view. First and last sample carry the same
+       drivers, so the series can be scrolled through with an index wrap. */
+    var COMP_STRIDE = 2;
+    var COMP_N = COMP_MIN / COMP_STRIDE + 1;   // 14401
+
+    /* Load with a stage multiplier on top, clamped the same way loadSplit
+       clamps: an emergency overload is still a load factor, not a licence to
+       leave the range a feeder can sit in. */
+    function compLoadK(tDisp, sc, kScale) {
+      var K = compLoad(tDisp, sc);
+      if (kScale && kScale !== 1) K = Math.max(0.05, Math.min(1.5, K * kScale));
+      return K;
+    }
+
+    /* ── Periodic start state ─────────────────────────────────────────────
+       Starting the compressed year from the steady state at t0 leaves the tank
+       out of step with its own drivers: the oil then spends the first days
+       climbing to where it should have been, and when the strip chart wraps
+       from the end of the year back to the start, top oil and hot spot jump by
+       that same amount.
+       The fix is a lead-in. The compressed year is periodic in its drivers, so
+       three displayed days BEFORE t0 are the last three displayed days of the
+       same year: run them from the steady state and hand the resulting state to
+       t0. Three days is about twenty oil time constants at tauO 210 min, which
+       is far more than enough to forget the steady-state start. */
+    var COMP_WARMUP = 3 * DAY_MIN;
+
+    function params(over) {
+      var P = {}, k;
+      for (k in IEC) if (Object.prototype.hasOwnProperty.call(IEC, k)) P[k] = IEC[k];
+      if (over) for (k in over) if (Object.prototype.hasOwnProperty.call(over, k)) P[k] = over[k];
+      return P;
+    }
+
+    /* Steady state of the exponential solution: used for the initial condition
+       and as the reference the difference equations must converge to. */
+    function steadyState(K, thetaA, P) {
+      P = P || IEC;
+      var dThO = P.dThOr * Math.pow((1 + P.R * K * K) / (1 + P.R), P.x);
+      var dThH = P.dThHr * Math.pow(K, P.y);
+      return { thetaO: thetaA + dThO, thetaH: thetaA + dThO + dThH, dThO: dThO, dThH: dThH };
+    }
+
+    function initState(K, thetaA, P) {
+      P = P || IEC;
+      var ss = steadyState(K, thetaA, P);
+      var h = Math.pow(K, P.y) * P.dThHr;
+      var dThO = ss.dThO;
+      /* Tank heaters hold a minimum oil temperature, modelled as a floor, no
+         control dynamics. */
+      if (P.oilFloor != null && thetaA + dThO < P.oilFloor) dThO = P.oilFloor - thetaA;
+      /* Effective ambient starts on the actual ambient, so a constant-ambient
+         run is in steady state from the first step. */
+      return { dThO: dThO, dThH1: P.k21 * h, dThH2: (P.k21 - 1) * h, thetaAeff: thetaA };
+    }
+
+    /* One forward-Euler step of the three states. Fastest time constant is
+       k22*tauW = 20 min, so dt <= 5 min keeps dt/tau <= 0.25 and the explicit
+       step is stable and accurate enough; the arc-furnace scenario runs at
+       dt = 1 min because its load moves faster than that anyway.
+       Returns the same object, mutated, plus the two temperatures. */
+    /* ── One RK2 step ─────────────────────────────────────────────────────
+       Heun, that is the explicit trapezoid: a predictor at the end of the step
+       and then the average of the two slopes. Second order in dt against the
+       forward Euler this used to be, at the cost of one extra evaluation of
+       the driving terms.
+       Heun rather than midpoint on purpose. Every caller here has the drivers
+       on a grid, and the end of a step IS the next stored sample, exactly; a
+       midpoint rule would have to interpolate them, which puts a first-order
+       error back into the very place the second-order rule was meant to
+       remove. So the end-of-step load and ambient are passed in as Kn and
+       thetaAn, and callers that genuinely have a constant driver may leave
+       them out.
+       All four states are of the form y' = (target(u) - y)/tau, so the
+       predictor is written out per state rather than through a generic
+       vector routine: this is the innermost loop of the whole page. */
+    function stepThermal(st, K, thetaA, dtMin, P, Kn, thetaAn) {
+      P = P || IEC;
+      if (Kn == null) Kn = K;
+      if (thetaAn == null) thetaAn = thetaA;
+
+      var Ky = Math.pow(K, P.y), Kyn = Math.pow(Kn, P.y);
+      var ssO = P.dThOr * Math.pow((1 + P.R * K * K) / (1 + P.R), P.x);
+      var ssOn = P.dThOr * Math.pow((1 + P.R * Kn * Kn) / (1 + P.R), P.x);
+      var h = dtMin, h2 = 0.5 * dtMin;
+      var s1, s2, tgt, tgtn, tau;
+
+      /* Effective ambient. IEC 60076-7 recommends weighting a varying ambient
+         with the oil time constant rather than using the instantaneous value;
+         modelled here as a first-order lag with tauAmb = tauO. Without it a
+         step in the ambient series arrives in the top oil within one time step,
+         which the tank cannot do. The DISPLAYED ambient stays the raw one. */
+      if (st.thetaAeff == null) st.thetaAeff = thetaA;
+      tau = P.tauO;
+      s1 = (thetaA - st.thetaAeff) / tau;
+      s2 = (thetaAn - (st.thetaAeff + h * s1)) / tau;
+      st.thetaAeff += h2 * (s1 + s2);
+      var aEff = st.thetaAeff;
+
+      tau = P.k11 * P.tauO;
+      s1 = (ssO - st.dThO) / tau;
+      s2 = (ssOn - (st.dThO + h * s1)) / tau;
+      st.dThO += h2 * (s1 + s2);
+
+      tau = P.k22 * P.tauW;
+      tgt = P.k21 * P.dThHr;
+      s1 = (tgt * Ky - st.dThH1) / tau;
+      s2 = (tgt * Kyn - (st.dThH1 + h * s1)) / tau;
+      st.dThH1 += h2 * (s1 + s2);
+
+      tau = P.tauO / P.k22;
+      tgtn = (P.k21 - 1) * P.dThHr;
+      s1 = (tgtn * Ky - st.dThH2) / tau;
+      s2 = (tgtn * Kyn - (st.dThH2 + h * s1)) / tau;
+      st.dThH2 += h2 * (s1 + s2);
+
+      st.thetaO = aEff + st.dThO;
+      /* Tank heaters hold a minimum oil temperature, modelled as a floor, no
+         control dynamics. The state itself is clamped, so the oil sits on the
+         floor instead of drifting below it and springing back. */
+      if (P.oilFloor != null && st.thetaO < P.oilFloor) {
+        st.dThO = P.oilFloor - aEff;
+        st.thetaO = P.oilFloor;
+      }
+      st.thetaH = st.thetaO + st.dThH1 - st.dThH2;
+      return st;
+    }
+
+    /* Effective parameter set from the UI knobs. The scales multiply the IEC
+       constants, which is how a mis-parametrised twin is expressed here. */
+    function effectiveParams(prm) {
+      prm = prm || {};
+      return params({
+        dThOr: IEC.dThOr * (prm.dThOrScale == null ? 1 : prm.dThOrScale),
+        tauO: IEC.tauO * (prm.tauOScale == null ? 1 : prm.tauOScale)
+      });
+    }
+
+    /* Same, plus whatever the site adds to the model. Currently that is only
+       the minimum oil temperature of the northern site. */
+    function scenarioParams(sc, prm) {
+      var P = effectiveParams(prm);
+      if (sc && sc.oilFloor != null) P.oilFloor = sc.oilFloor;
+      return P;
+    }
+
+    /* ── Cooling stages ───────────────────────────────────────────────────
+       Three IEC 60076-7:2018 Table 4 parameter sets, selected by hand. There
+       is no control loop here and no optimisation: a stage is a setting the
+       operator changes, and the model shows what follows.
+
+       ONAN is the base set above. ONAF is the same unit with the fans running,
+       taken unchanged from the sibling page that derived it: the Table 4
+       coefficients plus a dual-rating derivation for R, dThOr and dThHr, so
+       that the load factor K keeps meaning ONAN per unit across a stage
+       change.
+       OF is the forced-oil column. [table] for the coefficients, and note that
+       the forced-flow columns lose the oil-exponent nonlinearity: x goes to 1
+       and both k11 and k22 to 1. */
+    var ONAF = {
+      k11: 0.5, k21: 2.0, k22: 2.0,
+      tauO: 150, tauW: 7,
+      x: 0.8, y: 1.3,
+      R: 6.4,
+      dThOr: 32.8,
+      dThHr: 19.4
+    };
+
+    var OFAF = {
+      k11: 1.0, k21: 1.3, k22: 1.0,
+      tauO: 90, tauW: 7,
+      x: 1.0, y: 1.3,
+      R: 6.4,
+      dThOr: 29.0,
+      dThHr: 19.4
+    };
+
+    /* Top-to-bottom oil temperature difference at rated load, kelvin. [design]
+       Table 4 does not tabulate this: it parametrises the top oil and the hot
+       spot, not the axial distribution between them. The ORDERING is standard
+       and physical, natural circulation being the steepest and directed forced
+       flow the flattest, and it is the ordering that carries the demonstration.
+       The magnitudes are engineering estimates for a plausible unit.
+       This is the one number on the page that a switch visibly moves, so it is
+       also exposed as a control: a reader who prefers other values can set
+       them and watch the conclusion hold or fail. */
+    var GRAD_K = { onan: 25, onaf: 18, ofaf: 8 };
+
+    var STAGES = [
+      { id: 'onan', base: null },
+      { id: 'onaf', base: ONAF },
+      { id: 'ofaf', base: OFAF }
+    ];
+
+    function stageById(id) {
+      for (var i = 0; i < STAGES.length; i++) if (STAGES[i].id === id) return STAGES[i];
+      return STAGES[0];
+    }
+
+    /* Parameter set for a stage, with the same override semantics as params.
+       The ONAN stage falls through to the IEC table at the top of the file so
+       there is one copy of those numbers, not two. */
+    function paramsStage(stage, over) {
+      var st = stageById(stage), P = {}, k;
+      var src = st.base || IEC;
+      for (k in src) if (Object.prototype.hasOwnProperty.call(src, k)) P[k] = src[k];
+      if (over) for (k in over) if (Object.prototype.hasOwnProperty.call(over, k)) P[k] = over[k];
+      return P;
+    }
+
+    /* Same, plus whatever the site adds. Mirrors scenarioParams. */
+    function stageParams(stage, sc, prm) {
+      prm = prm || {};
+      var P = paramsStage(stage, {});
+      P.dThOr = P.dThOr * (prm.dThOrScale == null ? 1 : prm.dThOrScale);
+      P.tauO = P.tauO * (prm.tauOScale == null ? 1 : prm.tauOScale);
+      if (sc && sc.oilFloor != null) P.oilFloor = sc.oilFloor;
+      return P;
+    }
+
+    function gradOf(stage, over) {
+      if (over != null) return over;
+      return GRAD_K[stage] == null ? GRAD_K.onan : GRAD_K[stage];
+    }
+
+    /* ── Water: oil, paper, and the curve that couples them ───────────────
+       PROVENANCE OF THE CONSTANTS IN THIS BLOCK.
+       Everything from here to the end of the grid section is the physics this
+       page adds on top of the thermal model above, and it is the part whose
+       numbers a reader should be able to check. They are gathered here, in one
+       block, with a confidence marker each:
+
+         [table]  a tabulated value from a standard, transcribed
+         [fit]    a published functional form whose constants are reproduced
+         [tuned]  a value chosen so the model behaves like reported practice
+         [design] a geometry or size chosen for a plausible example unit
+
+       A [tuned] or [design] number is not a measurement and the Model tab says
+       so in as many words. Nothing here is specific to any real transformer. */
+
+    /* Water solubility of mineral oil, ppm (mg water per kg oil), over
+       temperature in C. [fit]
+       Base 10 matters: the natural-log form of this relation carries different
+       constants, and mixing them is wrong by about a decade.
+       Anchors this produces: 53 ppm at 20 C, 255 at 60 C, 491 at 80 C. */
+    var SOL_A = 7.42;
+    var SOL_B = 1670;
+    function oilSat(thetaC) {
+      return Math.pow(10, SOL_A - SOL_B / (thetaC + 273.15));
+    }
+
+    /* Equilibrium isotherm, paper moisture against RELATIVE SATURATION of the
+       oil rather than against ppm. [fit]
+       Relative saturation is the coupling variable on purpose: expressed this
+       way the isotherm is only weakly temperature dependent, so one curve
+       covers the whole operating range, and all of the temperature dependence
+       of the paper/oil split is carried by oilSat above. That split is the
+       first thing this page is about: the ppm a monitor reads says nothing
+       about the paper until it is divided by the solubility at the local
+       temperature.
+       Wp in percent of dry paper mass, rs dimensionless in (0, 1]. */
+    var ISO_A = 9.091;
+    var ISO_B = 0.7610;
+    function paperFromRS(rs) {
+      return ISO_A * Math.pow(Math.max(1e-12, rs), ISO_B);
+    }
+    function rsFromPaper(wp) {
+      return Math.pow(Math.max(1e-12, wp) / ISO_A, 1 / ISO_B);
+    }
+    /* The two directions of the headline statement, in one call each. */
+    function paperFromPpm(ppm, thetaC) {
+      return paperFromRS(ppm / oilSat(thetaC));
+    }
+    function ppmFromPaper(wp, thetaC) {
+      return rsFromPaper(wp) * oilSat(thetaC);
+    }
+
+    /* Moisture diffusivity in kraft paper, m2/s. [fit]
+       D = D0 exp(k C) exp(Ea/R/T0 - Ea/R/T), concentration C in percent and
+       temperature in C. Strongly dependent on both, which is the reason the
+       radial equilibration time runs from days at operating temperature to
+       months on a cold tank.
+       The reference temperature is written out rather than folded into D0:
+       published parameter sets differ in that convention and folding it in is
+       how the two get mixed. */
+    var DIF_D0 = 1.34e-13;
+    var DIF_K = 0.5;
+    var DIF_EAR = 8140;
+    var DIF_T0 = 298;
+    function diffusivity(wp, thetaC) {
+      return DIF_D0 * Math.exp(DIF_K * wp) *
+        Math.exp(DIF_EAR / DIF_T0 - DIF_EAR / (thetaC + 273.15));
+    }
+
+    /* Half-thickness of the insulation slab, m. [design]
+       Zero flux at the copper face, oil at the other, so this is a half
+       thickness and not a full winding build. 2 mm puts the slowest radial
+       mode 4L^2/(pi^2 D) at about 3.7 d at 60 C and 104 d at 20 C, which is
+       the range reported for drying and re-wetting of real windings. At 1 mm
+       the paper follows the oil almost immediately and at 4 mm nothing moves
+       inside a year. */
+    var L_PAPER = 2.0e-3;
+
+    /* Mass transfer coefficient at the paper/oil face, m/s. [tuned]
+       The outer boundary is a Robin condition, flux = h (Ceq - Csurface), not
+       an equilibrium one. With equilibrium imposed on the surface the outermost
+       cell tracks the oil within minutes and no interfacial resistance is left;
+       a real surface has a fluid film, and an aged one has a barrier layer.
+       This value is chosen, not measured. It sets how fast the oil recovers
+       after a treatment, so it is exposed as a control rather than buried:
+       the Biot number h L / D is about 86 at 20 C and 3.1 at 60 C, i.e. the
+       interior stays diffusion limited at operating temperature, which is the
+       regime the model is meant to be in. */
+    var H_FILM = 1e-8;
+
+    /* Masses of the example unit, kg. [design]
+       A medium power transformer. The RATIO is what the page turns on: about
+       37 kg of water in the solid insulation at 2.5% against about 0.6 kg in
+       the oil at 30 ppm, so the oil is a small buffer hanging off a large
+       reservoir, and that is why drying the oil does so little. */
+    var M_OIL = 20000;
+    var M_PAPER = 1500;
+
+    /* ── The grid ─────────────────────────────────────────────────────────
+       Radial: the insulation slab, cell 0 at the copper, cell N_R-1 at the oil.
+       Axial: winding levels, 0 at the bottom of the tank, N_A-1 at the top.
+
+       The two directions are not the same kind of thing, which is why they do
+       not get the same resolution. Radially there is a diffusion equation and
+       the cells are degrees of freedom of a boundary value problem, with the
+       gradient sitting in a thin layer at the oil face. Axially there is no
+       coupling between levels at all: each level is an independent column
+       driven by its own oil temperature, so the levels are sampling points on
+       a smooth monotone ramp.
+       So radial resolution buys accuracy and axial resolution buys only a
+       finer reading of a known curve. N_R = 16 holds the radial span to about
+       5% of a 64-cell reference; at 8 cells it is understated by 15% and at 4
+       by nearly 40%, and that span is the smaller of the two signals on the
+       map, so coarsening it would flatter the picture in the one place where
+       the picture should not be flattered.
+       N_A = 6 is a legibility limit, not a numerical one. */
+    var N_R = 16;
+    var N_A = 6;
+    var N_CELL = N_R * N_A;
+    var DX = L_PAPER / N_R;
+    var M_CELL = M_PAPER / N_CELL;
+
+    /* Shown columns. Sixteen columns at a readable cell gap is finer than a
+       projector resolves, so pairs of computed cells are averaged for the
+       display. The computation stays on N_R and so does the span readout:
+       averaging narrows a range, and the number next to the map should be the
+       one the model produced. */
+    var N_R_SHOW = 8;
+
+    /* Upper bound on one diffusion sub-step, minutes.
+       The paper is solved implicitly and is unconditionally stable, but the oil
+       balance is advanced explicitly from the summed flux, and THAT coupling is
+       what limits the step.
+
+       The binding case is a COLD tank, not a hot one, which is the opposite of
+       the usual intuition about explicit schemes. What matters here is the
+       capacity ratio between the paper and the oil, and that ratio grows as the
+       tank cools because the isotherm steepens: about 12:1 at 90 C but 150:1 at
+       20 C. With a large step the paper can therefore ask the oil for more
+       water than the oil contains, and the ppm shoots through zero.
+       Measured against a one-minute reference over a full compressed run: at
+       62 C every bound up to 180 min is exact, but at 32 C the oil goes
+       NEGATIVE from 60 min upward. 30 min agrees with the reference to the
+       printed digits at both temperatures.
+       Callers pass whatever step the view implies and this splits it. */
+    var DT_MAX_EFF = 30;
+
+    /* Physical floor on the oil reading. Not zero: a monitor never reads zero
+       and a vanishing denominator would make relative saturation meaningless
+       for the panel that displays it. */
+    var PPM_FLOOR = 0.5;
+
+    /* Index of radial cell i at axial level j. */
+    function gi(j, i) { return j * N_R + i; }
+
+    /* Oil temperature at axial level j. Linear in winding height between the
+       bottom oil and the top oil; thetaO from the thermal model is the top oil,
+       gradK the top-to-bottom difference. */
+    function levelTemp(thetaO, gradK, j) {
+      return thetaO - gradK * (1 - j / (N_A - 1));
+    }
+
+    /* Moisture state. Mutated in place, same discipline as stepThermal.
+       The Thomas scratch vectors live on the state so a step allocates
+       nothing: this runs N_A solves per substep and several substeps per
+       frame. */
+    function initMoisture(wp0, ppm0) {
+      var ms = {
+        C: new Float64Array(N_CELL),
+        ppm: ppm0,
+        treat: null,
+        _a: new Float64Array(N_R),
+        _b: new Float64Array(N_R),
+        _c: new Float64Array(N_R),
+        _d: new Float64Array(N_R),
+        _x: new Float64Array(N_R)
+      };
+      for (var k = 0; k < N_CELL; k++) ms.C[k] = wp0;
+      return ms;
+    }
+
+    /* One implicit step of one axial column, backward Euler in time and finite
+       volume in space, solved by the Thomas algorithm.
+       Inner face (i = 0): zero flux at the copper, so the west coefficient is
+       dropped rather than set to a value.
+       Outer face (i = N_R-1): flux = h (Ceq - C), so the east coefficient is
+       replaced by the film term and Ceq enters the right hand side.
+       Returns the water that LEFT this column, in kg. The caller turns the sum
+       over columns into a change in oil ppm; keeping the accounting here, as an
+       explicit sum of cell changes, is what makes the mass balance exact
+       instead of nearly exact. */
+    function columnStep(ms, j, thetaC, Ceq, dtSec) {
+      var a = ms._a, b = ms._b, c = ms._c, d = ms._d, x = ms._x, C = ms.C;
+      var o = j * N_R, i, w, e, Dw, De, m;
+      var f = dtSec / (DX * DX);
+
+      for (i = 0; i < N_R; i++) {
+        Dw = i > 0 ? diffusivity(0.5 * (C[o + i] + C[o + i - 1]), thetaC) : 0;
+        De = i < N_R - 1 ? diffusivity(0.5 * (C[o + i] + C[o + i + 1]), thetaC) : 0;
+        w = i > 0 ? Dw * f : 0;
+        e = i < N_R - 1 ? De * f : 0;
+        a[i] = -w;
+        c[i] = -e;
+        b[i] = 1 + w + e;
+        d[i] = C[o + i];
+        if (i === N_R - 1) {
+          var g = H_FILM * dtSec / DX;
+          b[i] += g;
+          d[i] += g * Ceq;
+        }
+      }
+
+      for (i = 1; i < N_R; i++) {
+        m = a[i] / b[i - 1];
+        b[i] -= m * c[i - 1];
+        d[i] -= m * d[i - 1];
+      }
+      x[N_R - 1] = d[N_R - 1] / b[N_R - 1];
+      for (i = N_R - 2; i >= 0; i--) x[i] = (d[i] - c[i] * x[i + 1]) / b[i];
+
+      var out = 0;
+      for (i = 0; i < N_R; i++) {
+        out += (C[o + i] - x[i]) * 0.01 * M_CELL;
+        C[o + i] = x[i];
+      }
+      return out;
+    }
+
+    /* Advance the whole grid and the oil by dtMin minutes of DIFFUSION time,
+       splitting into substeps no longer than DT_MAX_EFF.
+       The oil is one well-mixed reservoir in ppm. Oil TEMPERATURE is
+       stratified, oil WATER is not: a monitor samples one point and the oil
+       turns over in minutes while the paper moves over days, so a single ppm
+       is the honest simplification. It also makes the water balance a one-line
+       identity, which the self-test leans on. */
+    function stepMoisture(ms, thetaO, gradK, dtMin) {
+      var rem = dtMin, sub, dtSec, flux, j, T, Ceq, dPpm;
+      while (rem > 1e-9) {
+        sub = rem < DT_MAX_EFF ? rem : DT_MAX_EFF;
+        rem -= sub;
+        dtSec = sub * 60;
+        flux = 0;
+        for (j = 0; j < N_A; j++) {
+          T = levelTemp(thetaO, gradK, j);
+          Ceq = paperFromRS(ms.ppm / oilSat(T));
+          flux += columnStep(ms, j, T, Ceq, dtSec);
+        }
+        /* Water only moves here, it is never created, so the balance is exact
+           by construction. What is NOT guaranteed by construction is that the
+           oil can afford the transfer within one sub-step: the paper holds two
+           orders of magnitude more water, and an oversized step lets it draw
+           the oil below zero. The bound above is set so this never binds, and
+           this clamp is the guard that keeps an unphysical reading off the
+           screen if a caller ever passes something the bound does not cover.
+           The water is put back into the surface cells it came from, which is
+           what keeps the balance exact rather than merely plausible. */
+        dPpm = flux / M_OIL * 1e6;
+        if (ms.ppm + dPpm < PPM_FLOOR) {
+          var allowed = PPM_FLOOR - ms.ppm;
+          var refund = (dPpm - allowed) * 1e-6 * M_OIL;
+          ms.ppm = PPM_FLOOR;
+          returnToSurface(ms, refund);
+        } else {
+          ms.ppm += dPpm;
+        }
+      }
+      return ms;
+    }
+
+    /* Push water back into the outermost cell of every level, split by level so
+       no single cell takes all of it. Only ever called by the clamp above. */
+    function returnToSurface(ms, kg) {
+      if (!(kg > 0)) return;
+      var per = kg / N_A, j, i;
+      for (j = 0; j < N_A; j++) {
+        i = gi(j, N_R - 1);
+        ms.C[i] += per / (0.01 * M_CELL);
+      }
+    }
+
+    /* ── Diagnostics ──────────────────────────────────────────────────────
+       Read by the panels and by the self-test, so they live in the core. */
+
+    /* Total water in the system, kg: paper plus oil. Conserved except while a
+       treatment is running, which removes water and books it separately. */
+    function totalWater(ms) {
+      var w = 0, k;
+      for (k = 0; k < N_CELL; k++) w += ms.C[k] * 0.01 * M_CELL;
+      return w + ms.ppm * 1e-6 * M_OIL;
+    }
+
+    function paperMean(ms) {
+      var s = 0, k;
+      for (k = 0; k < N_CELL; k++) s += ms.C[k];
+      return s / N_CELL;
+    }
+
+    /* Wettest cell. The hot spot of this page is a moisture maximum, not a
+       temperature one, and the two do not coincide: the top of the winding is
+       hottest and therefore DRIEST, because the isotherm pushes water out of
+       warm paper into the oil. */
+    function paperHotspot(ms) {
+      var best = -Infinity, bj = 0, bi = 0, j, i, v;
+      for (j = 0; j < N_A; j++) {
+        for (i = 0; i < N_R; i++) {
+          v = ms.C[gi(j, i)];
+          if (v > best) { best = v; bj = j; bi = i; }
+        }
+      }
+      return { j: bj, i: bi, wp: best };
+    }
+
+    function radialProfile(ms, j, out) {
+      var i, o = j * N_R;
+      for (i = 0; i < N_R; i++) out[i] = ms.C[o + i];
+      return out;
+    }
+
+    function axialProfile(ms, out) {
+      var j, i, s;
+      for (j = 0; j < N_A; j++) {
+        s = 0;
+        for (i = 0; i < N_R; i++) s += ms.C[gi(j, i)];
+        out[j] = s / N_R;
+      }
+      return out;
+    }
+
+    /* Both spreads of the computed grid, in percentage points.
+       Radial is the widest spread found within any one level, axial the spread
+       of the level means. The map shows these because the radial one is small
+       enough that a reader deserves the number rather than a colour they have
+       to trust. */
+    function gridSpans(ms) {
+      var j, i, lo, hi, v, rad = 0, aLo = Infinity, aHi = -Infinity, s;
+      for (j = 0; j < N_A; j++) {
+        lo = Infinity; hi = -Infinity; s = 0;
+        for (i = 0; i < N_R; i++) {
+          v = ms.C[gi(j, i)];
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+          s += v;
+        }
+        if (hi - lo > rad) rad = hi - lo;
+        s /= N_R;
+        if (s < aLo) aLo = s;
+        if (s > aHi) aHi = s;
+      }
+      return { radial: rad, axial: aHi - aLo };
+    }
+
+    /* Averaged down to the shown columns. Mean preserving, which the self-test
+       checks: the display may be coarser than the model but it must not move
+       the level. */
+    var SHOW_GROUP = N_R / N_R_SHOW;
+    function showGrid(ms, out) {
+      var j, k, i, s;
+      for (j = 0; j < N_A; j++) {
+        for (k = 0; k < N_R_SHOW; k++) {
+          s = 0;
+          for (i = 0; i < SHOW_GROUP; i++) s += ms.C[gi(j, k * SHOW_GROUP + i)];
+          out[j * N_R_SHOW + k] = s / SHOW_GROUP;
+        }
+      }
+      return out;
+    }
+
+    /* The temperature field on the same geometry, for the second map. Radially
+       uniform: this model carries no conduction through the paper, and the
+       point of showing it is the axial ramp that drives the moisture map. */
+    function tempGrid(thetaO, gradK, out) {
+      var j, k, t;
+      for (j = 0; j < N_A; j++) {
+        t = levelTemp(thetaO, gradK, j);
+        for (k = 0; k < N_R_SHOW; k++) out[j * N_R_SHOW + k] = t;
+      }
+      return out;
+    }
+
+    /* Equilibrium of the whole grid with a given oil ppm and temperature
+       profile: every cell of a level sits at the level isotherm, since at
+       steady state there is no flux and therefore no radial gradient.
+       Used for the initial condition and as the analytic reference the solver
+       has to converge to. */
+    function equilibrate(ms, thetaO, gradK) {
+      var j, i, T, c;
+      for (j = 0; j < N_A; j++) {
+        T = levelTemp(thetaO, gradK, j);
+        c = paperFromRS(ms.ppm / oilSat(T));
+        for (i = 0; i < N_R; i++) ms.C[gi(j, i)] = c;
+      }
+      return ms;
+    }
+
+    /* Equilibrium the other way round: find the oil ppm whose equilibrium grid
+       has a given MEAN paper moisture, and seed from that.
+       Anchoring the mean rather than one level matters at a steep gradient.
+       Anchoring the hot end drives the cold end far wetter than the anchor,
+       and anchoring the cold end dries the hot end out; either way the number
+       the user typed is not the number the grid represents.
+       The mean is monotone in ppm, so a bisection is enough and needs no
+       derivative of the isotherm. Twelve halvings of a decade bracket land
+       well inside the precision anything downstream cares about. */
+    function equilibrateFromPaper(ms, wpMean, thetaO, gradK) {
+      var lo = 1e-3, hi = 2 * oilSat(levelTemp(thetaO, gradK, N_A - 1)), mid, i;
+      for (i = 0; i < 60; i++) {
+        mid = 0.5 * (lo + hi);
+        ms.ppm = mid;
+        equilibrate(ms, thetaO, gradK);
+        if (paperMean(ms) < wpMean) lo = mid; else hi = mid;
+      }
+      ms.ppm = 0.5 * (lo + hi);
+      return equilibrate(ms, thetaO, gradK);
+    }
+
+    /* ── Oil treatment ────────────────────────────────────────────────────
+       A drying plant on the oil circuit, running for a set number of hours.
+       Modelled as a first-order pull on the oil towards TREAT_PPM: the plant
+       sees only the oil, the paper keeps feeding it, and the two run against
+       each other for the whole duration.
+       Deliberately not an instantaneous reset. The interesting part is what
+       the MONITOR does while the plant works, and that only exists if the
+       treatment has a duration.
+       Treatment runs in real time, not in compressed diffusion time: an hour
+       of drying is an hour, or it would be shorter than one simulation step. */
+    var TREAT_PPM = 3;
+
+    function startTreatment(ms, hours) {
+      ms.treat = {
+        hours: hours,
+        tLeft: hours * 60,
+        /* Time constant set so that, with no water coming back from the paper,
+           the oil would reach TREAT_PPM by the end of the run. With the paper
+           feeding it, it gets nowhere near, which is the point. */
+        tau: hours * 60 / Math.log(Math.max(ms.ppm, TREAT_PPM * 1.5) / TREAT_PPM),
+        removed: 0,
+        ppmAtStart: ms.ppm
+      };
+      return ms.treat;
+    }
+
+    function treatmentActive(ms) {
+      return !!(ms.treat && ms.treat.tLeft > 0);
+    }
+
+    /* One real-time minute-step of a running treatment. The plant pull and the
+       paper relaxation are applied in the same step, so the ppm the monitor
+       reads is the net of the two. */
+    function stepTreatment(ms, thetaO, gradK, dtMin) {
+      if (!treatmentActive(ms)) return 0;
+      var tr = ms.treat;
+      var dt = dtMin < tr.tLeft ? dtMin : tr.tLeft;
+      var before = ms.ppm;
+      ms.ppm = TREAT_PPM + (ms.ppm - TREAT_PPM) * Math.exp(-dt / tr.tau);
+      var pulled = (before - ms.ppm) * 1e-6 * M_OIL;
+      tr.removed += pulled;
+      stepMoisture(ms, thetaO, gradK, dt);
+      tr.tLeft -= dt;
+      if (tr.tLeft <= 1e-9) tr.tLeft = 0;
+      return pulled;
+    }
+
+    function treatmentProgress(ms) {
+      if (!ms.treat) return 0;
+      var tot = ms.treat.hours * 60;
+      return tot > 0 ? 1 - ms.treat.tLeft / tot : 1;
+    }
+
+    /* The public surface. Grouped the way the page reads it: constants the
+       panels label with, the thermal half, the water half, then diagnostics. */
+    return {
+      YEAR_MIN: YEAR_MIN, DAY_MIN: DAY_MIN, IEC: IEC,
+      ONAF: ONAF, OFAF: OFAF, GRAD_K: GRAD_K, STAGES: STAGES,
+      SCENARIOS: SCENARIOS, EAF_FAST: EAF_FAST,
+      DAYS_SHOWN: DAYS_SHOWN, COMP_MIN: COMP_MIN, COMP_N: COMP_N,
+      COMP_STRIDE: COMP_STRIDE, COMP_WARMUP: COMP_WARMUP,
+      N_R: N_R, N_A: N_A, N_R_SHOW: N_R_SHOW, N_CELL: N_CELL,
+      DX: DX, M_CELL: M_CELL, DT_MAX_EFF: DT_MAX_EFF,
+      L_PAPER: L_PAPER, H_FILM: H_FILM, M_OIL: M_OIL, M_PAPER: M_PAPER,
+      TREAT_PPM: TREAT_PPM,
+      SOL_A: SOL_A, SOL_B: SOL_B, ISO_A: ISO_A, ISO_B: ISO_B,
+      DIF_D0: DIF_D0, DIF_K: DIF_K, DIF_EAR: DIF_EAR, DIF_T0: DIF_T0,
+
+      mulberry32: mulberry32, gaussFactory: gaussFactory, valueNoise: valueNoise,
+      scenarioById: scenarioById, configFromScenario: configFromScenario,
+      scenarioFromConfig: scenarioFromConfig,
+      plShapeZ: plShapeZ, dayLengthAt: dayLengthAt,
+      ambientSplit: ambientSplit, loadSplit: loadSplit,
+      ambientAt: ambientAt, loadAt: loadAt,
+      compSeason: compSeason, compAmbient: compAmbient, compLoad: compLoad,
+      compDayOfYear: compDayOfYear, compLoadK: compLoadK,
+
+      params: params, steadyState: steadyState, initState: initState,
+      stepThermal: stepThermal, effectiveParams: effectiveParams,
+      scenarioParams: scenarioParams,
+      paramsStage: paramsStage, stageParams: stageParams, stageById: stageById,
+      gradOf: gradOf,
+
+      oilSat: oilSat, paperFromRS: paperFromRS, rsFromPaper: rsFromPaper,
+      paperFromPpm: paperFromPpm, ppmFromPaper: ppmFromPaper,
+      diffusivity: diffusivity, levelTemp: levelTemp, gi: gi,
+      initMoisture: initMoisture, stepMoisture: stepMoisture,
+
+      totalWater: totalWater, paperMean: paperMean, paperHotspot: paperHotspot,
+      radialProfile: radialProfile, axialProfile: axialProfile,
+      gridSpans: gridSpans, showGrid: showGrid, tempGrid: tempGrid,
+      equilibrate: equilibrate, equilibrateFromPaper: equilibrateFromPaper,
+      startTreatment: startTreatment, stepTreatment: stepTreatment,
+      treatmentActive: treatmentActive, treatmentProgress: treatmentProgress
+    };
+  })();
+
+  if (typeof window !== 'undefined') window.MoistureCore = MoistureCore;
+
+  /* Self-test. Open the page with #selftest and read the console, or run
+     node _selftest.mjs docs/moisture.html which executes this block outside a
+     browser. Every assertion prints the numbers it checked, not just a verdict:
+     a test whose output is only PASS cannot be sanity-checked by a reader. */
+  (function () {
+    'use strict';
+    if (typeof location === 'undefined' || location.hash !== '#selftest') return;
+    var C = MoistureCore;
+    var fails = 0, total = 0, t0 = Date.now();
+    function pass(name, ok, detail) {
+      total++;
+      if (!ok) fails++;
+      console.log((ok ? 'pass  ' : 'FAIL  ') + name + (detail == null ? '' : '   ' + detail));
+    }
+    var COMP = C.YEAR_MIN / C.COMP_MIN;
+    var GRAD = C.gradOf('onan');
+
+    /* Settle a grid the way the page does, so the behavioural tests below all
+       start from the same physically reachable state rather than from an
+       arbitrary initial condition. */
+    function settled(stage, wpMean) {
+      var grad = C.gradOf(stage), ms = C.initMoisture(2.5, 20), d, k, h, thO;
+      C.equilibrateFromPaper(ms, wpMean == null ? 2.5 : wpMean, 62, grad);
+      /* Forty shown days is about 730 diffusion days at the compression used
+         here, which is several times the slowest radial mode, so the grid is
+         on its periodic cycle well before this returns. More days only cost
+         test time. */
+      for (d = 0; d < 40; d++) {
+        for (k = 0; k < 144; k++) {
+          h = (k / 144) * 24;
+          thO = 62 + 22 * Math.sin(2 * Math.PI * (h - 9) / 24);
+          C.stepMoisture(ms, thO, grad, 10 * COMP);
+        }
+      }
+      return ms;
+    }
+
+    /* The thermal half still behaves, so the copy is faithful. */
+    (function () {
+      var K = 1.0, thA = 20, P = C.params(), ss = C.steadyState(K, thA, P);
+      var st = C.initState(0.2, thA, P), i, n = Math.round(6000 / 5);
+      for (i = 0; i < n; i++) C.stepThermal(st, K, thA, 5, P);
+      pass('top oil and hot spot converge to the exponential steady state',
+        Math.abs(st.thetaO - ss.thetaO) < 0.05 && Math.abs(st.thetaH - ss.thetaH) < 0.05,
+        'oil ' + st.thetaO.toFixed(2) + ' vs ' + ss.thetaO.toFixed(2) +
+        ' C, hot spot ' + st.thetaH.toFixed(2) + ' vs ' + ss.thetaH.toFixed(2) + ' C');
+    })();
+
+    (function () {
+      var thA = 25, P = C.params(), st = C.initState(0.6, thA, P), i, ss;
+      for (i = 0; i < 2000; i++) C.stepThermal(st, 0.6, thA, 5, P);
+      ss = C.steadyState(0.6, thA, P);
+      pass('a constant ambient leaves the effective ambient where it started',
+        Math.abs(st.thetaAeff - thA) < 1e-9 && Math.abs(st.thetaO - ss.thetaO) < 1e-6,
+        'ambient lag ' + (st.thetaAeff - thA).toExponential(1) + ' K');
+    })();
+
+    /* Solubility. */
+    (function () {
+      var s20 = C.oilSat(20), s60 = C.oilSat(60), s80 = C.oilSat(80), mono = true, t;
+      pass('oil solubility lands on the accepted anchors',
+        s20 > 45 && s20 < 65 && s60 > 200 && s60 < 300,
+        s20.toFixed(0) + ' ppm at 20 C, ' + s60.toFixed(0) + ' at 60 C, ' +
+        s80.toFixed(0) + ' at 80 C');
+      for (t = 0; t <= 100; t += 2) if (C.oilSat(t) >= C.oilSat(t + 2)) mono = false;
+      pass('solubility rises with temperature over 0 to 100 C', mono);
+    })();
+
+    /* The isotherm. */
+    (function () {
+      var worst = 0, rs, back, mono = true, r;
+      for (rs = 0.01; rs <= 0.6; rs += 0.01) {
+        back = C.rsFromPaper(C.paperFromRS(rs));
+        worst = Math.max(worst, Math.abs(back - rs) / rs);
+      }
+      pass('the isotherm round-trips between moisture and relative saturation',
+        worst < 1e-12, 'worst relative error ' + worst.toExponential(1));
+      for (r = 0.005; r < 0.95; r += 0.005) {
+        if (C.paperFromRS(r) >= C.paperFromRS(r + 0.005)) mono = false;
+      }
+      pass('paper moisture rises with relative saturation', mono);
+    })();
+
+    /* The first headline: one oil reading alone says nothing about the paper. */
+    (function () {
+      var cold = C.paperFromPpm(20, 20), hot = C.paperFromPpm(20, 80);
+      pass('one oil reading means very different paper moisture across temperature',
+        cold > 3 * hot,
+        '20 ppm is ' + cold.toFixed(2) + '% paper at 20 C but ' + hot.toFixed(2) +
+        '% at 80 C, a factor of ' + (cold / hot).toFixed(1));
+    })();
+
+    /* Diffusion. */
+    (function () {
+      var okW = C.diffusivity(1, 50) < C.diffusivity(3, 50);
+      var okT = C.diffusivity(2, 30) < C.diffusivity(2, 70);
+      var L = C.L_PAPER, d60, d20, dtExp;
+      pass('diffusivity rises with both moisture and temperature', okW && okT,
+        'D(1%,50C) ' + C.diffusivity(1, 50).toExponential(2) + ', D(3%,50C) ' +
+        C.diffusivity(3, 50).toExponential(2) + ', D(2%,70C) ' +
+        C.diffusivity(2, 70).toExponential(2));
+      function tauDays(t, wp) {
+        return 4 * L * L / (Math.PI * Math.PI * C.diffusivity(wp, t)) / 86400;
+      }
+      d60 = tauDays(60, 1.5);
+      d20 = tauDays(20, 1.5);
+      pass('radial equilibration is days at operating temperature and months on a cold tank',
+        d60 > 2 && d60 < 7 && d20 > 60 && d20 < 200,
+        d60.toFixed(1) + ' d at 60 C, ' + d20.toFixed(0) + ' d at 20 C');
+      /* Why the scheme is implicit, as an executable claim rather than a
+         comment: the explicit limit at the hot wet corner is minutes. */
+      dtExp = C.DX * C.DX / (2 * C.diffusivity(3, 90)) / 60;
+      pass('an explicit scheme would be capped at minutes, so this one is implicit',
+        dtExp < 10, 'explicit limit ' + dtExp.toFixed(1) + ' min at 3% and 90 C');
+    })();
+
+    /* Grid resolution is enough to carry the radial signal. The radial spread
+       is the smaller of the two signals on the map, so a coarse grid would
+       understate the very thing the map is read for. Same transient at the
+       shipped resolution and at a fine reference. */
+    (function () {
+      function spreadAt(nr) {
+        var dx = C.L_PAPER / nr, cc = new Float64Array(nr), i, s, ppm = 3, T = 45;
+        var a = new Float64Array(nr), b = new Float64Array(nr), c = new Float64Array(nr);
+        var d = new Float64Array(nr), x = new Float64Array(nr);
+        var mCell = C.M_PAPER / nr, dt = 600;
+        var f, m, Ceq, Dw, De, w, e, g, fl, lo, hi;
+        for (i = 0; i < nr; i++) cc[i] = 2.5;
+        for (s = 0; s < 36; s++) {
+          Ceq = C.paperFromRS(ppm / C.oilSat(T));
+          f = dt / (dx * dx);
+          for (i = 0; i < nr; i++) {
+            Dw = i > 0 ? C.diffusivity(0.5 * (cc[i] + cc[i - 1]), T) : 0;
+            De = i < nr - 1 ? C.diffusivity(0.5 * (cc[i] + cc[i + 1]), T) : 0;
+            w = i > 0 ? Dw * f : 0;
+            e = i < nr - 1 ? De * f : 0;
+            a[i] = -w;
+            c[i] = -e;
+            b[i] = 1 + w + e;
+            d[i] = cc[i];
+            if (i === nr - 1) {
+              g = C.H_FILM * dt / dx;
+              b[i] += g;
+              d[i] += g * Ceq;
+            }
+          }
+          for (i = 1; i < nr; i++) {
+            m = a[i] / b[i - 1];
+            b[i] -= m * c[i - 1];
+            d[i] -= m * d[i - 1];
+          }
+          x[nr - 1] = d[nr - 1] / b[nr - 1];
+          for (i = nr - 2; i >= 0; i--) x[i] = (d[i] - c[i] * x[i + 1]) / b[i];
+          fl = 0;
+          for (i = 0; i < nr; i++) {
+            fl += (cc[i] - x[i]) * 0.01 * mCell;
+            cc[i] = x[i];
+          }
+          ppm += fl / C.M_OIL * 1e6;
+        }
+        lo = Infinity;
+        hi = -Infinity;
+        for (i = 0; i < nr; i++) {
+          if (cc[i] < lo) lo = cc[i];
+          if (cc[i] > hi) hi = cc[i];
+        }
+        return hi - lo;
+      }
+      var ship = spreadAt(C.N_R), ref = spreadAt(64), err = Math.abs(ship - ref) / ref;
+      pass('the shipped radial resolution holds the radial spread to the fine grid',
+        err < 0.08, C.N_R + ' cells give ' + ship.toFixed(4) + ' pp against ' +
+        ref.toFixed(4) + ' at 64 cells, ' + (100 * err).toFixed(1) + ' percent low');
+    })();
+
+    /* Step splitting: a long call must behave like the substeps it decomposes
+       into, and those must track a much finer reference. The bound exists
+       because past it the explicit oil balance goes quietly wrong. */
+    (function () {
+      var A = C.initMoisture(2.5, 30), B = C.initMoisture(2.5, 30), k, worst;
+      var D, E, i, rel;
+      C.equilibrate(A, 70, GRAD);
+      C.equilibrate(B, 70, GRAD);
+      C.stepMoisture(A, 70, GRAD, 5 * C.DT_MAX_EFF);
+      for (k = 0; k < 5; k++) C.stepMoisture(B, 70, GRAD, C.DT_MAX_EFF);
+      worst = Math.abs(A.ppm - B.ppm);
+      for (k = 0; k < C.N_CELL; k++) worst = Math.max(worst, Math.abs(A.C[k] - B.C[k]));
+      pass('a long call splits internally into bounded substeps',
+        worst < 1e-12, 'largest difference ' + worst.toExponential(1));
+
+      /* Started well away from equilibrium on purpose: comparing two step
+         sizes on a state that is already settled compares nothing. */
+      D = C.initMoisture(2.5, 30);
+      E = C.initMoisture(2.5, 30);
+      C.equilibrate(D, 70, GRAD);
+      C.equilibrate(E, 70, GRAD);
+      D.ppm = 3;
+      E.ppm = 3;
+      C.stepMoisture(D, 70, GRAD, 1440);
+      for (i = 0; i < 288; i++) C.stepMoisture(E, 70, GRAD, 5);
+      rel = Math.abs(D.ppm - E.ppm) / E.ppm;
+      pass('the bounded step tracks a five-minute reference over a day',
+        rel < 0.01, 'ppm ' + D.ppm.toFixed(3) + ' against ' + E.ppm.toFixed(3) +
+        ', ' + (100 * rel).toFixed(2) + ' percent apart');
+    })();
+
+    /* Water is conserved. This is the assertion the whole accounting structure
+       exists to satisfy: cell changes are summed explicitly and converted to
+       ppm, rather than oil and paper being solved independently. */
+    (function () {
+      var ms = C.initMoisture(2.5, 20), s, thO, w0, drift;
+      C.equilibrate(ms, 60, GRAD);
+      w0 = C.totalWater(ms);
+      for (s = 0; s < 20000; s++) {
+        thO = 60 + 20 * Math.sin(2 * Math.PI * s / 700);
+        C.stepMoisture(ms, thO, GRAD, 10);
+      }
+      drift = Math.abs(C.totalWater(ms) - w0) / w0;
+      pass('total water is conserved to machine precision over a long swinging run',
+        drift < 1e-10, 'drift ' + drift.toExponential(1) + ' over 20000 steps, ' +
+        w0.toFixed(2) + ' kg in the system');
+    })();
+
+    (function () {
+      var ms = settled('onan'), w0 = C.totalWater(ms), w1, booked, err;
+      C.startTreatment(ms, 6);
+      while (C.treatmentActive(ms)) C.stepTreatment(ms, 62, GRAD, 5);
+      w1 = C.totalWater(ms);
+      booked = ms.treat.removed;
+      err = Math.abs((w0 - w1) - booked);
+      pass('what the plant books as removed is what left the system',
+        err < 1e-10, 'removed ' + booked.toFixed(4) + ' kg, balance error ' +
+        err.toExponential(1) + ' kg');
+    })();
+
+    /* Steady state has no radial gradient. Physically forced: no flux means no
+       gradient. This is the assertion that would catch a sign error in the
+       zero-flux face at the copper. */
+    (function () {
+      var ms = C.initMoisture(2.5, 20), s, sp, ref, k, worst = 0;
+      C.equilibrate(ms, 55, GRAD);
+      for (s = 0; s < 6000; s++) C.stepMoisture(ms, 55, GRAD, C.DT_MAX_EFF);
+      sp = C.gridSpans(ms);
+      pass('a held temperature flattens the radial profile completely',
+        sp.radial < 1e-6, 'radial spread ' + sp.radial.toExponential(1) +
+        ' pp, axial ' + sp.axial.toFixed(3) + ' pp');
+
+      ref = C.initMoisture(1, ms.ppm);
+      C.equilibrate(ref, 55, GRAD);
+      for (k = 0; k < C.N_CELL; k++) worst = Math.max(worst, Math.abs(ref.C[k] - ms.C[k]));
+      pass('the solver converges to the analytic equilibrium',
+        worst < 1e-6, 'largest cell difference ' + worst.toExponential(1) + ' pp');
+    })();
+
+    /* The axial profile, and what the cooling stage does to it. */
+    (function () {
+      var ms = settled('onan'), ax = new Float64Array(C.N_A), sp = C.gridSpans(ms);
+      var hs, a, b;
+      C.axialProfile(ms, ax);
+      pass('the bottom of the winding is wetter than the top',
+        ax[0] > ax[C.N_A - 1] && sp.axial > 0.8 && sp.axial < 2.5,
+        'bottom ' + ax[0].toFixed(2) + ' percent, top ' + ax[C.N_A - 1].toFixed(2) +
+        ' percent, spread ' + sp.axial.toFixed(2) + ' pp');
+
+      hs = C.paperHotspot(ms);
+      pass('the wettest paper is at the coldest level, not the hottest',
+        hs.j === 0, 'wettest cell at level ' + hs.j + ' of ' + (C.N_A - 1) +
+        ' carrying ' + hs.wp.toFixed(2) + ' percent');
+
+      a = C.gridSpans(settled('onan')).axial;
+      b = C.gridSpans(settled('ofaf')).axial;
+      pass('forced oil circulation flattens the moisture profile',
+        a > 2 * b, 'ONAN spreads ' + a.toFixed(2) + ' pp against ' + b.toFixed(2) +
+        ' pp on OFAF');
+    })();
+
+    /* Oil treatment, all three durations. */
+    (function () {
+      var res = [], i, hrs, ms, ppm0, w0, p0, t, ppmEnd, pEnd, rem;
+      var allBack = true, allPaper = true, allSmall = true;
+      for (i = 0; i < 3; i++) {
+        hrs = [1, 6, 24][i];
+        ms = settled('onan');
+        ppm0 = ms.ppm;
+        w0 = C.totalWater(ms);
+        p0 = C.paperMean(ms);
+        t = 0;
+        C.startTreatment(ms, hrs);
+        while (C.treatmentActive(ms)) C.stepTreatment(ms, 62, GRAD, 5);
+        ppmEnd = ms.ppm;
+        pEnd = C.paperMean(ms);
+        rem = ms.treat.removed;
+        while (t < 1440) {
+          C.stepMoisture(ms, 62, GRAD, 5);
+          t += 5;
+        }
+        res.push({
+          hrs: hrs, ppm0: ppm0, ppmEnd: ppmEnd, ppm1d: ms.ppm,
+          dPaper: pEnd - p0, rem: rem, frac: rem / w0
+        });
+      }
+      for (i = 0; i < res.length; i++) {
+        if (res[i].ppm1d < 0.8 * res[i].ppm0) allBack = false;
+        if (Math.abs(res[i].dPaper) > 0.1) allPaper = false;
+        if (res[i].frac > 0.05) allSmall = false;
+      }
+      pass('the oil is back near its old reading within a day, whatever the duration',
+        allBack, res.map(function (r) {
+          return r.hrs + 'h: ' + r.ppm0.toFixed(1) + ' to ' + r.ppm1d.toFixed(1) + ' ppm';
+        }).join(', '));
+      pass('the paper barely moves while the oil swings',
+        allPaper, res.map(function (r) {
+          return r.hrs + 'h: ' + r.dPaper.toFixed(3) + ' pp';
+        }).join(', '));
+      pass('a treatment removes a small fraction of the water in the system',
+        allSmall, res.map(function (r) {
+          return r.hrs + 'h: ' + r.rem.toFixed(2) + ' kg, ' +
+            (100 * r.frac).toFixed(1) + ' percent';
+        }).join(', '));
+
+      /* The counterintuitive one, and the reason the duration is a control at
+         all: run the plant long enough and the paper feeds the oil faster than
+         the plant empties it, so the monitor climbs while the plant works. */
+      pass('a long treatment leaves the oil reading higher than it found it',
+        res[2].ppmEnd > res[2].ppm0 && res[0].ppmEnd < res[0].ppm0,
+        '1h ends at ' + res[0].ppmEnd.toFixed(1) + ' ppm from ' +
+        res[0].ppm0.toFixed(1) + ', 24h ends at ' + res[2].ppmEnd.toFixed(1));
+
+      pass('four times the treatment does not remove four times the water',
+        res[2].rem > res[0].rem && res[2].rem < 4 * res[0].rem,
+        '1h takes ' + res[0].rem.toFixed(2) + ' kg, 24h takes ' +
+        res[2].rem.toFixed(2) + ' kg');
+    })();
+
+    /* Display and housekeeping. */
+    (function () {
+      var ms = settled('onan'), out = new Float64Array(C.N_R_SHOW * C.N_A);
+      var k, s1 = 0, s2 = 0, tg, top;
+      C.showGrid(ms, out);
+      for (k = 0; k < out.length; k++) s1 += out[k];
+      for (k = 0; k < C.N_CELL; k++) s2 += ms.C[k];
+      pass('averaging down to the shown columns preserves the mean',
+        Math.abs(s1 / out.length - s2 / C.N_CELL) < 1e-12,
+        'shown ' + (s1 / out.length).toFixed(6) + ' against computed ' +
+        (s2 / C.N_CELL).toFixed(6));
+
+      tg = new Float64Array(C.N_R_SHOW * C.N_A);
+      C.tempGrid(62, GRAD, tg);
+      top = tg[(C.N_A - 1) * C.N_R_SHOW];
+      pass('the temperature map runs cold at the bottom and hot at the top',
+        tg[0] < top && Math.abs(top - 62) < 1e-9,
+        'bottom ' + tg[0].toFixed(1) + ' C, top ' + top.toFixed(1) + ' C');
+    })();
+
+    /* Nothing unphysical over a run that uses every control: stage changes, a
+       treatment, and a full sweep of compressed weather. */
+    (function () {
+      var ms = C.initMoisture(2.5, 20), stages = ['onan', 'onaf', 'ofaf'];
+      var grad = C.gradOf('onan'), bad = 0, k, i, thO, st;
+      C.equilibrateFromPaper(ms, 2.5, 62, grad);
+      for (i = 0; i < 1200; i++) {
+        st = stages[Math.floor(i / 400) % 3];
+        grad = C.gradOf(st);
+        thO = 62 + 22 * Math.sin(2 * Math.PI * i / 144);
+        if (i === 500) C.startTreatment(ms, 6);
+        if (C.treatmentActive(ms)) C.stepTreatment(ms, thO, grad, 10);
+        else C.stepMoisture(ms, thO, grad, 10 * COMP);
+        for (k = 0; k < C.N_CELL; k++) if (!(ms.C[k] > 0 && ms.C[k] <= 10)) bad++;
+        if (!(ms.ppm > 0 && ms.ppm < 2 * C.oilSat(90))) bad++;
+      }
+      pass('no cell and no oil reading leaves its physical range over a full run',
+        bad === 0, bad + ' violations, ending at ' + C.paperMean(ms).toFixed(2) +
+        ' percent paper and ' + ms.ppm.toFixed(1) + ' ppm');
+    })();
+
+    /* The compression factor is quoted in the Model tab, so the prose and the
+       code are pinned to each other here. */
+    (function () {
+      var ms, n = 0;
+      pass('one shown day is the number of diffusion days the page claims',
+        Math.abs(COMP - 18.25) < 0.01,
+        COMP.toFixed(2) + ' diffusion days per shown day');
+
+      ms = settled('onan');
+      C.startTreatment(ms, 1);
+      while (C.treatmentActive(ms)) {
+        C.stepTreatment(ms, 62, GRAD, 5);
+        n += 5;
+      }
+      pass('a treatment runs in real time, not in compressed time',
+        n === 60, 'a one-hour treatment took ' + n + ' simulated minutes');
+    })();
+
+    console.log((fails === 0 ? 'ALL PASS' : fails + ' FAILURES') +
+      '   ' + (total - fails) + '/' + total + '   ' + (Date.now() - t0) + ' ms');
+  })();
+  </script>
+
+  <script id="app">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+    const html = htm.bind(React.createElement);
+    const C = MoistureCore;
+
+    /* Canvas code cannot read var(--) itself, so the palette lives in mutable
+       bindings, re-read on `themechange` (see assets/js/theme.js). */
+    const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const COL = {};
+    function readPalette() {
+      Object.assign(COL, {
+        emph: cssVar('--tool-emph'), text: cssVar('--tool-text'),
+        label: cssVar('--tool-label'), note: cssVar('--tool-note'),
+        faint: cssVar('--tool-faint'), border: cssVar('--tool-border'),
+        grid: cssVar('--tool-grid'), ink: cssVar('--tool-panel'),
+        subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary')
+      });
+    }
+    readPalette();
+
+    /* ── Colour ramps ─────────────────────────────────────────────────────
+       Sequential ramps for the two maps, nine stops each, sampled from the
+       named matplotlib colormaps and interpolated in sRGB.
+
+       One ramp per theme for moisture, because the direction has to suit the
+       ground it is drawn on. The dark end of any of these sits close to the
+       panel colour of a dark theme, so a dark-equals-wet mapping would hide
+       exactly the cells the page is about. On dark, wet reads BRIGHT: the
+       water is where the picture glows. On light, YlGnBu runs its natural way
+       and wet is deep blue on white.
+       Temperature uses one ramp on all three themes. It is a different family
+       of colour from any of the moisture ramps, so a glance at the picture
+       says which quantity is on screen without reading the legend.
+
+       Changing any of this is a table edit, deliberately: these are the stops
+       and the lookup below picks by theme and field. */
+    const RAMPS = {
+      /* YlGnBu, light to dark. */
+      ylgnbu: [
+        [255, 255, 217], [237, 248, 177], [199, 233, 180], [127, 205, 187],
+        [65, 182, 196], [29, 145, 192], [34, 94, 168], [37, 52, 148], [8, 29, 88]
+      ],
+      /* magma, dark to light. */
+      magma: [
+        [0, 0, 4], [28, 16, 68], [79, 18, 123], [129, 37, 129], [181, 54, 122],
+        [229, 80, 100], [251, 135, 97], [254, 194, 135], [252, 253, 191]
+      ],
+      /* bone, dark to light. */
+      bone: [
+        [0, 0, 0], [28, 28, 39], [56, 56, 78], [84, 89, 116], [112, 122, 140],
+        [140, 154, 154], [175, 185, 175], [215, 215, 202], [255, 255, 255]
+      ],
+      /* pink, dark to light. */
+      pink: [
+        [30, 0, 0], [123, 70, 70], [161, 100, 93], [190, 124, 110], [209, 154, 124],
+        [223, 184, 137], [235, 208, 165], [246, 226, 208], [255, 255, 255]
+      ]
+    };
+
+    /* Which ramp for a field on a skin, which way round, and which PART of it.
+       `flip` puts the high end of the data at the dark end of the ramp.
+       `clip` restricts the ramp to a sub-range, and it is not cosmetic: a full
+       sequential ramp necessarily passes through the luminance of whatever it
+       is drawn on, and where it does, those cells stop being separable from
+       the background. On the grey skin the untrimmed bone ramp crosses the
+       panel colour at about 38% of the data range, which is exactly where most
+       cells sit. Trimming lifts the worst-case cell-to-panel contrast from
+       about 1.0 to at least 1.5 and costs very little of the luminance spread
+       that makes a ramp readable as an ordering. */
+    const RAMP_FOR = {
+      moisture: {
+        light: { ramp: 'ylgnbu', flip: false, clip: [0.48, 0.98] },
+        grey: { ramp: 'bone', flip: false, clip: [0.48, 0.98] },
+        dark: { ramp: 'magma', flip: false, clip: [0.40, 0.98] }
+      },
+      temp: {
+        light: { ramp: 'pink', flip: true, clip: [0.48, 0.98] },
+        grey: { ramp: 'pink', flip: false, clip: [0.40, 0.98] },
+        dark: { ramp: 'pink', flip: false, clip: [0.12, 0.98] }
+      }
+    };
+
+    /* Which skin is live. Falls back to the dark ramp rather than throwing if
+       the dataset is not there yet: the FOUC snippet in the head sets it
+       before this script runs, but a ramp lookup is not worth a hard
+       dependency on that ordering. */
+    function skinNow() {
+      const el = document.documentElement;
+      const s = el && el.dataset ? el.dataset.skin : null;
+      return s === 'light' || s === 'grey' || s === 'dark' ? s : 'dark';
+    }
+
+    /* Sample a ramp at u in 0..1. Linear in sRGB between the nearest stops:
+       the stop lists are dense enough that a fancier interpolation would not
+       change a pixel anyone can see. clip maps the 0..1 request onto a
+       sub-range of the ramp before the lookup. */
+    function rampAt(name, u, flip, clip) {
+      const stops = RAMPS[name] || RAMPS.magma;
+      let t = u < 0 ? 0 : u > 1 ? 1 : u;
+      if (clip) t = clip[0] + (clip[1] - clip[0]) * t;
+      if (flip) t = 1 - t;
+      const x = t * (stops.length - 1);
+      const i = Math.min(stops.length - 2, Math.floor(x));
+      const f = x - i;
+      const a = stops[i], b = stops[i + 1];
+      return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * f) + ',' +
+        Math.round(a[1] + (b[1] - a[1]) * f) + ',' +
+        Math.round(a[2] + (b[2] - a[2]) * f) + ')';
+    }
+
+    /* Strings. Every word the page shows, in both languages. LANG and T stay
+       module-level but are `let`: App reassigns them from its own state before
+       any child renders, which is what makes the switch live rather than a
+       reload (see assets/js/lang.js). Units, ppm, the cooling-stage codes and
+       the percentage sign read the same in both languages and stay out of the
+       table. */
+    const STRINGS = {
+      en: {
+        title: 'Moisture twin, paper and oil',
+        desc: 'Where the water sits in a transformer. The same measured ppm in the oil means very different moisture in the paper depending on temperature, and drying the oil barely touches the paper.',
+        tabs: { transformer: 'Transformer', live: 'Moisture', heat: 'Temperature', model: 'Model' },
+        scen: {
+          desert: 'Desert', nyc: 'City / overload', northern: 'Northern', eaf: 'EAF',
+          custom: 'Custom'
+        },
+        groups: {
+          site: 'Site', air: 'Air', load: 'Load', paper: 'Insulation',
+          transport: 'Transport'
+        },
+        season: { summer: 'Summer peak', winter: 'Winter peak' },
+        seasonLabel: 'Seasonal load peak',
+        stages: { onan: 'ONAN', onaf: 'ONAF', ofaf: 'OFAF' },
+        stageLabel: 'Cooling',
+        speed: 'Speed',
+        play: 'Play', pause: 'Pause',
+        treatLabel: 'Oil treatment',
+        treatRun: 'Drying',
+        treatDone: 'Treat',
+        mapTitle: 'Paper moisture',
+        heatTitle: 'Oil temperature',
+        axCopper: 'copper', axOil: 'oil', axBottom: 'bottom', axTop: 'top',
+        radialAxis: 'through the insulation',
+        axialAxis: 'winding height',
+        spanRadial: 'across the insulation',
+        spanAxial: 'bottom to top',
+        spanNote: (nr, na) => 'computed on ' + nr + ' by ' + na + ', shown coarser',
+        wettest: 'wettest',
+        hottest: 'hottest',
+        legendMoist: 'paper moisture, % of dry mass',
+        legendTemp: 'oil temperature, C',
+        nowOil: 'oil',
+        nowPaper: 'paper mean',
+        nowSat: 'relative saturation',
+        nowRemoved: 'removed',
+        stripOil: 'Oil water content and paper moisture',
+        stripPpm: 'oil, ppm',
+        stripPaper: 'paper, %',
+        stripTreat: 'treatment',
+        stripWindow: (d) => d + ' days of diffusion on screen',
+        noteClose: 'Close',
+        noteAria: (open, label) => (open ? 'Hide' : 'Show') + ' the note on ' + label,
+        heatNote: 'The same grid, carrying the temperature that drives it. The axial structure of the moisture map is this ramp, pulled through the isotherm.'
+      },
+      de: {
+        title: 'Feuchtezwilling, Papier und Öl',
+        desc: 'Wo das Wasser im Transformator sitzt. Derselbe gemessene ppm-Wert im Öl bedeutet je nach Temperatur sehr unterschiedliche Feuchte im Papier, und eine Öltrocknung rührt das Papier kaum an.',
+        tabs: { transformer: 'Transformator', live: 'Feuchte', heat: 'Temperatur', model: 'Modell' },
+        scen: {
+          desert: 'Wüste', nyc: 'Stadt / Überlast', northern: 'Nordisch', eaf: 'Lichtbogenofen',
+          custom: 'Eigen'
+        },
+        groups: {
+          site: 'Standort', air: 'Luft', load: 'Last', paper: 'Isolation',
+          transport: 'Transport'
+        },
+        season: { summer: 'Sommerspitze', winter: 'Winterspitze' },
+        seasonLabel: 'Saisonale Lastspitze',
+        stages: { onan: 'ONAN', onaf: 'ONAF', ofaf: 'OFAF' },
+        stageLabel: 'Kühlung',
+        speed: 'Tempo',
+        play: 'Start', pause: 'Pause',
+        treatLabel: 'Ölbehandlung',
+        treatRun: 'Trocknet',
+        treatDone: 'Starten',
+        mapTitle: 'Papierfeuchte',
+        heatTitle: 'Öltemperatur',
+        axCopper: 'Kupfer', axOil: 'Öl', axBottom: 'unten', axTop: 'oben',
+        radialAxis: 'durch die Isolation',
+        axialAxis: 'Wickelhöhe',
+        spanRadial: 'quer zur Isolation',
+        spanAxial: 'unten nach oben',
+        spanNote: (nr, na) => 'gerechnet auf ' + nr + ' mal ' + na + ', grober gezeigt',
+        wettest: 'feuchteste',
+        hottest: 'heißeste',
+        legendMoist: 'Papierfeuchte, % der Trockenmasse',
+        legendTemp: 'Öltemperatur, C',
+        nowOil: 'Öl',
+        nowPaper: 'Papier im Mittel',
+        nowSat: 'relative Sättigung',
+        nowRemoved: 'entnommen',
+        stripOil: 'Wassergehalt im Öl und Feuchte im Papier',
+        stripPpm: 'Öl, ppm',
+        stripPaper: 'Papier, %',
+        stripTreat: 'Behandlung',
+        stripWindow: (d) => d + ' Tage Diffusion im Bild',
+        noteClose: 'Schließen',
+        noteAria: (open, label) => 'Hinweis zu ' + label + (open ? ' ausblenden' : ' anzeigen'),
+        heatNote: 'Dasselbe Gitter, mit der Temperatur, die es treibt. Die axiale Struktur der Feuchtekarte ist diese Rampe, durch die Isotherme gezogen.'
+      }
+    };
+
+    /* Field labels and the one-line background behind each info button, keyed
+       once and worded twice. A row renders T.f[key][0] as its label and
+       T.f[key][1] inside the popover. */
+    STRINGS.en.f = {
+      ambMean: ['Mean air temperature',
+        'Annual mean of the ambient air. The yearly and daily swings below sit on top of it.'],
+      ambYearAmp: ['Yearly swing',
+        'Half the peak-to-peak annual variation, so 12 means 24 K between the coldest and the warmest part of the year.'],
+      ambDayAmp: ['Daily swing',
+        'Half the peak-to-peak daily variation. The shape of the day is the Parton-Logan one, not a cosine: it warms faster than it cools.'],
+      ambLat: ['Latitude',
+        'Sets the length of the day through the year, which is what makes summer days long and winter days short.'],
+      loadBase: ['Base load',
+        'Load factor in per unit of nameplate rating, before the daily and seasonal variations.'],
+      loadDayAmp: ['Daily load swing',
+        'Half the peak-to-peak daily load variation, in per unit.'],
+      loadDayPeak: ['Daily load peak',
+        'Hour of day at which the load peaks. Whether this lands on the warm part of the day or after it changes the hot spot considerably.'],
+      loadSeasonAmp: ['Seasonal load swing',
+        'Half the peak-to-peak annual load variation, in per unit.'],
+      loadFast: ['Fast load component',
+        'Scales a minute-scale load pattern. Zero is a smoothly varying load, one is an arc furnace.'],
+      wpMean: ['Paper moisture',
+        'Mean water content of the solid insulation, as a percentage of its dry mass. This is the quantity an assessment quotes and the one this page is about. The oil content follows from it.'],
+      lPaper: ['Insulation thickness',
+        'Half thickness of the insulation, from the conductor to the oil face. Sets how long water takes to move through the paper, and it is the square of this that matters.'],
+      mPaper: ['Insulation mass',
+        'Mass of the solid insulation. Against about 20 tonnes of oil, this is the reservoir holding nearly all of the water.'],
+      hFilm: ['Surface transfer',
+        'How freely water crosses the paper surface into the oil. Not a measured value: it sets how fast the oil recovers after a treatment, so it is left as a control rather than buried in the model.'],
+      gradK: ['Oil temperature rise, bottom to top',
+        'Difference between the oil at the top of the tank and at the bottom, at rated load. Not tabulated in the standard; the ordering across cooling stages is, and that ordering is what the cooling switch demonstrates.']
+    };
+
+    STRINGS.de.f = {
+      ambMean: ['Mittlere Lufttemperatur',
+        'Jahresmittel der Umgebungsluft. Der Jahres- und der Tagesgang unten sitzen darauf.'],
+      ambYearAmp: ['Jahresamplitude',
+        'Halbe Schwankungsbreite über das Jahr, 12 bedeutet also 24 K zwischen der kältesten und der wärmsten Zeit.'],
+      ambDayAmp: ['Tagesamplitude',
+        'Halbe Schwankungsbreite über den Tag. Die Tagesform ist die von Parton und Logan, kein Kosinus: es wird schneller warm als kalt.'],
+      ambLat: ['Breitengrad',
+        'Bestimmt die Tageslänge über das Jahr, also lange Sommertage und kurze Wintertage.'],
+      loadBase: ['Grundlast',
+        'Lastfaktor bezogen auf die Nennleistung, vor Tages- und Jahresgang.'],
+      loadDayAmp: ['Tagesamplitude der Last',
+        'Halbe Schwankungsbreite der Last über den Tag, bezogen auf die Nennleistung.'],
+      loadDayPeak: ['Lastspitze am Tag',
+        'Uhrzeit der Lastspitze. Ob sie auf die warme Tageszeit fällt oder danach, macht für den Hotspot einen erheblichen Unterschied.'],
+      loadSeasonAmp: ['Jahresamplitude der Last',
+        'Halbe Schwankungsbreite der Last über das Jahr, bezogen auf die Nennleistung.'],
+      loadFast: ['Schneller Lastanteil',
+        'Skaliert ein Lastmuster im Minutenbereich. Null ist eine glatt veränderliche Last, eins ein Lichtbogenofen.'],
+      wpMean: ['Papierfeuchte',
+        'Mittlerer Wassergehalt der festen Isolation in Prozent ihrer Trockenmasse. Das ist die Größe, die eine Zustandsbewertung angibt, und die Größe, um die es auf dieser Seite geht. Der Ölgehalt folgt daraus.'],
+      lPaper: ['Isolationsdicke',
+        'Halbe Dicke der Isolation, vom Leiter bis zur Ölseite. Bestimmt, wie lange Wasser durch das Papier braucht, und es zählt das Quadrat dieser Größe.'],
+      mPaper: ['Isolationsmasse',
+        'Masse der festen Isolation. Gegen etwa 20 Tonnen Öl ist das das Reservoir, das fast alles Wasser hält.'],
+      hFilm: ['Übergang an der Oberfläche',
+        'Wie leicht Wasser die Papieroberfläche ins Öl verlässt. Kein gemessener Wert: er bestimmt, wie schnell sich das Öl nach einer Behandlung erholt, und bleibt deshalb ein Bedienelement, statt im Modell zu verschwinden.'],
+      gradK: ['Ölübertemperatur, unten nach oben',
+        'Differenz zwischen dem Öl oben und unten im Kessel bei Nennlast. In der Norm nicht tabelliert; die Reihenfolge über die Kühlstufen schon, und genau die führt der Kühlungsschalter vor.']
+    };
+
+    /* The Model tab: what is modelled, what is assumed, what is deliberately
+       absent, and which numbers are chosen rather than measured. It answers
+       the questions the maps raise, in the order they come up. */
+    STRINGS.en.model = {
+      h1: 'What this page computes',
+      p1: 'A transformer holds most of its water in the paper, not in the oil, and the only thing a monitor measures is the oil. This page runs both: a grid of insulation cells at several winding heights, each exchanging water with a single well-mixed oil volume, with the temperature of that oil coming from the IEC 60076-7 thermal model.',
+      h2: 'The oil is not the paper',
+      p2: 'Water splits between oil and paper along a temperature-dependent equilibrium. Expressed against relative saturation, that is, the oil water content divided by what the oil could hold at that temperature, the paper isotherm is nearly temperature independent, and all of the temperature dependence sits in the solubility. This is why the same reading in ppm means very different things in winter and in summer: at 20 ppm the paper sits near 4.3% at 20 C and near 0.8% at 80 C.',
+      h3: 'Two directions, and they are not equally strong',
+      p3: 'Radially there is a diffusion equation through the insulation, with a diffusivity that depends strongly on both temperature and water content. Axially there is no coupling at all: each winding height is an independent column driven by its own oil temperature. That asymmetry shows in the numbers. The axial spread of moisture is well over a percentage point, because the bottom of the tank is much colder than the top and cold paper holds more water. The radial spread is a tenth of that or less, because the oil is too small a buffer to hold the paper surface away from equilibrium for long. Both spreads are printed under the map rather than left to the colours.',
+      h4: 'Why drying the oil does so little',
+      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 60-to-1 split while the paper refills it. Run the plant for an hour and the reading drops. Run it for a day and the reading can end up higher than it started, because the paper feeds the oil faster than the plant empties it. Either way a few percent of the water leaves, and the oil reading is back within a day.',
+      h5: 'Time, compressed',
+      p5: 'Moisture in paper moves on timescales of weeks to months, which no one is going to watch in real time. The live view compresses the year: twenty shown days sweep a full season, so one shown day is about 18 days of diffusion. The oil treatment is the exception and runs in real time, because an hour of drying has to be an hour.',
+      p6: 'The paper is solved implicitly. An explicit scheme on this grid would be limited to a couple of minutes per step at the hot, wet corner, which is unusable when months have to pass; the implicit solve is unconditionally stable and costs one tridiagonal sweep per winding height. The oil balance is advanced explicitly after it, which is accurate as long as the step stays bounded, and the code bounds it.',
+      h6: 'What is not modelled, and which numbers are chosen',
+      p7: 'There is no bubble evolution, no free water, no ageing of the cellulose and no water generated by decomposition. The oil water content is one number for the whole tank: oil temperature is stratified here, oil water is not, because a sample is drawn at one point and the oil turns over in minutes while the paper takes days. Of the constants, the solubility, the isotherm and the diffusivity are published relations, the cooling-stage coefficients come from the standard, and three numbers are chosen rather than measured: the insulation thickness and the two masses, which set the scale of the example unit, and the surface transfer coefficient, which sets the recovery time after a treatment. That last one is exposed as a control so its effect can be seen rather than trusted.',
+      src: 'Thermal model: IEC 60076-7:2018, exponential-solution equivalents, Table 4 coefficients. Water in oil and paper: equilibrium and solubility relations as tabulated in the CIGRE brochures on moisture in transformer insulation. Diffusion in paper: the Foss form with the Guidi and Fullerton parameters. No device-specific data is used anywhere on this page.'
+    };
+
+    STRINGS.de.model = {
+      h1: 'Was diese Seite rechnet',
+      p1: 'Ein Transformator hält den größten Teil seines Wassers im Papier, nicht im Öl, und gemessen wird nur das Öl. Diese Seite rechnet beides: ein Gitter aus Isolationszellen auf mehreren Wickelhöhen, jede im Wasseraustausch mit einem einzigen, gut durchmischten Ölvolumen, dessen Temperatur aus dem thermischen Modell nach IEC 60076-7 kommt.',
+      h2: 'Das Öl ist nicht das Papier',
+      p2: 'Wasser teilt sich zwischen Öl und Papier nach einem temperaturabhängigen Gleichgewicht auf. Trägt man es über der relativen Sättigung auf, also dem Wassergehalt des Öls geteilt durch das, was das Öl bei dieser Temperatur aufnehmen könnte, ist die Papierisotherme nahezu temperaturunabhängig, und die ganze Temperaturabhängigkeit steckt in der Löslichkeit. Deshalb bedeutet derselbe ppm-Wert im Winter und im Sommer etwas völlig anderes: bei 20 ppm liegt das Papier bei 20 C nahe 4,3% und bei 80 C nahe 0,8%.',
+      h3: 'Zwei Richtungen, und sie sind nicht gleich stark',
+      p3: 'Radial steht eine Diffusionsgleichung durch die Isolation, mit einer Diffusionskonstante, die stark von Temperatur und Wassergehalt abhängt. Axial gibt es überhaupt keine Kopplung: jede Wickelhöhe ist eine eigene Säule, getrieben von ihrer eigenen Öltemperatur. Diese Unsymmetrie zeigt sich in den Zahlen. Die axiale Spanne der Feuchte liegt deutlich über einem Prozentpunkt, weil es unten im Kessel viel kälter ist als oben und kaltes Papier mehr Wasser hält. Die radiale Spanne ist ein Zehntel davon oder weniger, weil das Öl ein zu kleiner Puffer ist, um die Papieroberfläche länger aus dem Gleichgewicht zu halten. Beide Spannen stehen als Zahl unter der Karte und nicht nur in den Farben.',
+      h4: 'Warum eine Öltrocknung so wenig bringt',
+      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 60 zu 1, während das Papier nachliefert. Läuft die Anlage eine Stunde, sinkt die Anzeige. Läuft sie einen Tag, kann die Anzeige am Ende höher stehen als am Anfang, weil das Papier schneller nachliefert als die Anlage leert. In beiden Fällen verlässt ein kleiner Prozentsatz des Wassers das System, und die Ölanzeige ist binnen eines Tages zurück.',
+      h5: 'Zeit, komprimiert',
+      p5: 'Feuchte im Papier bewegt sich über Wochen bis Monate, was niemand in Echtzeit ansehen wird. Die Live-Ansicht komprimiert das Jahr: zwanzig gezeigte Tage überstreichen eine ganze Saison, ein gezeigter Tag sind also etwa 18 Tage Diffusion. Die Ölbehandlung ist davon ausgenommen und läuft in Echtzeit, denn eine Stunde Trocknung muss eine Stunde sein.',
+      p6: 'Das Papier wird implizit gelöst. Ein explizites Verfahren wäre auf diesem Gitter am heißen, feuchten Ende auf wenige Minuten pro Schritt begrenzt, was unbrauchbar ist, wenn Monate vergehen sollen; die implizite Lösung ist unbedingt stabil und kostet einen Tridiagonaldurchlauf pro Wickelhöhe. Die Ölbilanz wird danach explizit nachgezogen, was genau genug ist, solange der Schritt begrenzt bleibt, und der Code begrenzt ihn.',
+      h6: 'Was nicht modelliert ist, und welche Zahlen gewählt sind',
+      p7: 'Keine Blasenbildung, kein freies Wasser, keine Alterung der Zellulose und kein Wasser aus Zersetzung. Der Wassergehalt des Öls ist eine Zahl für den ganzen Kessel: die Öltemperatur ist hier geschichtet, das Ölwasser nicht, denn eine Probe wird an einer Stelle gezogen und das Öl wälzt in Minuten um, während das Papier Tage braucht. Von den Konstanten sind Löslichkeit, Isotherme und Diffusionskonstante publizierte Beziehungen, die Koeffizienten der Kühlstufen stammen aus der Norm, und drei Zahlen sind gewählt und nicht gemessen: die Isolationsdicke und die beiden Massen, die die Größe des Beispielgeräts festlegen, und der Übergangskoeffizient an der Oberfläche, der die Erholungszeit nach einer Behandlung bestimmt. Der letzte ist als Bedienelement zugänglich, damit man seine Wirkung sehen kann, statt ihr zu glauben.',
+      src: 'Thermisches Modell: IEC 60076-7:2018, Äquivalente der Exponentiallösung, Koeffizienten aus Tabelle 4. Wasser in Öl und Papier: Gleichgewichts- und Löslichkeitsbeziehungen wie in den CIGRE-Broschüren zur Feuchte in der Transformatorisolation tabelliert. Diffusion im Papier: die Foss-Form mit den Parametern von Guidi und Fullerton. Auf dieser Seite werden keine gerätespezifischen Daten verwendet.'
+    };
+
+    let LANG = document.documentElement.lang === 'de' ? 'de' : 'en';
+    let T = STRINGS[LANG];
+
+    /* ── Shared controls ──────────────────────────────────────────────────
+       Carried over from the thermal page unchanged: there is no shared module
+       in this project, every page is self-contained, so these are copies and
+       not imports. Seg is a segmented control for choosing a SETTING, Tabs is
+       the underlined strip for choosing a VIEW, and the distinction is
+       deliberate: as a segmented control the tab switch would look exactly
+       like the settings under it. */
+
+    function Seg({ items, value, onChange, className }) {
+      return html`
+        <div className=${className || 'th-segs'}>
+          ${items.map((it) => html`
+            <button key=${it.id} type="button"
+              className=${'lang-seg th-seg' + (it.id === value ? ' active' : '')}
+              onClick=${() => onChange(it.id)}>${it.label}</button>
+          `)}
+        </div>
+      `;
+    }
+
+    function Tabs({ items, value, onChange }) {
+      return html`
+        <div className="tabstrip" role="tablist">
+          ${items.map((it) => html`
+            <button key=${it.id} type="button" role="tab"
+              aria-selected=${it.id === value ? 'true' : 'false'}
+              className=${it.id === value ? 'active' : ''}
+              onClick=${() => onChange(it.id)}>${it.label}</button>
+          `)}
+        </div>
+      `;
+    }
+
+    /* One slider in the live control row. */
+    function Ctl({ id, label, min, max, step, value, format, onChange }) {
+      return html`
+        <div className="th-ctl">
+          <label htmlFor=${id}>${label}</label>
+          <input id=${id} type="range" min=${min} max=${max} step=${step} value=${value}
+            onChange=${(e) => onChange(parseFloat(e.target.value))} />
+          <span className="th-ctlval">${format(value)}</span>
+        </div>
+      `;
+    }
+    /* ── Info button and popover ──────────────────────────────────────────
+       A small round "i" next to a label, opening a box that floats above the
+       page instead of expanding inline, so opening one never pushes the rows
+       below it out of view. Closes on Escape, on its own close button and on a
+       click anywhere outside. Only one is open at a time, which the caller
+       enforces by holding a single key. */
+    function InfoBtn({ open, toggle, label }) {
+      return html`
+        <button type="button" className="th-info" onClick=${toggle} aria-expanded=${open}
+          aria-label=${T.noteAria(open, label)}>i</button>
+      `;
+    }
+
+    function Popover({ children, close }) {
+      const ref = useRef(null);
+      const [dx, setDx] = useState(0);
+
+      useEffect(() => {
+        const el = ref.current;
+        if (el && el.getBoundingClientRect) {
+          const r = el.getBoundingClientRect(), pad = 12;
+          let d = 0;
+          if (r.left < pad) d = pad - r.left;
+          else if (r.right > window.innerWidth - pad) d = window.innerWidth - pad - r.right;
+          if (d) setDx(Math.round(d));
+        }
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        const onDown = (e) => {
+          const el2 = ref.current;
+          if (!el2 || (el2.contains && el2.contains(e.target))) return;
+          const anchor = el2.parentElement;
+          if (anchor && anchor.contains(e.target) && e.target.closest &&
+            e.target.closest('.th-info')) return;
+          close();
+        };
+        document.addEventListener('keydown', onKey);
+        document.addEventListener('mousedown', onDown);
+        return () => {
+          document.removeEventListener('keydown', onKey);
+          document.removeEventListener('mousedown', onDown);
+        };
+      }, []);
+
+      /* The multiplication sign is written as the character: htm does not
+         decode HTML entities, it would render the literal string. */
+      return html`
+        <div className="th-pop" ref=${ref} role="tooltip"
+          style=${{ transform: 'translateX(calc(-50% + ' + dx + 'px))', '--arrow': 'calc(50% - ' + dx + 'px)' }}>
+          <button type="button" className="th-popclose" onClick=${close}
+            aria-label=${T.noteClose}>×</button>
+          ${children}
+        </div>
+      `;
+    }
+
+    /* A row is a div and not a label: a label would hand every click on the
+       info button straight to the number input next to it. */
+    function NumRow({ spec, value, onChange, open, setOpen }) {
+      const id = 'th-f-' + spec.k;
+      return html`
+        <div className="th-row">
+          <span className="th-anchor">
+            <label htmlFor=${id}>${T.f[spec.k][0]}</label>
+            <${InfoBtn} open=${open} label=${T.f[spec.k][0]}
+              toggle=${() => setOpen(open ? null : spec.k)} />
+            ${open ? html`<${Popover} close=${() => setOpen(null)}>${T.f[spec.k][1]}<//>` : null}
+          </span>
+          <span>
+            <input id=${id} type="number" min=${spec.min} max=${spec.max} step=${spec.step}
+              value=${value}
+              onChange=${(e) => {
+                const v = parseFloat(e.target.value);
+                if (isFinite(v)) onChange(spec.k, Math.max(spec.min, Math.min(spec.max, v)));
+              }} />
+            <span className="th-unit">${spec.unit}</span>
+          </span>
+        </div>
+      `;
+    }
+
+    /* One framed block with its title on the frame. title takes a node, not
+       just a string: the sigma block carries markup in its heading. The
+       optional className is how a block gets placed in the grid; blocks
+       inside a stack do not need one. */
+    function Group({ title, className, children }) {
+      return html`
+        <section className=${'th-group' + (className ? ' ' + className : '')}>
+          <h2 className="th-h2">${title}</h2>
+          ${children}
+        </section>
+      `;
+    }
+    /* ── Canvas plumbing ──────────────────────────────────────────────────
+       Same pattern as the other pages in this set: fixed CSS height, backing
+       store at device resolution, redrawn on every render and on theme or size
+       change. There is deliberately NO dependency array on the draw effect, so
+       a language switch repaints every label for free. */
+    function useCanvas(height, draw) {
+      const cvRef = useRef(null);
+      const [, bump] = useState(0);
+      useEffect(() => {
+        const on = () => bump((n) => n + 1);
+        window.addEventListener('resize', on);
+        window.addEventListener('themechange', on);
+        return () => {
+          window.removeEventListener('resize', on);
+          window.removeEventListener('themechange', on);
+        };
+      }, []);
+      useEffect(() => {
+        const cv = cvRef.current;
+        if (!cv) return;
+        readPalette();
+        const rect = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(rect.width)), h = height;
+        cv.width = Math.round(w * dpr);
+        cv.height = Math.round(h * dpr);
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        draw(ctx, w, h);
+      });
+      return cvRef;
+    }
+
+    function niceStep(span, target) {
+      const raw = Math.abs(span) / Math.max(1, target);
+      if (!(raw > 0)) return 1;
+      const p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+      const m = raw / p;
+      return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+    }
+
+    /* Type sizes. The page is shown on projectors, so these are floors, not
+       preferences: anything below about 13 px stops being readable from the
+       back of a room. */
+    const FS = { tick: 13, label: 14, cell: 13, head: 15 };
+    const MONO = '12.5px ui-monospace, SFMono-Regular, Menlo, monospace';
+
+    /* Diffusion days per shown day. Declared here rather than next to the
+       simulation because both the strip chart and the integrator read it, and
+       the chart is defined first. */
+    const COMP_FACTOR = C.YEAR_MIN / C.COMP_MIN;
+
+    function fmt1(v) { return v.toFixed(1); }
+    function fmt2(v) { return v.toFixed(2); }
+
+    /* ── The map ──────────────────────────────────────────────────────────
+       One component for both maps. The moisture tab and the temperature tab
+       differ only in the field they read, the domain they stretch over and the
+       ramp they use, so they are one drawing routine with a parameter rather
+       than two that have to be kept in step.
+
+       The domain is FIXED, never fitted to the frame. A rescaling heatmap is
+       the classic way to make a picture lie: the colour of a cell has to mean
+       the same thing before and after a treatment, or the map says the
+       opposite of what happened. What varies instead is the printed span under
+       the map, which is the honest way to show that the range in frame is
+       sometimes small.
+       Cells are drawn with a gap in the panel colour. Without it a heatmap
+       reads as one continuous smear and the grid stops being legible as a
+       grid. */
+    const MAP_H = 380;
+    const MAP_PAD = { l: 96, r: 128, t: 34, b: 62 };
+    const CELL_GAP = 2;
+
+    function HeatmapPanel({ field, values, domain, ramp, flip, clip, title, unit,
+      format, markIdx, markLabel, height }) {
+      const h = height || MAP_H;
+      const cvRef = useCanvas(h, (ctx, w) => {
+        const nx = C.N_R_SHOW, ny = C.N_A;
+        const x0 = MAP_PAD.l, x1 = Math.max(x0 + 60, w - MAP_PAD.r);
+        const y0 = MAP_PAD.t, y1 = h - MAP_PAD.b;
+        const cw = (x1 - x0) / nx, ch = (y1 - y0) / ny;
+        const lo = domain[0], hi = domain[1];
+
+        /* Cells. Axial index 0 is the bottom of the winding, so it is drawn at
+           the BOTTOM of the map: the picture keeps the orientation of the tank
+           it describes. */
+        for (let j = 0; j < ny; j++) {
+          for (let i = 0; i < nx; i++) {
+            const v = values[j * nx + i];
+            const u = (v - lo) / (hi - lo);
+            ctx.fillStyle = rampAt(ramp, u, flip, clip);
+            const px = x0 + i * cw, py = y1 - (j + 1) * ch;
+            ctx.fillRect(px + CELL_GAP / 2, py + CELL_GAP / 2,
+              cw - CELL_GAP, ch - CELL_GAP);
+          }
+        }
+
+        /* The marked cell, ringed rather than recoloured so the ring does not
+           compete with the value it points at. --tool-emph is near-white on
+           the dark skins and near-black on the light one, so the ring keeps a
+           hard edge on all three. */
+        if (markIdx != null && markIdx >= 0) {
+          const mj = Math.floor(markIdx / nx), mi = markIdx % nx;
+          const px = x0 + mi * cw, py = y1 - (mj + 1) * ch;
+          ctx.strokeStyle = COL.emph;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px + CELL_GAP / 2 + 1, py + CELL_GAP / 2 + 1,
+            cw - CELL_GAP - 2, ch - CELL_GAP - 2);
+          if (markLabel) {
+            ctx.font = FS.cell + 'px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = COL.emph;
+            ctx.fillText(markLabel, px + cw / 2, py - 3);
+          }
+        }
+
+        /* Axes. Only the ends are named: a mm scale on every column and a
+           temperature on every level would be more numbers than the picture
+           can carry. */
+        ctx.font = FS.tick + 'px system-ui, sans-serif';
+        ctx.fillStyle = COL.note;
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
+        ctx.fillText(T.axCopper, x0, y1 + 8);
+        ctx.textAlign = 'right';
+        ctx.fillText(T.axOil, x1, y1 + 8);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = COL.faint;
+        ctx.fillText(T.radialAxis + ', 0 to ' +
+          (C.L_PAPER * 1000).toFixed(1) + ' mm', (x0 + x1) / 2, y1 + 26);
+
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = COL.note;
+        ctx.fillText(T.axTop, x0 - 10, y0 + ch / 2);
+        ctx.fillText(T.axBottom, x0 - 10, y1 - ch / 2);
+
+        /* Level values on the right edge: this is the one per-row number worth
+           carrying, because it is what makes the axial ramp readable as a
+           cause rather than just a gradient. */
+        ctx.textAlign = 'left';
+        ctx.font = MONO;
+        for (let j = 0; j < ny; j++) {
+          const rowMean = (() => {
+            let s = 0;
+            for (let i = 0; i < nx; i++) s += values[j * nx + i];
+            return s / nx;
+          })();
+          ctx.fillStyle = COL.text;
+          ctx.fillText(format(rowMean) + unit, x1 + 10, y1 - (j + 0.5) * ch);
+        }
+
+        /* Title and the colour scale. A continuous encoding with one series
+           still needs its legend: the bar is the only way to read a cell. */
+        ctx.font = FS.head + 'px system-ui, sans-serif';
+        ctx.fillStyle = COL.emph;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(title, x0, y0 - 14);
+
+        const bw = Math.min(260, (x1 - x0) * 0.42), bh = 9;
+        const bx = x1 - bw, by = y0 - 22;
+        for (let p = 0; p < bw; p++) {
+          ctx.fillStyle = rampAt(ramp, p / (bw - 1), flip, clip);
+          ctx.fillRect(bx + p, by, 1, bh);
+        }
+        ctx.strokeStyle = COL.border;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.font = FS.tick - 1 + 'px system-ui, sans-serif';
+        ctx.fillStyle = COL.faint;
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = 'left';
+        ctx.fillText(format(lo), bx, by - 2);
+        ctx.textAlign = 'right';
+        ctx.fillText(format(hi) + unit, bx + bw, by - 2);
+      });
+      return html`<canvas ref=${cvRef} style=${{ height: h + 'px' }}></canvas>`;
+    }
+
+    /* The strip chart. Oil water content and mean paper moisture on one time
+       axis, with the treatment windows marked. This is where the point about
+       drying the oil lands: two traces whose whole story is that one moves a
+       lot and the other barely at all.
+
+       A real ring buffer over a FIXED window of simulated time, not a growing
+       array. Two things go wrong with a growing one: the x axis has to rescale
+       as it fills, so the traces slide, and at a wrap old and new samples land
+       on the same pixels, which draws loops instead of a line. A fixed window
+       means one pixel is always the same amount of time, and the chart
+       scrolls.
+
+       The scales carry a MINIMUM span, which is the most important decision in
+       this panel. Fitting each trace to its own range would zoom into the paper
+       until a few hundredths of a percentage point filled the height, showing a
+       mountain range where the physics says a nearly flat line. Two traces on
+       auto-fitted axes also come out looking identical even when one swings
+       twenty times as hard as the other, which is the precise opposite of the
+       point being made. */
+    const STRIP_H = 190;
+    const STRIP_PAD = { l: 96, r: 128, t: 20, b: 34 };
+    /* Window length in simulated display minutes, and the sampling interval.
+       A fifth of the compressed year is a season and change: long enough that a
+       treatment and its recovery both fit, short enough that the daily cycle is
+       still texture rather than a blur. */
+    /* Window length in simulated display minutes. FIXED, not scaled with the
+       speed control, and that is a deliberate trade. A window that shrank at
+       low speed would make the trace sweep at a constant visual pace, but it
+       would also mean the span on screen changed as the speed changed, and at
+       the fast settings a six-hour treatment would fall below a pixel and the
+       thing the chart exists to show would vanish. A fixed span keeps a
+       treatment and its recovery legible at every speed.
+       One shown day. At speed 1 that crosses in 24 s, and even at the slowest
+       setting the trace still scrolls about 9 px/s, which reads as motion
+       rather than as a still picture. A longer window makes the slow settings
+       look frozen and squeezes a six-hour treatment towards a single pixel. */
+    const STRIP_SPAN = C.DAY_MIN;
+    /* One slot per integration step rather than per fixed interval of
+       simulated time. A fixed interval is what sets how often the trace GAINS
+       A POINT, so it makes the apparent smoothness of the curve depend on the
+       speed control: at a quarter speed a thirty-minute interval yields one
+       new point every two seconds and the line creeps along in steps while
+       everything else on the page is fluid. Sampling every step instead means
+       the trace advances on every frame at every speed, and the draw decimates
+       to pixel columns anyway, so the extra resolution costs only memory.
+       Sized for the slowest step (0.25 min) over the window, which is the
+       worst case for how many samples the span can hold. */
+    const STRIP_N = Math.ceil(STRIP_SPAN / 0.25) + 2;
+
+    function makeHist() {
+      return {
+        t: new Float64Array(STRIP_N),
+        ppm: new Float64Array(STRIP_N),
+        wp: new Float64Array(STRIP_N),
+        tr: new Uint8Array(STRIP_N),
+        head: 0,
+        count: 0,
+        tHead: 0
+      };
+    }
+
+    /* One sample per call, and the caller calls once per integration step.
+       Each slot carries its own timestamp because the step size changes with
+       the speed control, so the samples are NOT on a uniform grid and the draw
+       cannot infer a time from an index. */
+    function pushHist(hist, tMin, ppm, wp, treating) {
+      hist.head = hist.count === 0 ? 0 : (hist.head + 1) % STRIP_N;
+      hist.t[hist.head] = tMin;
+      hist.ppm[hist.head] = ppm;
+      hist.wp[hist.head] = wp;
+      hist.tr[hist.head] = treating ? 1 : 0;
+      hist.tHead = tMin;
+      if (hist.count < STRIP_N) hist.count++;
+    }
+
+    /* Oldest-to-newest walk over the ring: i = 0 is the oldest valid sample. */
+    function histAt(hist, i) {
+      const start = (hist.head - hist.count + 1 + STRIP_N * 2) % STRIP_N;
+      return (start + i) % STRIP_N;
+    }
+
+    function StripPanel({ hist, height }) {
+      const h = height || STRIP_H;
+      const cvRef = useCanvas(h, (ctx, w) => {
+        const x0 = STRIP_PAD.l, x1 = Math.max(x0 + 60, w - STRIP_PAD.r);
+        const y0 = STRIP_PAD.t, y1 = h - STRIP_PAD.b;
+        const n = hist.count;
+
+        ctx.font = FS.head - 1 + 'px system-ui, sans-serif';
+        ctx.fillStyle = COL.emph;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(T.stripOil, x0, y0 - 6);
+        if (n < 2) return;
+
+        /* The window always spans STRIP_SPAN and ends at the newest sample, so
+           a partly filled buffer draws a short trace on the right instead of a
+           stretched one across the full width.
+           Time comes from the stored timestamp of each sample, never from its
+           index: the step size follows the speed control, so the samples are
+           not evenly spaced and an index-derived time would stretch and
+           squeeze the trace whenever the speed changed. */
+        const tEnd = hist.tHead, tStart = tEnd - STRIP_SPAN;
+        const xOfT = (t) => x0 + (x1 - x0) * (t - tStart) / STRIP_SPAN;
+        const tOf = (i) => hist.t[histAt(hist, i)];
+
+        /* First sample still inside the window. The buffer holds more than the
+           window when the steps are small, so the old tail is skipped rather
+           than drawn off the left edge. */
+        let i0 = 0;
+        while (i0 < n - 1 && tOf(i0) < tStart) i0++;
+        const m0 = n - i0;
+        if (m0 < 2) return;
+
+        let pLo = Infinity, pHi = -Infinity, wLo = Infinity, wHi = -Infinity;
+        for (let i = i0; i < n; i++) {
+          const k = histAt(hist, i);
+          const p = hist.ppm[k], m = hist.wp[k];
+          if (p < pLo) pLo = p;
+          if (p > pHi) pHi = p;
+          if (m < wLo) wLo = m;
+          if (m > wHi) wHi = m;
+        }
+
+        /* Minimum spans in absolute units of each quantity, so a flat trace
+           draws flat. */
+        const scale = (lo, hi, minSpan) => {
+          const mid = (lo + hi) / 2;
+          const span = Math.max(hi - lo, minSpan) * 1.25;
+          return [mid - span / 2, mid + span / 2];
+        };
+        const pr = scale(pLo, pHi, 12);
+        const wr = scale(wLo, wHi, 1.0);
+        const yOfP = (v) => y1 - (y1 - y0) * (v - pr[0]) / (pr[1] - pr[0]);
+        const yOfW = (v) => y1 - (y1 - y0) * (v - wr[0]) / (wr[1] - wr[0]);
+
+        /* Treatment windows as one span per run, not one bar per sample: a
+           per-sample fill leaves gaps once the window is decimated and reads as
+           hatching rather than as an interval. */
+        ctx.fillStyle = COL.subtle;
+        let runFrom = -1;
+        for (let i = i0; i < n; i++) {
+          const on = hist.tr[histAt(hist, i)] === 1;
+          if (on && runFrom < 0) runFrom = i;
+          if ((!on || i === n - 1) && runFrom >= 0) {
+            const a = xOfT(tOf(runFrom)), b = xOfT(tOf(on ? i : i - 1));
+            ctx.fillRect(a, y0, Math.max(2, b - a), y1 - y0);
+            runFrom = -1;
+          }
+        }
+
+        ctx.strokeStyle = COL.border;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, y1 + 0.5);
+        ctx.lineTo(x1, y1 + 0.5);
+        ctx.stroke();
+
+        /* Decimating trace: when the window holds more samples than pixels,
+           collapse each pixel column to its min and max. Stroking every sample
+           at that density turns a clean daily cycle into visual noise. */
+        const wPx = Math.max(1, Math.round(x1 - x0));
+        const trace = (get, yOf, colour) => {
+          ctx.strokeStyle = colour;
+          ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          if (m0 <= wPx) {
+            for (let i = i0; i < n; i++) {
+              const x = xOfT(tOf(i)), y = yOf(get(i));
+              if (i === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+          } else {
+            let col = -1, lo = 0, hi = 0, started = false;
+            for (let i = i0; i < n; i++) {
+              const c = Math.round(xOfT(tOf(i)));
+              const v = get(i);
+              if (c !== col) {
+                if (col >= 0) {
+                  if (started) ctx.lineTo(col, yOf(lo));
+                  else { ctx.moveTo(col, yOf(lo)); started = true; }
+                  ctx.lineTo(col, yOf(hi));
+                }
+                col = c; lo = v; hi = v;
+              } else {
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
+              }
+            }
+            if (col >= 0) {
+              if (started) ctx.lineTo(col, yOf(lo));
+              else ctx.moveTo(col, yOf(lo));
+              ctx.lineTo(col, yOf(hi));
+            }
+          }
+          ctx.stroke();
+        };
+        trace((i) => hist.ppm[histAt(hist, i)], yOfP, COL.accent);
+        trace((i) => hist.wp[histAt(hist, i)], yOfW, COL.emph);
+
+        ctx.font = MONO;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = COL.accent;
+        ctx.fillText(pr[1].toFixed(0), x0 - 10, y0 + 6);
+        ctx.fillText(pr[0].toFixed(0), x0 - 10, y1 - 6);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = COL.emph;
+        ctx.fillText(wr[1].toFixed(2), x1 + 10, y0 + 6);
+        ctx.fillText(wr[0].toFixed(2), x1 + 10, y1 - 6);
+
+        ctx.font = FS.tick - 1 + 'px system-ui, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = COL.accent;
+        ctx.fillText(T.stripPpm, x0 - 10, y1 + 6);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = COL.emph;
+        ctx.fillText(T.stripPaper, x1 + 10, y1 + 6);
+
+        /* How much time is on screen, in diffusion days. Without it the axis is
+           a mystery, and that number is the whole reason the view is compressed
+           in the first place. */
+        ctx.textAlign = 'center';
+        ctx.fillStyle = COL.faint;
+        ctx.fillText(T.stripWindow(Math.round(STRIP_SPAN / C.DAY_MIN * COMP_FACTOR)),
+          (x0 + x1) / 2, y1 + 6);
+      });
+      return html`<canvas ref=${cvRef} style=${{ height: h + 'px' }}></canvas>`;
+    }
+
+    /* ── The simulation ───────────────────────────────────────────────────
+       One clock for the whole page. Both maps and the strip read the same
+       state, so switching tabs never restarts anything and never starts a
+       second loop: the animation frame lives here, in the root, not in a
+       panel.
+
+       The thermal state advances on display minutes and the moisture state on
+       those minutes multiplied by the compression factor, which is what lets
+       months of diffusion pass inside a demo. Treatment suspends the
+       compression: while the plant runs, a minute is a minute. */
+    /* Nominal integration step, and the bounds the adaptive choice stays
+       inside. The thermal model is stable well past this, and the moisture
+       solver splits anything long internally, so the step is free to follow
+       the frame rate rather than the physics. */
+    const STEP_NOM = 10;
+    const STEP_MIN_LO = 0.25;
+    const STEP_MIN_HI = 30;
+    /* Simulated display minutes per real second at speed 1. One shown day is
+       1440 display minutes, so 60 puts a day on screen in 24 s and the whole
+       compressed year in about eight minutes. */
+    const MIN_PER_SEC = 60;
+    /* Ceiling on the integration done in one frame, so a hitch or a tab wake
+       cannot turn into a multi-second freeze. */
+    const MAX_STEPS_FRAME = 400;
+    const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
+
+    /* Step size for a speed setting. A FIXED step couples the redraw rate to
+       the speed control: at a quarter speed only fifteen simulated minutes are
+       owed per second, so a ten-minute step fires once or twice a second and
+       the animation visibly stutters while the physics is perfectly fine.
+       Slow motion should mean smaller steps, not rarer ones. This aims at
+       roughly a step per frame at 60 Hz and clamps, so every speed redraws
+       smoothly and the fast settings still take big strides. */
+    function stepFor(speed) {
+      const perFrame = MIN_PER_SEC * speed / 60;
+      if (perFrame >= STEP_NOM) return STEP_NOM;
+      return Math.max(STEP_MIN_LO, Math.min(STEP_MIN_HI, perFrame));
+    }
+
+    function useSim(siteId, stage, gradK, wpMean, hFilm, playing, speed) {
+      const stateRef = useRef(null);
+      const [, bump] = useState(0);
+      const cfgRef = useRef({ siteId, stage, gradK, wpMean, hFilm });
+      cfgRef.current = { siteId, stage, gradK, wpMean, hFilm };
+
+      /* Build, or rebuild when a setting changes that invalidates the run.
+         Site, insulation condition and surface transfer all change what the
+         answer IS, so they restart; the cooling stage does not, because
+         watching the grid respond to a stage change is the whole reason the
+         switch exists. */
+      useEffect(() => {
+        const sc = C.scenarioById(siteId);
+        const cfg0 = cfgRef.current;
+        const P = C.stageParams(cfg0.stage, sc, {});
+        const thA0 = C.compAmbient(0, sc, 0);
+        const K0 = C.compLoadK(0, sc, 1);
+        /* Settle the thermal state before anything reads it. initState fills
+           the four differential states but leaves the two temperatures to the
+           first step, and the maps are drawn before any step has run, so
+           without this the temperature map has nothing to show on the opening
+           frame. One step also puts the oil where the grid is seeded from,
+           which is the consistent starting point anyway. */
+        const th = C.initState(K0, thA0, P);
+        C.stepThermal(th, K0, thA0, 1, P);
+        const ms = C.initMoisture(wpMean, 20);
+        C.equilibrateFromPaper(ms, wpMean, th.thetaO, cfg0.gradK);
+        stateRef.current = {
+          sc: sc, th: th, ms: ms, tMin: 0, hist: makeHist(), lastWall: 0
+        };
+        pushHist(stateRef.current.hist, 0, ms.ppm, C.paperMean(ms), false);
+        bump((n) => n + 1);
+      }, [siteId, wpMean, hFilm]);
+
+      /* The frame loop. One rAF while playing, none while paused.
+
+         Simulated time is tied to the WALL CLOCK through an accumulator, not
+         to the frame count. Stepping a fixed amount per frame makes the whole
+         page run at a speed that depends on the monitor: the same build goes
+         four times faster on a 240 Hz screen than on a 60 Hz one, and any
+         rounding of a per-frame step count to a minimum of one step silently
+         pins every speed setting to the same rate. With an accumulator, one
+         second of real time is always the same amount of simulated time at a
+         given speed, on any display. */
+      useEffect(() => {
+        if (!playing) return;
+        let raf = 0, last = 0, acc = 0;
+        const tick = (now) => {
+          const st = stateRef.current;
+          if (st) {
+            if (!last) last = now;
+            /* Capped so a backgrounded tab does not come back and integrate a
+               year in one frame. */
+            const dtWall = Math.min(250, now - last);
+            last = now;
+            const cfg = cfgRef.current;
+            /* Simulated display minutes owed for the elapsed wall time. */
+            acc += dtWall / 1000 * MIN_PER_SEC * speed;
+            const step = stepFor(speed);
+            let steps = Math.floor(acc / step);
+            /* Keep the fractional remainder so slow speeds advance smoothly
+               instead of stalling, and bound a single frame so one long hitch
+               cannot lock the tab up in the integrator. */
+            if (steps > MAX_STEPS_FRAME) {
+              steps = MAX_STEPS_FRAME;
+              acc = 0;
+            } else {
+              acc -= steps * step;
+            }
+            const sc = st.sc;
+            const P = C.stageParams(cfg.stage, sc, {});
+            for (let s = 0; s < steps; s++) {
+              const tD = st.tMin;
+              const thA = C.compAmbient(tD, sc, 0);
+              const K = C.compLoadK(tD, sc, 1);
+              const thAn = C.compAmbient(tD + step, sc, 0);
+              const Kn = C.compLoadK(tD + step, sc, 1);
+              C.stepThermal(st.th, K, thA, step, P, Kn, thAn);
+              const treating = C.treatmentActive(st.ms);
+              if (treating) {
+                C.stepTreatment(st.ms, st.th.thetaO, cfg.gradK, step);
+              } else {
+                C.stepMoisture(st.ms, st.th.thetaO, cfg.gradK, step * COMP_FACTOR);
+              }
+              st.tMin += step;
+              pushHist(st.hist, st.tMin, st.ms.ppm, C.paperMean(st.ms), treating);
+            }
+            if (steps > 0) bump((n) => n + 1);
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, [playing, speed]);
+
+      return [stateRef, () => bump((n) => n + 1)];
+    }
+
+    /* ── Field specs ──────────────────────────────────────────────────────
+       Each is a key plus its unit and bounds; the label and the background
+       note come from T.f[key], so a spec carries no words. */
+    const SITE_AIR = [
+      { k: 'ambMean', unit: 'C', min: -20, max: 50, step: 1 },
+      { k: 'ambYearAmp', unit: 'K', min: 0, max: 30, step: 1 },
+      { k: 'ambDayAmp', unit: 'K', min: 0, max: 30, step: 1 },
+      { k: 'ambLat', unit: 'deg', min: 0, max: 70, step: 1 }
+    ];
+    const SITE_LOAD = [
+      { k: 'loadBase', unit: 'pu', min: 0.1, max: 1.2, step: 0.01 },
+      { k: 'loadDayAmp', unit: 'pu', min: 0, max: 0.5, step: 0.01 },
+      { k: 'loadDayPeak', unit: 'h', min: 0, max: 23, step: 1 },
+      { k: 'loadSeasonAmp', unit: 'pu', min: 0, max: 0.4, step: 0.01 },
+      { k: 'loadFast', unit: '', min: 0, max: 1, step: 0.05 }
+    ];
+    const PAPER_FIELDS = [
+      { k: 'wpMean', unit: '%', min: 0.5, max: 5, step: 0.1 },
+      { k: 'lPaper', unit: 'mm', min: 0.5, max: 5, step: 0.1 },
+      { k: 'mPaper', unit: 'kg', min: 500, max: 4000, step: 50 }
+    ];
+    const TRANSPORT_FIELDS = [
+      { k: 'gradK', unit: 'K', min: 0, max: 40, step: 1 }
+    ];
+
+    function Transformer({ site, setSite, cfg, setCfgField }) {
+      const [openInfo, setOpenInfo] = useState(null);
+      const chips = C.SCENARIOS.map((s) => ({ id: s.id, label: T.scen[s.id] || s.label }));
+      const rows = (specs) => specs.map((s) => html`
+        <${NumRow} key=${s.k} spec=${s} value=${cfg[s.k]}
+          onChange=${setCfgField} open=${openInfo === s.k} setOpen=${setOpenInfo} />
+      `);
+      return html`
+        <div className="th-cfg">
+          <${Group} title=${T.groups.site} className="th-cfgsite">
+            <div className="th-chips">
+              <${Seg} items=${chips} value=${site} onChange=${setSite} />
+            </div>
+          <//>
+          <div className="th-cfgcol th-cfgleft">
+            <${Group} title=${T.groups.air}>${rows(SITE_AIR)}<//>
+            <${Group} title=${T.groups.load}>${rows(SITE_LOAD)}<//>
+          </div>
+          <div className="th-cfgcol th-cfgright">
+            <${Group} title=${T.groups.paper}>${rows(PAPER_FIELDS)}<//>
+            <${Group} title=${T.groups.transport}>
+              ${rows(TRANSPORT_FIELDS)}
+              <${HFilmRow} value=${cfg.hFilm} onChange=${setCfgField}
+                open=${openInfo === 'hFilm'} setOpen=${setOpenInfo} />
+            <//>
+          </div>
+        </div>
+      `;
+    }
+
+    /* The surface transfer coefficient spans decades, so it gets a log slider
+       rather than a number box: the interesting range is 1e-10 to 1e-6 and no
+       one types that into a spinner. */
+    function HFilmRow({ value, onChange, open, setOpen }) {
+      const pos = Math.log(value / 1e-10) / Math.log(1e4);
+      const lbl = T.f.hFilm[0];
+      return html`
+        <div className="th-row">
+          <span className="th-anchor">
+            <label htmlFor="ms-hfilm">${lbl}</label>
+            <${InfoBtn} open=${open} label=${lbl}
+              toggle=${() => setOpen(open ? null : 'hFilm')} />
+            ${open ? html`<${Popover} close=${() => setOpen(null)}>${T.f.hFilm[1]}<//>` : null}
+          </span>
+          <span>
+            <input id="ms-hfilm" type="range" min="0" max="1" step="0.02" value=${pos}
+              onChange=${(e) => {
+                const p = parseFloat(e.target.value);
+                onChange('hFilm', 1e-10 * Math.pow(1e4, p));
+              }} />
+            <span className="th-unit">${value.toExponential(1)} m/s</span>
+          </span>
+        </div>
+      `;
+    }
+
+    /* The Model tab is static prose. */
+    function Model() {
+      const m = T.model;
+      return html`
+        <div className="th-model">
+          <h3>${m.h1}</h3>
+          <p>${m.p1}</p>
+          <h3>${m.h2}</h3>
+          <p>${m.p2}</p>
+          <h3>${m.h3}</h3>
+          <p>${m.p3}</p>
+          <h3>${m.h4}</h3>
+          <p>${m.p4}</p>
+          <h3>${m.h5}</h3>
+          <p>${m.p5}</p>
+          <p>${m.p6}</p>
+          <h3>${m.h6}</h3>
+          <p>${m.p7}</p>
+          <p className="th-src">${m.src}</p>
+        </div>
+      `;
+    }
+
+    /* ── Root ─────────────────────────────────────────────────────────────
+       Holds the settings, owns the simulation, and reassigns LANG and T in its
+       own render body BEFORE any child renders. That assignment is the whole
+       language mechanism: there is no context and no prop drilling, and a
+       child that reads T during its render gets the current language because
+       this ran first. */
+    const TREAT_HOURS = [1, 6, 24];
+    const MOIST_DOMAIN = [0.5, 4.0];
+
+    function App() {
+      const [lang, setLang] = useState(LANG);
+      LANG = lang;
+      T = STRINGS[lang];
+
+      const [tab, setTab] = useState('live');
+      const [site, setSiteRaw] = useState('desert');
+      const [stage, setStage] = useState('onan');
+      const [playing, setPlaying] = useState(true);
+      const [speed, setSpeed] = useState(1);
+      const [treatHours, setTreatHours] = useState(6);
+      const [, themeBump] = useState(0);
+
+      const sc0 = C.scenarioById('desert');
+      const [cfg, setCfg] = useState(() => ({
+        ambMean: sc0.ambient.mean,
+        ambYearAmp: sc0.ambient.yearAmp,
+        ambDayAmp: sc0.ambient.dayAmp,
+        ambLat: sc0.ambient.lat,
+        loadBase: sc0.load.base,
+        loadDayAmp: sc0.load.dayAmp,
+        loadDayPeak: Math.round(sc0.load.dayPeak / 60),
+        loadSeasonAmp: sc0.load.seasonAmp,
+        loadFast: 0,
+        wpMean: 2.5,
+        lPaper: C.L_PAPER * 1000,
+        mPaper: C.M_PAPER,
+        gradK: C.GRAD_K.onan,
+        hFilm: C.H_FILM
+      }));
+
+      const setCfgField = useCallback((k, v) => {
+        setCfg((c) => (c[k] === v ? c : Object.assign({}, c, { [k]: v })));
+      }, []);
+
+      /* Choosing a site reseeds the editable numbers from that preset, so the
+         chips stay meaningful instead of becoming labels on a state nobody
+         changed. */
+      const setSite = useCallback((id) => {
+        const sc = C.scenarioById(id);
+        setSiteRaw(id);
+        setCfg((c) => Object.assign({}, c, {
+          ambMean: sc.ambient.mean,
+          ambYearAmp: sc.ambient.yearAmp,
+          ambDayAmp: sc.ambient.dayAmp,
+          ambLat: sc.ambient.lat,
+          loadBase: sc.load.base,
+          loadDayAmp: sc.load.dayAmp,
+          loadDayPeak: Math.round(sc.load.dayPeak / 60),
+          loadSeasonAmp: sc.load.seasonAmp,
+          loadFast: sc.load.fast ? 1 : 0
+        }));
+      }, []);
+
+      /* Changing the cooling stage moves the axial gradient with it. Tracking
+         it is what makes the switch a single gesture rather than two. */
+      const pickStage = useCallback((id) => {
+        setStage(id);
+        setCfg((c) => Object.assign({}, c, { gradK: C.GRAD_K[id] }));
+      }, []);
+
+      const [stateRef, poke] = useSim(site, stage, cfg.gradK, cfg.wpMean,
+        cfg.hFilm, playing, speed);
+
+      useEffect(() => {
+        window.__setLang = (l) => setLang(l === 'de' ? 'de' : 'en');
+        return () => { delete window.__setLang; };
+      }, []);
+
+      useEffect(() => {
+        document.title = T.title;
+        const m = document.querySelector('meta[name="description"]');
+        if (m) m.setAttribute('content', T.desc);
+      }, [lang]);
+
+      useEffect(() => {
+        const on = () => themeBump((n) => n + 1);
+        window.addEventListener('themechange', on);
+        return () => window.removeEventListener('themechange', on);
+      }, []);
+
+      const st = stateRef.current;
+      const skin = skinNow();
+
+      /* Everything the panels read, computed once per render. */
+      const view = useMemo(() => {
+        if (!st) return null;
+        const shown = new Float64Array(C.N_R_SHOW * C.N_A);
+        const temps = new Float64Array(C.N_R_SHOW * C.N_A);
+        C.showGrid(st.ms, shown);
+        C.tempGrid(st.th.thetaO, cfg.gradK, temps);
+        const spans = C.gridSpans(st.ms);
+        const hs = C.paperHotspot(st.ms);
+        /* The marked cell is indexed on the SHOWN grid, so the computed column
+           has to be folded down to the column it is drawn in. */
+        const markMoist = hs.j * C.N_R_SHOW +
+          Math.min(C.N_R_SHOW - 1, Math.floor(hs.i / (C.N_R / C.N_R_SHOW)));
+        let tLo = Infinity, tHi = -Infinity;
+        for (let i = 0; i < temps.length; i++) {
+          if (temps[i] < tLo) tLo = temps[i];
+          if (temps[i] > tHi) tHi = temps[i];
+        }
+        const pad = Math.max(4, (tHi - tLo) * 0.15);
+        return {
+          shown: shown, temps: temps, spans: spans, hs: hs, markMoist: markMoist,
+          tempDomain: [Math.floor(tLo - pad), Math.ceil(tHi + pad)],
+          ppm: st.ms.ppm,
+          wp: C.paperMean(st.ms),
+          rs: st.ms.ppm / C.oilSat(st.th.thetaO),
+          thetaO: st.th.thetaO,
+          treating: C.treatmentActive(st.ms),
+          progress: C.treatmentProgress(st.ms),
+          removed: st.ms.treat ? st.ms.treat.removed : 0
+        };
+      }, [st, st && st.tMin, cfg.gradK, lang, skin]);
+
+      const startTreat = useCallback(() => {
+        const s = stateRef.current;
+        if (!s || C.treatmentActive(s.ms)) return;
+        C.startTreatment(s.ms, treatHours);
+        poke();
+      }, [treatHours, poke, stateRef]);
+
+      const tabs = [
+        { id: 'transformer', label: T.tabs.transformer },
+        { id: 'live', label: T.tabs.live },
+        { id: 'heat', label: T.tabs.heat },
+        { id: 'model', label: T.tabs.model }
+      ];
+      const stageItems = C.STAGES.map((s) => ({ id: s.id, label: T.stages[s.id] }));
+      const hourItems = TREAT_HOURS.map((hr) => ({ id: String(hr), label: hr + ' h' }));
+      const rampM = RAMP_FOR.moisture[skin];
+      const rampT = RAMP_FOR.temp[skin];
+
+      return html`
+        <div className="th-wrap">
+          <${Tabs} items=${tabs} value=${tab} onChange=${setTab} />
+
+          ${tab === 'transformer' ? html`
+            <${Transformer} site=${site} setSite=${setSite} cfg=${cfg}
+              setCfgField=${setCfgField} />
+          ` : null}
+
+          ${tab === 'live' && view ? html`
+            <${React.Fragment}>
+              <div className="th-row1">
+                <div className="th-transport">
+                  <button type="button" className="lang-seg th-seg th-play"
+                    onClick=${() => setPlaying((p) => !p)}>
+                    ${playing ? T.pause : T.play}
+                  </button>
+                </div>
+                <${Ctl} id="ms-speed" label=${T.speed} min="0" max="5" step="1"
+                  value=${SPEEDS.indexOf(speed)}
+                  format=${(i) => SPEEDS[i] + 'x'}
+                  onChange=${(i) => setSpeed(SPEEDS[i])} />
+                <span className="th-which"><b>${T.stageLabel}</b></span>
+                <${Seg} items=${stageItems} value=${stage} onChange=${pickStage} />
+                <div className="ms-treat">
+                  <span className="th-which"><b>${T.treatLabel}</b></span>
+                  <${Seg} items=${hourItems} value=${String(treatHours)}
+                    onChange=${(id) => setTreatHours(parseInt(id, 10))} />
+                  <button type="button" className="lang-seg th-seg ms-treatbtn"
+                    disabled=${view.treating} onClick=${startTreat}>
+                    ${view.treating ? html`
+                      <span className="ms-fill"
+                        style=${{ width: (view.progress * 100).toFixed(1) + '%' }}></span>
+                    ` : null}
+                    <span className="ms-lbl">${view.treating ? T.treatRun : T.treatDone}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="ms-stage">
+                <${HeatmapPanel} field="moisture" values=${view.shown}
+                  domain=${MOIST_DOMAIN} ramp=${rampM.ramp} flip=${rampM.flip} clip=${rampM.clip}
+                  title=${T.mapTitle} unit="%" format=${fmt2}
+                  markIdx=${view.markMoist}
+                  markLabel=${T.wettest + ' ' + view.hs.wp.toFixed(2) + '%'} />
+                <p className="ms-spans">
+                  <span>${T.spanAxial}: <b>${view.spans.axial.toFixed(2)} pp</b></span>
+                  <span>${T.spanRadial}: <b>${view.spans.radial.toFixed(3)} pp</b></span>
+                  <span className="ms-sp-note">${T.spanNote(C.N_R, C.N_A)}</span>
+                </p>
+              </div>
+
+              <div className="ms-stage">
+                <${StripPanel} hist=${st.hist} />
+                <p className="ms-spans">
+                  <span>${T.nowOil}: <b>${view.ppm.toFixed(1)} ppm</b></span>
+                  <span>${T.nowPaper}: <b>${view.wp.toFixed(2)}%</b></span>
+                  <span>${T.nowSat}: <b>${(view.rs * 100).toFixed(1)}%</b></span>
+                  ${view.removed > 0 ? html`
+                    <span>${T.nowRemoved}: <b>${view.removed.toFixed(2)} kg</b></span>
+                  ` : null}
+                </p>
+              </div>
+            <//>
+          ` : null}
+
+          ${tab === 'heat' && view ? html`
+            <div className="ms-stage">
+              <${HeatmapPanel} field="temp" values=${view.temps}
+                domain=${view.tempDomain} ramp=${rampT.ramp} flip=${rampT.flip} clip=${rampT.clip}
+                title=${T.heatTitle} unit=" C" format=${fmt1} markIdx=${-1} />
+              <p className="ms-spans">
+                <span>${T.spanAxial}: <b>${cfg.gradK.toFixed(0)} K</b></span>
+                <span>${T.nowOil}: <b>${view.thetaO.toFixed(1)} C</b></span>
+                <span className="ms-sp-note">${T.heatNote}</span>
+              </p>
+            </div>
+          ` : null}
+
+          ${tab === 'model' ? html`<${Model} />` : null}
+        </div>
+      `;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+  </script>
+
+</body>
+</html>
