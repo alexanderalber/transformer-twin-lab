@@ -3196,6 +3196,11 @@ var MoistureCore = (function () {
        where a chart needs one, and it is round-capped so the dots stay dots at
        1.5px rather than turning into short bars. */
     const DASHES = { dash: [7, 4], dot: [1.5, 4.5] };
+    /* Sampling stride for dashed traces, in simulated minutes. STRIP_SPAN over
+       the plot width is roughly 7 minutes per pixel, so this is a point every
+       three pixels or so: smooth enough for a dash pattern to sit still on it,
+       and about 500 segments per trace instead of tens of thousands. */
+    const DASH_STRIDE = 20;
     /* Window length in simulated display minutes. FIXED, not scaled with the
        speed control, and that is a deliberate trade. A window that shrank at
        low speed would make the trace sweep at a constant visual pace, but it
@@ -3535,24 +3540,6 @@ var MoistureCore = (function () {
         const pxPerMin = (x1 - x0) / STRIP_SPAN;
         const xOfT = (t) => x0 + (t - tStart) * pxPerMin;
         const tOf = (i) => hist.t[histAt(hist, i)];
-        /* How far the window has scrolled, in pixels, for the dash phase. A
-           dash pattern starts at phase zero at the first point of the path,
-           which is a fixed place on the canvas, so as the data slides left the
-           pattern stays put and the dashes appear to crawl backwards along the
-           curve. Offsetting the phase by the scroll distance pins each dash to
-           the data under it: the pattern then travels with the trace, as a
-           dashed line drawn on a moving strip of paper would.
-           The value is +tStart in pixels because the phase at a point is its
-           distance along the path, x - x0 = (t - tStart)*px, and adding
-           tStart*px cancels the only term that moves, leaving t*px: a phase
-           that depends on the sample's own timestamp and on nothing else.
-           Approximate, strictly: the phase runs along the PATH, which on a
-           steep section is up to about a third longer than its horizontal
-           extent, so a little drift survives. Measured against the ambient
-           trace, the steepest one here, the residue is around 1% of the
-           uncorrected crawl and stays far under a pixel per frame. */
-        const dashPhase = tStart * pxPerMin;
-
         /* First sample still inside the window. The buffer holds more than the
            window when the steps are small, so the old tail is skipped rather
            than drawn off the left edge. */
@@ -3560,6 +3547,30 @@ var MoistureCore = (function () {
         while (i0 < n - 1 && tOf(i0) < tStart) i0++;
         const m0 = n - i0;
         if (m0 < 2) return;
+
+        /* Dash phase, in pixels. A dash pattern begins at pattern position
+           lineDashOffset at the FIRST POINT OF THE PATH, and every later point
+           is that plus its distance along the path. Left at zero, the pattern
+           is therefore pinned to wherever the path happens to start on the
+           canvas, so as the data slides left the dashes crawl along the curve.
+
+           The anchor is tOf(i0), the oldest sample actually drawn, and NOT
+           tStart, the left edge of the window. The two differ whenever the
+           buffer has not yet filled the window, which is every run for the
+           first minutes: then the trace begins partway across the panel and the
+           phase at a point is (t - tOf(i0))*px + offset. Anchoring to tStart
+           there leaves BOTH terms moving, in opposite directions, which reads
+           as a crawl faster than the uncorrected one and in the other direction
+           (reported 2026-09-17, after the first fix).
+           With offset = tOf(i0)*px the position is t*px: a function of the
+           sample's own timestamp and of nothing else, which is the objective,
+           and it holds whether or not the window is full.
+           Once the window IS full the anchor steps by one sample interval each
+           time the oldest sample falls out of it, which is 0.03 to 0.28px
+           against an 11px pattern depending on the speed setting. Sub-pixel,
+           and not cumulative in one direction, since the anchor stays tied to
+           real sample timestamps rather than drifting on its own. */
+        const dashPhase = tOf(i0) * pxPerMin;
 
         /* Ranges, one pass per series. The minimum span is the most important
            decision in this panel: fitting a trace to its own range zooms into a
@@ -3687,7 +3698,29 @@ var MoistureCore = (function () {
             if (dash === 'dot') ctx.lineCap = 'round';
           }
           ctx.beginPath();
-          if (m0 <= wPx) {
+          if (dash) {
+            /* Dashed series cannot use the decimation below: it snaps x to
+               whole pixel columns and adds a vertical span in each, so the path
+               start jumps by a pixel at a time and its length changes between
+               frames, while the dash offset slides by a fraction of a pixel.
+               The pattern then shifts phase whenever a column boundary crosses
+               a sample, which is the crawl this was meant to remove.
+               Walking every sample instead would mean up to 28k segments per
+               trace at the finest step, so the compromise is a fixed stride in
+               TIME: one point every DASH_STRIDE minutes, landing at continuous
+               x positions. At five days across a thousand pixels that is a
+               point every few pixels, dense enough that the eye sees the same
+               curve and that a [7,4] pattern lands smoothly. */
+            const stride = DASH_STRIDE;
+            let first = true, tPrev = -Infinity;
+            for (let i = i0; i < n; i++) {
+              const t = tOf(i);
+              if (!first && t - tPrev < stride && i !== n - 1) continue;
+              const x = xOfT(t), y = yOf(a, buf[histAt(hist, i)]);
+              if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+              tPrev = t;
+            }
+          } else if (m0 <= wPx) {
             for (let i = i0; i < n; i++) {
               const x = xOfT(tOf(i)), y = yOf(a, buf[histAt(hist, i)]);
               if (i === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
