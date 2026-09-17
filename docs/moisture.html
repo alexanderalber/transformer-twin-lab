@@ -315,9 +315,71 @@
       position: relative; border: 1px solid var(--tool-hairline);
       border-radius: 6px; background: var(--pico-card-background-color);
       padding: 8px 10px 6px;
-      margin-top: 12px;
+      margin-top: 10px;
     }
     .ms-stage canvas { display: block; width: 100%; }
+
+    /* A map panel is two columns: the picture on the left, everything that
+       talks ABOUT the picture on the right. That is a vertical decision, not
+       an aesthetic one. Stacked, the colour picker, the colour bar and the two
+       span numbers each cost a line above or below the canvas, and on a 1080p
+       screen those lines were the difference between the strip chart being
+       visible and being below the fold. Beside the map they cost nothing: the
+       map is far taller than the four items are.
+       The map keeps its own aspect this way too. It is a 16 x 6 grid, so at
+       full page width the cells came out long and flat and the radial
+       direction, which is the one with the interesting structure, was the one
+       squeezed. A narrower map makes the cells closer to square. */
+    .ms-mapsplit {
+      display: grid; grid-template-columns: minmax(0, 1fr) 210px;
+      column-gap: 18px; align-items: start;
+    }
+    /* The right column. Quiet type throughout: it is a legend and a readout,
+       not a second control surface competing with the toolbar. */
+    .ms-mapside {
+      display: flex; flex-direction: column; gap: 14px;
+      padding-top: 2px; min-width: 0;
+    }
+    /* The picker fills the column rather than sitting at its natural width,
+       so the label sits above the select instead of beside it: 210px is not
+       enough for "default (by theme)" on one line with a label in front. */
+    .ms-mapside .ms-rampsel { flex-direction: column; align-items: stretch; gap: 4px; }
+    .ms-mapside .ms-rampsel select { width: 100%; }
+    /* The colour bar, moved out of the canvas. In the canvas it forced a 52px
+       top pad on a drawing that needed 30, and it had to be redrawn as a
+       gradient on every frame. As DOM it is one element with a background
+       image, set once per ramp change. */
+    .ms-ramp { display: flex; flex-direction: column; gap: 3px; }
+    .ms-ramp .ms-rampbar {
+      height: 10px; border: 1px solid var(--tool-border); border-radius: 2px;
+    }
+    .ms-ramp .ms-rampends {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--tool-faint);
+      font-variant-numeric: tabular-nums;
+    }
+    /* The spans, stacked as label-over-value pairs. Beside the map there is no
+       room for "bottom to top: 1.23 pp" on one line in either language, and a
+       wrapping readout that carries live numbers is exactly the thing that
+       reflows while the simulation runs. */
+    .ms-sidefacts { display: flex; flex-direction: column; gap: 9px; }
+    .ms-sidefact { display: flex; flex-direction: column; gap: 1px; }
+    .ms-sidefact > span {
+      font-size: 12px; color: var(--tool-note); line-height: 1.25;
+    }
+    .ms-sidefact > b {
+      font-size: 15px; color: var(--tool-emph); font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .ms-sidenote { font-size: 12px; color: var(--tool-faint); line-height: 1.35; }
+    /* Below the design width the side column would squeeze the map into a
+       stripe. It goes back under the map instead, as a row. */
+    @media (max-width: 900px) {
+      .ms-mapsplit { grid-template-columns: minmax(0, 1fr); }
+      .ms-mapside { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 18px; }
+      .ms-sidefacts { flex-direction: row; gap: 18px; }
+      .ms-ramp { min-width: 180px; }
+    }
 
     /* Span readout under the map. The radial spread is the smaller of the two
        signals by an order of magnitude, so it gets a number rather than being
@@ -351,14 +413,6 @@
     .ms-plotbar {
       display: flex; align-items: center; gap: 10px;
       margin: 0 0 4px; flex-wrap: wrap;
-    }
-    /* The note is not part of the number row: it is a sentence, it is the
-       first thing that should give way when the panel is narrow, and it is the
-       element whose wrapping used to move the numbers. Its own block, right
-       aligned to where margin-left:auto used to put it. */
-    .ms-sp-note {
-      display: block; text-align: right; color: var(--tool-faint);
-      font-size: 13px; margin: 2px 0 0;
     }
 
     /* Treatment control: a duration choice and a button that arms it.
@@ -1527,6 +1581,21 @@ var MoistureCore = (function () {
       return out;
     }
 
+    /* The radial profile of the whole winding: cell i averaged over all levels.
+       `radialProfile` above is one named level; this is the companion the
+       profile chart needs, where the axial direction is the one averaged away.
+       Mean over levels, unweighted, because every level carries the same paper
+       mass in this grid. */
+    function radialMean(ms, out) {
+      var i, j, s;
+      for (i = 0; i < N_R; i++) {
+        s = 0;
+        for (j = 0; j < N_A; j++) s += ms.C[gi(j, i)];
+        out[i] = s / N_A;
+      }
+      return out;
+    }
+
     function axialProfile(ms, out) {
       var j, i, s;
       for (j = 0; j < N_A; j++) {
@@ -1748,6 +1817,7 @@ var MoistureCore = (function () {
 
       totalWater: totalWater, paperMean: paperMean,
       paperCorners: paperCorners, waterInPaper: waterInPaper,
+      radialMean: radialMean,
       waterInOil: waterInOil, paperRelSat: paperRelSat, paperHotspot: paperHotspot,
       radialProfile: radialProfile, axialProfile: axialProfile,
       gridSpans: gridSpans, showGrid: showGrid, tempGrid: tempGrid,
@@ -2526,14 +2596,21 @@ var MoistureCore = (function () {
         nowTop: 'top oil',
         nowHot: 'hot spot',
         stripMode: 'Plot',
-        stripModes: { mass: 'Water mass', sat: 'Saturation', corners: 'Corners' },
+        stripModes: { mass: 'Water mass', sat: 'Saturation', corners: 'Corners',
+          radial: 'Radial', axial: 'Axial' },
         stripTitle: {
           mass: 'Water in oil and in paper, same unit',
           sat: 'Relative saturation of both phases',
           corners: 'Paper moisture at the four corners of the grid',
-          heat: 'Ambient, oil and hot spot on one axis'
+          heat: 'Ambient, oil and hot spot on one axis',
+          radial: 'One trace per radial cell, averaged over the levels',
+          axial: 'One trace per level, averaged across the insulation'
         },
-        stripUnit: { mass: 'kg', sat: '% sat', corners: '% dry mass', heat: 'C' },
+        stripUnit: { mass: 'kg', sat: '% sat', corners: '% dry mass', heat: 'C',
+          radial: '% dry mass', axial: '% dry mass' },
+        /* The two ends of the ramp legend, in series order: first entry is the
+           first cell of the grid, which is the top of the bar. */
+        stripEnds: { radial: ['copper', 'oil'], axial: ['bottom', 'top'] },
         stripSeries: {
           wOil: 'oil, kg', wPaper: 'paper, kg',
           rsOil: 'oil', rsPaper: 'paper',
@@ -2590,14 +2667,19 @@ var MoistureCore = (function () {
         nowTop: 'Öl oben',
         nowHot: 'Hotspot',
         stripMode: 'Plot',
-        stripModes: { mass: 'Wassermasse', sat: 'Sättigung', corners: 'Ecken' },
+        stripModes: { mass: 'Wassermasse', sat: 'Sättigung', corners: 'Ecken',
+          radial: 'Radial', axial: 'Axial' },
         stripTitle: {
           mass: 'Wasser im Öl und im Papier, gleiche Einheit',
           sat: 'Relative Sättigung beider Phasen',
           corners: 'Papierfeuchte an den vier Ecken des Gitters',
-          heat: 'Umgebung, Öl und Hotspot auf einer Achse'
+          heat: 'Umgebung, Öl und Hotspot auf einer Achse',
+          radial: 'Eine Kurve je Radialzelle, über die Ebenen gemittelt',
+          axial: 'Eine Kurve je Ebene, über die Isolation gemittelt'
         },
-        stripUnit: { mass: 'kg', sat: '% Sätt.', corners: '% Trockenmasse', heat: 'C' },
+        stripUnit: { mass: 'kg', sat: '% Sätt.', corners: '% Trockenmasse', heat: 'C',
+          radial: '% Trockenmasse', axial: '% Trockenmasse' },
+        stripEnds: { radial: ['Kupfer', 'Öl'], axial: ['unten', 'oben'] },
         stripSeries: {
           wOil: 'Öl, kg', wPaper: 'Papier, kg',
           rsOil: 'Öl', rsPaper: 'Papier',
@@ -2951,14 +3033,15 @@ var MoistureCore = (function () {
        Cells are drawn with a gap in the panel colour. Without it a heatmap
        reads as one continuous smear and the grid stops being legible as a
        grid. */
-    const MAP_H = 470;
+    const MAP_H = 400;
     /* The right margin used to carry a number per row. That column is gone
        (it invited reading the map as a table of twelve numbers, which is not
        what a heat map is for), so the cells get the width back. The top pad
-       carries the title and the colour bar, and it is generous because the bar
-       has a number under each end and those numbers were being clipped by the
-       canvas edge when the pad was sized for the bar alone. */
-    const MAP_PAD = { l: 96, r: 28, t: 52, b: 62 };
+       once had to fit the colour bar and the numbers under its ends, which is
+       why it was 52. The bar now lives in the side column as DOM, so the pad
+       carries the title alone and 30 is enough. The right margin is small
+       because the side column, not the canvas, holds the whitespace. */
+    const MAP_PAD = { l: 96, r: 16, t: 30, b: 62 };
     const CELL_GAP = 2;
 
     function HeatmapPanel({ field, values, domain, ramp, flip, title, unit,
@@ -3026,42 +3109,51 @@ var MoistureCore = (function () {
         ctx.fillText(T.axTop, x0 - 10, y0 + ch / 2);
         ctx.fillText(T.axBottom, x0 - 10, y1 - ch / 2);
 
-        /* Title and the colour scale. A continuous encoding with one series
-           still needs its legend: the bar is the only way to read a cell. */
+        /* The title. The legend it needs sits beside the map, not on it. */
         ctx.font = FS.head + 'px system-ui, sans-serif';
         ctx.fillStyle = COL.emph;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(title, x0, y0 - 14);
 
-        /* The bar as ONE gradient fill, not a column of 1px rects. The canvas
-           is scaled by the device pixel ratio, so a 1-CSS-px column lands on a
-           fractional number of device pixels: each one gets antialiased
-           against its neighbours and the bar comes out ruled with fine lines
-           that look like a discretisation of the ramp and are nothing but
-           rounding. A gradient with a stop per ramp segment is also closer to
-           what the ramp IS, since rampAt interpolates linearly between stops. */
-        const bw = Math.min(260, (x1 - x0) * 0.42), bh = 9;
-        const bx = x1 - bw, by = y0 - 26;
-        const grad = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-        const nStop = (RAMPS[ramp] || RAMPS.magma).length * 2;
-        for (let p = 0; p <= nStop; p++) {
-          grad.addColorStop(p / nStop, rampAt(ramp, p / nStop, flip));
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = COL.border;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
-        ctx.font = FS.tick - 1 + 'px system-ui, sans-serif';
-        ctx.fillStyle = COL.faint;
-        ctx.textBaseline = 'bottom';
-        ctx.textAlign = 'left';
-        ctx.fillText(format(lo), bx, by - 3);
-        ctx.textAlign = 'right';
-        ctx.fillText(format(hi) + unit, bx + bw, by - 3);
+        /* The colour bar is NOT drawn here. It is a DOM element in the side
+           column: as canvas it cost a 52px top pad on a drawing that needed
+           30, and it was re-rasterised on every animation frame for a picture
+           that only changes when the ramp does. */
       });
       return html`<canvas ref=${cvRef} style=${{ height: h + 'px' }}></canvas>`;
+    }
+
+    /* The colour bar as DOM, next to the map instead of inside it.
+       A linear-gradient with a stop per ramp segment, which is what the ramp
+       is: rampAt interpolates linearly between the same stops, so the bar and
+       the cells cannot drift apart. The fixed domain is printed under the
+       ends, and it is the domain, not the range in frame: the bar states what
+       a colour means, the span readout below states how much of it is in use.
+       A trimmed ramp is passed through rampAt exactly as the cells are, hence
+       the same flip flag. */
+    function RampBar({ ramp, flip, domain, unit, format }) {
+      const stops = [];
+      const nStop = (RAMPS[ramp] || RAMPS.magma).length * 2;
+      for (let p = 0; p <= nStop; p++) {
+        stops.push(rampAt(ramp, p / nStop, flip) + ' ' + (p / nStop * 100).toFixed(2) + '%');
+      }
+      return html`
+        <div className="ms-ramp">
+          <div className="ms-rampbar"
+            style=${{ backgroundImage: 'linear-gradient(to right, ' + stops.join(', ') + ')' }}></div>
+          <div className="ms-rampends">
+            <span>${format(domain[0])}</span>
+            <span>${format(domain[1]) + unit}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    /* One label-over-value pair in the side column. Its own component only so
+       the two tabs cannot drift in how they mark up the same thing. */
+    function SideFact({ label, value }) {
+      return html`<div className="ms-sidefact"><span>${label}</span><b>${value}</b></div>`;
     }
 
     /* The ramp picker that sits above a map. A plain select, not a segmented
@@ -3147,6 +3239,22 @@ var MoistureCore = (function () {
       'cBotIn', 'cBotOut', 'cTopIn', 'cTopOut',
       'thA', 'thBot', 'thTop', 'thHot', 'thPaper'];
 
+    /* The profile channels: one trace per grid element in each direction, the
+       other direction averaged away. Sixteen radial cells and six axial
+       levels, so 22 further Float64Arrays per history, which at STRIP_N slots
+       is a few megabytes and the reason these are means rather than the full
+       96-cell grid per sample.
+       They live in the same ring as everything else rather than in a second,
+       coarser buffer: sharing the timestamps is what lets the profile modes
+       reuse the whole strip drawing path, including the decimation and the
+       treatment bands. */
+    const RAD_KEYS = [];
+    for (let i = 0; i < C.N_R; i++) RAD_KEYS.push('rp' + i);
+    const AX_KEYS = [];
+    for (let j = 0; j < C.N_A; j++) AX_KEYS.push('ax' + j);
+    for (const k of RAD_KEYS) HIST_KEYS.push(k);
+    for (const k of AX_KEYS) HIST_KEYS.push(k);
+
     function makeHist() {
       const h = { t: new Float64Array(STRIP_N), tr: new Uint8Array(STRIP_N),
         head: 0, count: 0, tHead: 0 };
@@ -3168,12 +3276,20 @@ var MoistureCore = (function () {
       if (hist.count < STRIP_N) hist.count++;
     }
 
+    /* Scratch for the two profile reductions. One pair of arrays for the whole
+       page: histSample is called once per step and the values are copied into
+       the ring immediately, so there is nothing to keep between calls. */
+    const RAD_TMP = new Float64Array(C.N_R);
+    const AX_TMP = new Float64Array(C.N_A);
+
     /* The reduction from simulation state to one strip sample, in one place so
        the seed and the loop cannot disagree about what a sample contains. */
     function histSample(ms, th, gradK, thetaA) {
       const c = C.paperCorners(ms);
       const thetaO = th.thetaO;
-      return {
+      C.radialMean(ms, RAD_TMP);
+      C.axialProfile(ms, AX_TMP);
+      const out = {
         ppm: ms.ppm,
         wp: C.paperMean(ms),
         wOil: C.waterInOil(ms),
@@ -3198,6 +3314,9 @@ var MoistureCore = (function () {
         thHot: th.thetaH,
         thPaper: thetaO - gradK / 2
       };
+      for (let i = 0; i < C.N_R; i++) out[RAD_KEYS[i]] = RAD_TMP[i];
+      for (let j = 0; j < C.N_A; j++) out[AX_KEYS[j]] = AX_TMP[j];
+      return out;
     }
 
     /* Oldest-to-newest walk over the ring: i = 0 is the oldest valid sample. */
@@ -3276,6 +3395,77 @@ var MoistureCore = (function () {
       }
     };
 
+    /* The two profile modes, built rather than written out: one series per
+       grid element, in grid order, which is what makes a ramp readable as a
+       direction. Both are shared-axis, so the spread between the traces is read
+       off one scale and means what it says.
+
+       `ramp: true` marks a mode whose colours come from a colormap indexed by
+       position instead of from the categorical palette. Eleven or sixteen
+       traces have no categorical answer: the palette holds four distinguishable
+       line colours, and the eye cannot hold sixteen of them anyway. What it can
+       read is an ORDER, which is exactly what a sequential ramp encodes, so the
+       colour says where in the insulation (or how high in the tank) a trace
+       sits and the legend shrinks to its two ends.
+
+       Both directions are FITTED, not zero-anchored, which is where these two
+       modes part company with every other chart on the page. The reason is
+       what they are for: these are the two views whose entire content is the
+       separation BETWEEN the traces, and a zero axis spends the panel on the
+       distance down to an origin that carries no information here. Radially
+       the spread is a few tenths of a pp on a value near 1.5%, so on a zero
+       axis all sixteen traces land within a couple of pixels and the chart is
+       one thick line. Axially the spread is about 0.4 pp on the same value:
+       legible on a zero axis, but confined to the upper quarter of it, so the
+       bottom-to-top separation the plot exists to teach reads as a detail
+       rather than as the subject.
+       The absolute level is not lost by fitting, it moves: the axis end
+       labels carry it, and the mean paper moisture is printed under the chart
+       either way. What IS given up is the at-a-glance sense of how large the
+       spread is against the content, and that is the deliberate trade. Anyone
+       wanting it back reads the two axis numbers.
+
+       The floor span is what keeps the fit honest, and it differs per
+       direction because the states that collapse differ. Radially a settled
+       grid is flat to well under 0.02 pp, so 0.05 pp holds the window open
+       and the traces converge visibly instead of filling the panel with
+       numerical noise. Axially the spread never collapses during normal
+       operation (0.39 to 0.41 pp across settled, diurnal, treated and
+       recovered states), but it goes to exactly zero when the configuration
+       leaves no axial temperature ramp, which is a real setting and not an
+       edge case. 0.1 pp covers that without ever binding in normal use. */
+    function profileMode(keys, labelKey, zero, minSpan, dp) {
+      return {
+        shared: true, zero: zero, ramp: true, label: labelKey,
+        series: keys.map((k, i) => ({
+          key: k, axis: 'l', u: keys.length < 2 ? 0 : i / (keys.length - 1),
+          min: minSpan, fmt: (v) => v.toFixed(dp)
+        }))
+      };
+    }
+    /* Three decimals on both fitted axes: the end labels of a window a few
+       hundredths of a pp wide differ only in the third one, and a coarser
+       format would print the same number at the top and the bottom. */
+    STRIP_MODES.radial = profileMode(RAD_KEYS, 'radial', false, 0.05, 3);
+    STRIP_MODES.axial = profileMode(AX_KEYS, 'axial', false, 0.1, 3);
+
+    /* The ramp the profile traces are drawn from, per skin. Chosen by the
+       author against all three skins; not derived from RAMP_FOR, which is
+       about filled map cells on a panel and answers a different question than
+       thin lines do. Full range, no trimming, same rule as the maps.
+
+       Dark is drawn reversed. Blues runs light to dark in its natural
+       direction, and its dark end is very nearly the panel colour of the dark
+       skin, so the last few traces would be drawn in ink the reader cannot
+       find. Flipping puts the bright end where the dark ground is and keeps
+       all sixteen lines on the panel. This is a direction, not a trim: the
+       ramp is still used end to end. */
+    const PROFILE_RAMP = {
+      dark: { ramp: 'blues', flip: true },
+      light: { ramp: 'ylgnbu', flip: false },
+      grey: { ramp: 'bone', flip: false }
+    };
+
     /* Which modes the plot selector offers. Named here rather than read off
        STRIP_MODES, because not every entry in that table is a choice: `heat` is
        the fixed chart of the temperature tab, placed by the tab itself. Deriving
@@ -3283,7 +3473,7 @@ var MoistureCore = (function () {
        the day `heat` was added, since the loop found a key that T.stripModes has
        no label for. A mode is selectable because it is listed here, not because
        it exists. */
-    const STRIP_PICKABLE = ['mass', 'sat', 'corners'];
+    const STRIP_PICKABLE = ['mass', 'sat', 'corners', 'radial', 'axial'];
 
     function StripPanel({ hist, mode, height }) {
       const h = height || STRIP_H;
@@ -3467,11 +3657,20 @@ var MoistureCore = (function () {
           }
           ctx.stroke();
         };
+        /* The colour of one series. Categorical modes name a palette entry;
+           the profile modes hand their position along the ramp instead, so the
+           sixteen radial traces read as a direction rather than as sixteen
+           unrelated lines. */
+        const pr = PROFILE_RAMP[skinNow()] || PROFILE_RAMP.dark;
+        const colOf = (ser) => spec.ramp
+          ? rampAt(pr.ramp, ser.u, pr.flip) : COL[ser.col];
+
         /* Four traces need a thinner stroke than two, or the corner view is
-           mostly line width. */
-        const lw = spec.series.length > 2 ? 1.5 : 2;
+           mostly line width, and sixteen need thinner still. */
+        const lw = spec.series.length > 8 ? 1.2
+          : spec.series.length > 2 ? 1.5 : 2;
         spec.series.forEach((ser, k) => {
-          trace(hist[ser.key], axes[k], COL[ser.col], lw);
+          trace(hist[ser.key], axes[k], colOf(ser), lw);
         });
 
         /* Axis numbers. On a shared axis they are written once on the left; on
@@ -3506,13 +3705,37 @@ var MoistureCore = (function () {
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'left';
         const lx = x1 + (spec.shared ? 14 : 56);
-        spec.series.forEach((ser, k) => {
-          const ly = y0 + 10 + k * 17;
-          ctx.fillStyle = COL[ser.col];
-          ctx.fillRect(lx, ly - 1.5, 12, 3);
+        if (spec.ramp) {
+          /* A ramp legend rather than one entry per trace: sixteen names in a
+             margin is a wall of text, and the names would be ordinals anyway.
+             A vertical bar of the ramp with its two ends labelled says
+             everything the colour carries, which is only the order. The bar is
+             drawn in series order top to bottom, so the first cell of the grid
+             (at the copper, or the tank bottom) is the top of the bar and
+             matches the order the map is built in. */
+          const by0 = y0 + 10, by1 = Math.min(y1 - 10, by0 + 86);
+          for (let py = by0; py <= by1; py++) {
+            ctx.fillStyle = rampAt(pr.ramp, (py - by0) / Math.max(1, by1 - by0), pr.flip);
+            ctx.fillRect(lx, py, 12, 1);
+          }
+          ctx.strokeStyle = COL.border;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(Math.round(lx) + 0.5, Math.round(by0) + 0.5, 12, by1 - by0);
           ctx.fillStyle = COL.note;
-          ctx.fillText(T.stripSeries[ser.key], lx + 17, ly);
-        });
+          ctx.textBaseline = 'top';
+          ctx.fillText(T.stripEnds[mode][0], lx + 17, by0 - 1);
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(T.stripEnds[mode][1], lx + 17, by1 + 1);
+          ctx.textBaseline = 'middle';
+        } else {
+          spec.series.forEach((ser, k) => {
+            const ly = y0 + 10 + k * 17;
+            ctx.fillStyle = COL[ser.col];
+            ctx.fillRect(lx, ly - 1.5, 12, 3);
+            ctx.fillStyle = COL.note;
+            ctx.fillText(T.stripSeries[ser.key], lx + 17, ly);
+          });
+        }
 
         /* The unit of the axis, under the left edge, and how much time is on
            screen. The window label carries BOTH counts because both are true
@@ -3997,18 +4220,22 @@ var MoistureCore = (function () {
             <${React.Fragment}>
               ${controls}
 
-              <div className="ms-stage">
-                <div className="ms-plotbar">
-                  <${RampPick} id="ms-ramp-m" value=${rampPickM} onChange=${setRampPickM} />
-                </div>
+              <div className="ms-stage ms-mapsplit">
                 <${HeatmapPanel} field="moisture" values=${view.shown}
                   domain=${MOIST_DOMAIN} ramp=${rampM.ramp} flip=${rampM.flip}
                   title=${T.mapTitle} unit="%" format=${fmt2} markIdx=${-1} />
-                <p className="ms-spans">
-                  <span>${T.spanAxial}: <b>${view.spans.axial.toFixed(2)} pp</b></span>
-                  <span>${T.spanRadial}: <b>${view.spans.radial.toFixed(3)} pp</b></span>
-                </p>
-                <p className="ms-sp-note">${T.spanNote(C.N_R, C.N_A)}</p>
+                <div className="ms-mapside">
+                  <${RampPick} id="ms-ramp-m" value=${rampPickM} onChange=${setRampPickM} />
+                  <${RampBar} ramp=${rampM.ramp} flip=${rampM.flip}
+                    domain=${MOIST_DOMAIN} unit="%" format=${fmt2} />
+                  <div className="ms-sidefacts">
+                    <${SideFact} label=${T.spanAxial}
+                      value=${view.spans.axial.toFixed(2) + ' pp'} />
+                    <${SideFact} label=${T.spanRadial}
+                      value=${view.spans.radial.toFixed(3) + ' pp'} />
+                  </div>
+                  <p className="ms-sidenote">${T.spanNote(C.N_R, C.N_A)}</p>
+                </div>
               </div>
 
               <div className="ms-stage">
@@ -4041,19 +4268,25 @@ var MoistureCore = (function () {
             <${React.Fragment}>
               ${controls}
 
-              <div className="ms-stage">
-                <div className="ms-plotbar">
-                  <${RampPick} id="ms-ramp-t" value=${rampPickT} onChange=${setRampPickT} />
-                </div>
+              <div className="ms-stage ms-mapsplit">
                 <${HeatmapPanel} field="temp" values=${view.temps}
                   domain=${TEMP_DOMAIN} ramp=${rampT.ramp} flip=${rampT.flip}
                   title=${T.heatTitle} unit=" C" format=${fmt1} markIdx=${-1} />
-                <p className="ms-spans">
-                  <span>${T.spanAxial}: <b>${view.gradK.toFixed(1)} K</b></span>
-                  <span>${T.nowTop}: <b>${view.thetaO.toFixed(1)} C</b></span>
-                  <span>${T.nowHot}: <b>${view.thetaH.toFixed(1)} C</b></span>
-                  <span>${T.nowAmb}: <b>${view.thetaA.toFixed(1)} C</b></span>
-                </p>
+                <div className="ms-mapside">
+                  <${RampPick} id="ms-ramp-t" value=${rampPickT} onChange=${setRampPickT} />
+                  <${RampBar} ramp=${rampT.ramp} flip=${rampT.flip}
+                    domain=${TEMP_DOMAIN} unit=" C" format=${fmt1} />
+                  <div className="ms-sidefacts">
+                    <${SideFact} label=${T.spanAxial}
+                      value=${view.gradK.toFixed(1) + ' K'} />
+                    <${SideFact} label=${T.nowTop}
+                      value=${view.thetaO.toFixed(1) + ' C'} />
+                    <${SideFact} label=${T.nowHot}
+                      value=${view.thetaH.toFixed(1) + ' C'} />
+                    <${SideFact} label=${T.nowAmb}
+                      value=${view.thetaA.toFixed(1) + ' C'} />
+                  </div>
+                </div>
               </div>
 
               <!-- The same five temperatures as a time series. The map shows
