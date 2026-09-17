@@ -2971,8 +2971,17 @@ var MoistureCore = (function () {
         const rect = cv.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
         const w = Math.max(1, Math.round(rect.width)), h = height;
-        cv.width = Math.round(w * dpr);
-        cv.height = Math.round(h * dpr);
+        const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+        /* Only assign the backing store size when it actually changed.
+           Assigning width or height ALWAYS reallocates and clears the bitmap,
+           even when the value is identical, so doing it unconditionally threw
+           away a buffer per canvas per frame at 60 renders per second. The
+           clearRect below is what the redraw relies on, and it runs either
+           way. */
+        if (cv.width !== bw || cv.height !== bh) {
+          cv.width = bw;
+          cv.height = bh;
+        }
         const ctx = cv.getContext('2d');
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
