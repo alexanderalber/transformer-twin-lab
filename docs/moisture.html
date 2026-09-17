@@ -227,6 +227,13 @@
       display: inline-block; width: 30px; margin-left: 7px; text-align: right;
       color: var(--tool-note); font-size: 13px;
     }
+    /* The surface transfer row shows a whole value, not a bare unit:
+       "1.0e-8 m/s" does not fit the 30px cell sized for "K" or "pu", and broke
+       over three lines mid-token. Its own width, and no wrapping. */
+    .th-row .th-unit-wide {
+      width: auto; min-width: 74px; white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
     /* The one non-numeric site input: which half of the year the load peaks in. */
     .th-row .th-seg { font-size: 13px; padding: 2px 9px; }
 
@@ -1321,17 +1328,23 @@ var MoistureCore = (function () {
        a real surface has a fluid film, and an aged one has a barrier layer.
        This value is chosen, not measured. It sets how fast the oil recovers
        after a treatment, so it is exposed as a control rather than buried:
-       the Biot number h L / D is about 86 at 20 C and 3.1 at 60 C, i.e. the
+       the Biot number h L / D is about 67 at 20 C and 2.5 at 60 C, i.e. the
        interior stays diffusion limited at operating temperature, which is the
-       regime the model is meant to be in. */
+       regime the model is meant to be in.
+       Not comparable to the film coefficients quoted for forced-flow rigs
+       (order 1e-6 to 1e-5 m/s, from a Nernst layer in moving oil). Those put
+       the Biot number in the hundreds or thousands, which is the same as
+       imposing equilibrium on the surface: the interfacial resistance this
+       control exists to show would disappear. */
     var H_FILM = 1e-8;
 
     /* Masses of the example unit, kg. [design]
-       A medium power transformer. The RATIO is what the page turns on: about
-       37 kg of water in the solid insulation at 2.5% against about 0.6 kg in
-       the oil at 30 ppm, so the oil is a small buffer hanging off a large
-       reservoir, and that is why drying the oil does so little. */
-    var M_OIL = 20000;
+       A medium power transformer, at about 10:1 oil to solid, which is the
+       ratio reported for real units of this size. The RATIO is what the page
+       turns on: about 37 kg of water in the solid insulation at 2.5% against
+       about 0.45 kg in the oil at 30 ppm, so the oil is a small buffer hanging
+       off a large reservoir, and that is why drying the oil does so little. */
+    var M_OIL = 15000;
     var M_PAPER = 1500;
 
     /* ── The grid ─────────────────────────────────────────────────────────
@@ -2707,7 +2720,7 @@ var MoistureCore = (function () {
       lPaper: ['Insulation thickness',
         'Half thickness of the insulation, from the conductor to the oil face. Sets how long water takes to move through the paper, and it is the square of this that matters.'],
       mPaper: ['Insulation mass',
-        'Mass of the solid insulation. Against about 20 tonnes of oil, this is the reservoir holding nearly all of the water.'],
+        'Mass of the solid insulation. Against about 15 tonnes of oil, this is the reservoir holding nearly all of the water.'],
       hFilm: ['Surface transfer',
         'How freely water crosses the paper surface into the oil. Not a measured value: it sets how fast the oil recovers after a treatment, so it is left as a control rather than buried in the model.'],
       gradF: ['Axial oil spread',
@@ -2738,7 +2751,7 @@ var MoistureCore = (function () {
       lPaper: ['Isolationsdicke',
         'Halbe Dicke der Isolation, vom Leiter bis zur Ölseite. Bestimmt, wie lange Wasser durch das Papier braucht, und es zählt das Quadrat dieser Größe.'],
       mPaper: ['Isolationsmasse',
-        'Masse der festen Isolation. Gegen etwa 20 Tonnen Öl ist das das Reservoir, das fast alles Wasser hält.'],
+        'Masse der festen Isolation. Gegen etwa 15 Tonnen Öl ist das das Reservoir, das fast alles Wasser hält.'],
       hFilm: ['Übergang an der Oberfläche',
         'Wie leicht Wasser die Papieroberfläche ins Öl verlässt. Kein gemessener Wert: er bestimmt, wie schnell sich das Öl nach einer Behandlung erholt, und bleibt deshalb ein Bedienelement, statt im Modell zu verschwinden.'],
       gradF: ['Axiale Ölspreizung',
@@ -2756,7 +2769,7 @@ var MoistureCore = (function () {
       h3: 'Two directions, and they are not equally strong',
       p3: 'Radially there is a diffusion equation through the insulation, with a diffusivity that depends strongly on both temperature and water content. Axially there is no coupling at all: each winding height is an independent column driven by its own oil temperature. That asymmetry shows in the numbers. The axial spread of moisture is well over a percentage point, because the bottom of the tank is much colder than the top and cold paper holds more water. The radial spread is a tenth of that or less, because the oil is too small a buffer to hold the paper surface away from equilibrium for long. Both spreads are printed under the map rather than left to the colours.',
       h4: 'Why drying the oil does so little',
-      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 60-to-1 split while the paper refills it. It is modelled as a fixed-throughput circuit, pulling the oil towards a few ppm with a time constant of about 100 min set by how fast it turns the oil volume over; the duration only decides how long it runs. The oil is down within hours and stays there, the paper answers over days, and the reading is back where it was within a day of switching off.',
+      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of an 80-to-1 split while the paper refills it. It is modelled as a fixed-throughput circuit, pulling the oil towards a few ppm with a time constant of about 100 min set by how fast it turns the oil volume over; the duration only decides how long it runs. The oil is down within hours and stays there, the paper answers over days, and the reading is back where it was within a day of switching off.',
       h5: 'How it is solved',
       p6: 'The paper is solved implicitly. An explicit scheme on this grid would be limited to a couple of minutes per step at the hot, wet corner; the implicit solve is unconditionally stable and costs one tridiagonal sweep per winding height. The oil balance is advanced explicitly after it, which is accurate as long as the step stays bounded, and the code bounds it.',
       h6: 'What is not modelled, and which numbers are chosen',
@@ -2772,7 +2785,7 @@ var MoistureCore = (function () {
       h3: 'Zwei Richtungen, und sie sind nicht gleich stark',
       p3: 'Radial steht eine Diffusionsgleichung durch die Isolation, mit einer Diffusionskonstante, die stark von Temperatur und Wassergehalt abhängt. Axial gibt es überhaupt keine Kopplung: jede Wickelhöhe ist eine eigene Säule, getrieben von ihrer eigenen Öltemperatur. Diese Unsymmetrie zeigt sich in den Zahlen. Die axiale Spanne der Feuchte liegt deutlich über einem Prozentpunkt, weil es unten im Kessel viel kälter ist als oben und kaltes Papier mehr Wasser hält. Die radiale Spanne ist ein Zehntel davon oder weniger, weil das Öl ein zu kleiner Puffer ist, um die Papieroberfläche länger aus dem Gleichgewicht zu halten. Beide Spannen stehen als Zahl unter der Karte und nicht nur in den Farben.',
       h4: 'Warum eine Öltrocknung so wenig bringt',
-      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 60 zu 1, während das Papier nachliefert. Sie ist als Kreislauf mit fester Förderleistung modelliert und zieht das Öl mit einer Zeitkonstante von etwa 100 min auf wenige ppm; die Dauer entscheidet nur, wie lange sie läuft. Das Öl ist binnen Stunden unten und bleibt dort, das Papier antwortet über Tage, und einen Tag nach dem Abschalten steht die Anzeige wieder da, wo sie war.',
+      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 80 zu 1, während das Papier nachliefert. Sie ist als Kreislauf mit fester Förderleistung modelliert und zieht das Öl mit einer Zeitkonstante von etwa 100 min auf wenige ppm; die Dauer entscheidet nur, wie lange sie läuft. Das Öl ist binnen Stunden unten und bleibt dort, das Papier antwortet über Tage, und einen Tag nach dem Abschalten steht die Anzeige wieder da, wo sie war.',
       h5: 'Wie gerechnet wird',
       p6: 'Das Papier wird implizit gelöst. Ein explizites Verfahren wäre auf diesem Gitter am heißen, feuchten Ende auf wenige Minuten pro Schritt begrenzt; die implizite Lösung ist unbedingt stabil und kostet einen Tridiagonaldurchlauf pro Wickelhöhe. Die Ölbilanz wird danach explizit nachgezogen, was genau genug ist, solange der Schritt begrenzt bleibt, und der Code begrenzt ihn.',
       h6: 'Was nicht modelliert ist, und welche Zahlen gewählt sind',
@@ -3298,7 +3311,7 @@ var MoistureCore = (function () {
        MASS is the default and the argument of the page: both phases in kg of
        water, the same unit on both sides, so the reader can see that the oil
        carries well under a kilogram against tens of kilograms in the paper.
-       The two still need separate axes because the ratio is about sixty, and
+       The two still need separate axes because the ratio is about eighty, and
        forcing them onto one shared axis would flatten the oil trace onto the
        baseline and destroy the very swing a treatment is meant to show. The
        unit being identical is what makes the comparison honest; the axes being
@@ -3840,7 +3853,7 @@ var MoistureCore = (function () {
                 const p = parseFloat(e.target.value);
                 onChange('hFilm', 1e-10 * Math.pow(1e4, p));
               }} />
-            <span className="th-unit">${value.toExponential(1)} m/s</span>
+            <span className="th-unit th-unit-wide">${value.toExponential(1)} m/s</span>
           </span>
         </div>
       `;
