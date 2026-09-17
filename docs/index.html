@@ -171,11 +171,13 @@
       </li>
       <li>
         <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
-          <!-- A droplet inside a tank wall, both closed like the shapes beside
-               them. The droplet sits low and off to one side, where the water
-               in the demo actually collects. -->
-          <rect x="4" y="4" width="24" height="24" rx="3"/>
-          <path d="M13 11c3.4 4.1 5.1 6.6 5.1 8.6a5.1 5.1 0 0 1-10.2 0C7.9 17.6 9.6 15.1 13 11Z"/>
+          <!-- Just the droplet. It used to sit inside a tank wall, and the
+               rectangle did nothing: at this size it read as a frame around
+               the icon rather than as part of it, so the moisture entry looked
+               boxed while the four above it did not. Closed like the triangle
+               and the pentagon beside it, and centred and scaled to fill the
+               same 32 box they do. -->
+          <path d="M16 4.5c5.2 6.2 7.8 10 7.8 13.1a7.8 7.8 0 0 1-15.6 0C8.2 14.5 10.8 10.7 16 4.5Z"/>
         </svg>
         <div>
           <p class="tw-link-title"><a href="moisture.html" data-i18n="t.moisture">Moisture twin, paper and oil</a></p>

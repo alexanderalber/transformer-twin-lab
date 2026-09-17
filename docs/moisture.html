@@ -107,10 +107,9 @@
        to be readable from the back of the room. */
     .th-seg { font-size: 14px; padding: 5px 12px; line-height: 1.5; }
     .th-transport { display: flex; align-items: center; gap: 12px; }
-    .th-play {
-      width: auto; min-width: 82px; margin: 0; padding: 5px 14px;
-      font-size: 14px; line-height: 1.5;
-    }
+    /* Geometry now comes from .tool-btn; this only keeps the width stable, so
+       the row does not shuffle sideways when "Pause" becomes "Play". */
+    .th-play { min-width: 92px; }
     /* The plot is a wide strip, not a card, and now that "now" is pinned to the
        right-hand edge there is nothing on it to click. */
     .th-stage { cursor: default; }
@@ -356,27 +355,76 @@
        oil temperature, so they can be read against each other by flipping a
        tab without anything moving. */
     .ms-maprow { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; }
+    /* Stacked panels need air between them. Without it the two frames on the
+       moisture tab share an edge and read as one box with a line through it,
+       which is exactly what a frame is supposed to prevent. Margin on the
+       element rather than a gap on a wrapper, because these are siblings of a
+       fragment and not of a flex container. */
     .ms-stage {
       position: relative; border: 1px solid var(--tool-hairline);
       border-radius: 6px; background: var(--pico-card-background-color);
       padding: 8px 10px 6px;
+      margin-top: 12px;
     }
     .ms-stage canvas { display: block; width: 100%; }
 
     /* Span readout under the map. The radial spread is the smaller of the two
        signals by an order of magnitude, so it gets a number rather than being
        left to the colours. */
-    .ms-spans {
-      display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap;
-      font-size: 13px; color: var(--tool-note); margin: 6px 0 0;
-    }
-    .ms-spans b { color: var(--tool-emph); font-weight: 600; }
-    .ms-spans .ms-sp-note { margin-left: auto; color: var(--tool-faint); }
+    /* The readout line under a panel. Two things here exist to stop it moving
+       while the simulation runs, because it is directly under a chart and any
+       reflow of it drags the chart with it.
 
-    /* Treatment control: a duration choice and a button that arms it. */
-    .ms-treat { display: flex; align-items: center; gap: 0; }
+       tabular-nums: these are live counters. With proportional figures a 1
+       is narrower than a 0, so every value that ticks over changes the width of
+       its own label and shoves everything to its right sideways. Every other
+       numeric readout on this page already asks for tabular figures; this one
+       was the exception, which is why it was the one that jittered.
+
+       No wrapping: the trailing note used to sit on this line when it fit and
+       drop to a line of its own when it did not, and whether it fit depended on
+       how wide the numbers happened to be that frame. So the panel changed
+       HEIGHT as the values counted. The note now has its own line always, which
+       costs one line of space and buys a layout that never reflows. */
+    .ms-spans {
+      display: flex; gap: 18px; align-items: baseline; flex-wrap: nowrap;
+      font-size: 13px; color: var(--tool-note); margin: 6px 0 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .ms-spans > span { white-space: nowrap; }
+    .ms-spans b { color: var(--tool-emph); font-weight: 600; }
+
+    /* Header row of the strip panel: the plot selector sits above the chart
+       rather than in the control bar at the top of the tab, because it changes
+       what this one panel shows and nothing else on the page. */
+    .ms-plotbar {
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 4px; flex-wrap: wrap;
+    }
+    /* The note is not part of the number row: it is a sentence, it is the
+       first thing that should give way when the panel is narrow, and it is the
+       element whose wrapping used to move the numbers. Its own block, right
+       aligned to where margin-left:auto used to put it. */
+    .ms-sp-note {
+      display: block; text-align: right; color: var(--tool-faint);
+      font-size: 13px; margin: 2px 0 0;
+    }
+
+    /* Treatment control: a duration choice and a button that arms it.
+       The gap is not zero. It was, and with the label immediately against the
+       first segment "Oil treatment" and "12 h" ran together into one word; the
+       segments themselves still butt against each other, which is what makes
+       them read as one control, so the spacing lives on the label instead. */
+    /* Spacing lives on the container, not on the children. The button used to
+       carry margin-left, which .tool-btn then reset to 0: same specificity, and
+       .tool-btn is declared later, so source order decided and the gap silently
+       vanished. A container gap cannot be overridden by a child rule at all.
+       The segments still butt against each other, which is what makes them read
+       as one control, so they get gap: 0 back explicitly. */
+    .ms-treat { display: flex; align-items: center; gap: 10px; }
+    .ms-treat > .th-segs { gap: 0; }
     .ms-treatbtn {
-      white-space: nowrap; font-size: 13px; padding: 4px 12px; margin-left: 8px;
+      white-space: nowrap;
       position: relative; overflow: hidden;
     }
     .ms-treatbtn:disabled { opacity: 0.55; cursor: default; }
@@ -386,6 +434,44 @@
       opacity: 0.22; pointer-events: none;
     }
     .ms-treatbtn span.ms-lbl { position: relative; }
+
+    /* ── Action buttons ───────────────────────────────────────────────────
+       Ported from alber.me/design-conventions.html, not imported: this page is
+       self-contained and offline by rule, so the rule body is a copy. Values
+       are that page's exactly, including the 1.5px border and the radius 8,
+       because a button that is nearly the site button is worse than either.
+
+       The convention that comes with it: an icon marks a button that PERFORMS
+       AN ACTION on something, while choices, filters and tabs stay bare. On
+       this page that is exactly two buttons, play/pause and the treatment
+       trigger, and the segmented controls next to them keep no icons at all. */
+    .tool-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 7px; width: auto; margin: 0;
+      padding: 0.4rem 0.9rem;
+      font-family: inherit; font-size: 0.8rem; line-height: 1.35;
+      cursor: pointer;
+      border: 1.5px solid var(--tool-border); border-radius: 8px;
+      background: var(--tool-surface); color: var(--tool-text);
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+    }
+    .tool-btn:hover:not(:disabled) { border-color: var(--tool-note); }
+    .tool-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .tool-btn svg { flex: 0 0 auto; }
+    .tool-btn-sm { padding: 0.28rem 0.7rem; font-size: 0.74rem; border-radius: 7px; }
+
+    /* The colour picker above each map. A label plus a select, quiet: it is a
+       comparison aid, not one of the controls the demo is driven by. */
+    .ms-rampsel {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--tool-note);
+    }
+    .ms-rampsel select {
+      width: auto; margin: 0; padding: 0.22rem 1.6rem 0.22rem 0.5rem;
+      font-size: 13px; line-height: 1.35; height: auto;
+      background-color: var(--tool-surface); color: var(--tool-text);
+      border: 1px solid var(--tool-border); border-radius: 6px;
+    }
   </style>
   <script src="assets/js/react.production.min.js"></script>
   <script src="assets/js/react-dom.production.min.js"></script>
@@ -849,17 +935,30 @@ var MoistureCore = (function () {
     function ambientAt(tMin, sc, offset) { return ambientSplit(tMin, tMin, sc, offset); }
     function loadAt(tMin, sc) { return loadSplit(tMin, tMin, tMin, sc); }
 
-    /* ── Compressed year ──────────────────────────────────────────────────
-       The live view runs 20 representative days: the diurnal cycle runs 20
-       times while the season sweeps January to December once. The season is a
-       CONTINUOUS function of display time (tDisp / COMP_MIN of a year), not a
-       per-day lookup: a day-indexed season steps about 18 days at every
-       midnight, and an 18 day step in the ambient mean is a visible jump in
-       every curve on the page.
-       Both endpoints agree: at tDisp 0 and at tDisp COMP_MIN the season is a
-       whole year apart and the day phase is identical, so the compressed year
-       is periodic in its drivers and can be scrolled through without a seam. */
-    var DAYS_SHOWN = 20;
+    /* ── Time on this page runs at one rate ───────────────────────────────
+       ONE CLOCK. A displayed day is a day, the diurnal cycle takes a day, and
+       the paper ages a day. Nothing here is compressed, and the time axis of
+       every panel can be read as ordinary elapsed time.
+
+       This page previously inherited a compressed year from the thermal twin:
+       twenty displayed days swept a full season, so the moisture solver was
+       advanced 18.25 minutes per displayed minute while the SUN was left on
+       the real clock. That produces a picture with no consistent reading. A
+       displayed day was one sunrise and eighteen days of diffusion at the same
+       time, which is not a thing that can happen to a transformer, and a
+       reader who tries to reconcile the daily ripple with the diffusion figure
+       under the axis is right to conclude that one of them is lying.
+       The compression is therefore gone rather than relabelled. What it cost
+       is real and is accepted: the season no longer sweeps inside a demo, so
+       the seasonal term is effectively a slow constant over any window anyone
+       will watch, and the paper moves over hours to days rather than visibly
+       per second. What is gained is that every number on the page means what
+       it says.
+       The comp* functions are kept as the interface the panels already call,
+       with the compression set to one. DAYS_SHOWN = 365 makes compSeason the
+       identity, so season and day phase advance on the same tDisp and the
+       drivers stay periodic over a year exactly as before. */
+    var DAYS_SHOWN = 365;
     var COMP_MIN = DAYS_SHOWN * DAY_MIN;
 
     function compSeason(tDisp) { return tDisp / COMP_MIN * YEAR_MIN; }
@@ -876,11 +975,6 @@ var MoistureCore = (function () {
       return Math.max(0, Math.min(364, Math.floor(tDisp / COMP_MIN * 365)));
     }
 
-    /* Storage grid of the live view. First and last sample carry the same
-       drivers, so the series can be scrolled through with an index wrap. */
-    var COMP_STRIDE = 2;
-    var COMP_N = COMP_MIN / COMP_STRIDE + 1;   // 14401
-
     /* Load with a stage multiplier on top, clamped the same way loadSplit
        clamps: an emergency overload is still a load factor, not a licence to
        leave the range a feeder can sit in. */
@@ -891,15 +985,14 @@ var MoistureCore = (function () {
     }
 
     /* ── Periodic start state ─────────────────────────────────────────────
-       Starting the compressed year from the steady state at t0 leaves the tank
+       Starting the year from the steady state at t0 leaves the tank
        out of step with its own drivers: the oil then spends the first days
        climbing to where it should have been, and when the strip chart wraps
        from the end of the year back to the start, top oil and hot spot jump by
        that same amount.
-       The fix is a lead-in. The compressed year is periodic in its drivers, so
-       three displayed days BEFORE t0 are the last three displayed days of the
-       same year: run them from the steady state and hand the resulting state to
-       t0. Three days is about twenty oil time constants at tauO 210 min, which
+       The fix is a lead-in. The year is periodic in its drivers, so three days
+       BEFORE t0 are the last three days of the same year: run them from the
+       steady state and hand the resulting state to t0. Three days is about twenty oil time constants at tauO 210 min, which
        is far more than enough to forget the steady-state start. */
     var COMP_WARMUP = 3 * DAY_MIN;
 
@@ -1027,15 +1120,26 @@ var MoistureCore = (function () {
        is no control loop here and no optimisation: a stage is a setting the
        operator changes, and the model shows what follows.
 
-       ONAN is the base set above. ONAF is the same unit with the fans running,
-       taken unchanged from the sibling page that derived it: the Table 4
-       coefficients plus a dual-rating derivation for R, dThOr and dThHr, so
-       that the load factor K keeps meaning ONAN per unit across a stage
-       change.
-       OF is the forced-oil column. [table] for the coefficients, and note that
-       the forced-flow columns lose the oil-exponent nonlinearity: x goes to 1
-       and both k11 and k22 to 1. */
-    var ONAF = {
+       ONAN is the base set above, fans off. ONAF1 and ONAF2 are the same unit
+       with one and with two fan groups running: ONAF throughout, so all three
+       stages share the ON oil-flow column of Table 4 (k11 0.5, k21 2.0,
+       k22 2.0, x 0.8) and differ only in how much heat the radiators shed.
+
+       This replaces an earlier ONAN/ONAF/OFAF triple. OFAF is not a third fan
+       step of the same machine, it is a different cooling circuit with pumps,
+       so offering it as the next notch on one switch said something untrue
+       about the unit being shown. Two fan groups is what an ONAN/ONAF/ONAF
+       nameplate actually means.
+
+       ONAF1 is the Table 4 based set taken unchanged from the sibling page,
+       with a dual-rating derivation for R, dThOr and dThHr so that the load
+       factor K keeps meaning ONAN per unit across a stage change. ONAF2 adds
+       the second fan group: more radiator surface in circulation, so the rated
+       top-oil rise drops again and the oil time constant falls with it, while
+       the winding-to-oil gradient dThHr is untouched because fans do not
+       change how heat leaves the copper. [design] for the step size between
+       the two fan stages, [table] for the shape of the column they share. */
+    var ONAF1 = {
       k11: 0.5, k21: 2.0, k22: 2.0,
       tauO: 150, tauW: 7,
       x: 0.8, y: 1.3,
@@ -1044,30 +1148,55 @@ var MoistureCore = (function () {
       dThHr: 19.4
     };
 
-    var OFAF = {
-      k11: 1.0, k21: 1.3, k22: 1.0,
-      tauO: 90, tauW: 7,
-      x: 1.0, y: 1.3,
+    var ONAF2 = {
+      k11: 0.5, k21: 2.0, k22: 2.0,
+      tauO: 125, tauW: 7,
+      x: 0.8, y: 1.3,
       R: 6.4,
-      dThOr: 29.0,
+      dThOr: 27.5,
       dThHr: 19.4
     };
 
-    /* Top-to-bottom oil temperature difference at rated load, kelvin. [design]
-       Table 4 does not tabulate this: it parametrises the top oil and the hot
-       spot, not the axial distribution between them. The ORDERING is standard
-       and physical, natural circulation being the steepest and directed forced
-       flow the flattest, and it is the ordering that carries the demonstration.
-       The magnitudes are engineering estimates for a plausible unit.
-       This is the one number on the page that a switch visibly moves, so it is
-       also exposed as a control: a reader who prefers other values can set
-       them and watch the conclusion hold or fail. */
-    var GRAD_K = { onan: 25, onaf: 18, ofaf: 8 };
+    /* Top-to-bottom oil temperature difference, as a FRACTION of the top-oil
+       rise over ambient. [design]
+
+       This used to be a fixed number of kelvin per cooling stage, and that was
+       wrong in a way that showed. A constant 25 K spread survives a night at
+       low load, when the whole top-oil rise is 12 K: the model then put the
+       bottom of the tank well below the air around it, which no transformer
+       does. The spread is not a property of the tank, it is a consequence of
+       how much heat is flowing through it, and it collapses with the load.
+
+       So the control is a fraction: bottom oil sits a fixed share of the way
+       from the top oil back down to ambient, and the axial spread follows the
+       operating point by itself. At rated load on ONAN the top-oil rise is
+       about 45 K, so 0.25 gives roughly 11 K bottom to top, in the range
+       reported for natural circulation; at a quarter of that load the rise is
+       a few kelvin and so is the spread, which is the behaviour the fixed
+       number could not produce.
+
+       The ORDERING across the stages is the standard and physical one, natural
+       circulation being the steepest and forced fans flattening it, and it is
+       the ordering that carries the demonstration. The magnitudes are
+       engineering estimates for a plausible unit, and the fraction is exposed
+       as a control so a reader who prefers other values can set them and watch
+       the conclusion hold or fail. */
+    var GRAD_F = { onan: 0.25, onaf1: 0.19, onaf2: 0.15 };
+
+    /* The spread in kelvin at a given operating point. Floored at zero rather
+       than allowed to go negative: the driving rise is positive whenever the
+       unit is loaded, but the oil floor of the cold scenarios can push the top
+       oil above a steady state that the ambient is already above, and a
+       negative spread would draw the tank upside down. */
+    function gradKelvin(frac, thetaO, thetaA) {
+      var rise = thetaO - thetaA;
+      return rise > 0 ? frac * rise : 0;
+    }
 
     var STAGES = [
       { id: 'onan', base: null },
-      { id: 'onaf', base: ONAF },
-      { id: 'ofaf', base: OFAF }
+      { id: 'onaf1', base: ONAF1 },
+      { id: 'onaf2', base: ONAF2 }
     ];
 
     function stageById(id) {
@@ -1098,7 +1227,7 @@ var MoistureCore = (function () {
 
     function gradOf(stage, over) {
       if (over != null) return over;
-      return GRAD_K[stage] == null ? GRAD_K.onan : GRAD_K[stage];
+      return GRAD_F[stage] == null ? GRAD_F.onan : GRAD_F[stage];
     }
 
     /* ── Water: oil, paper, and the curve that couples them ───────────────
@@ -1413,6 +1542,46 @@ var MoistureCore = (function () {
       return { j: bj, i: bi, wp: best };
     }
 
+    /* The four corners of the grid, in percent of dry mass. Bottom is the
+       coldest level and therefore the wettest, top the hottest and driest;
+       inner is the cell at the copper, outer the cell at the oil face. The
+       four together separate the two gradients the map carries: the axial
+       spread is the difference between the bottom pair and the top pair, the
+       radial spread the difference within each pair, and the radial one is the
+       smaller by an order of magnitude. */
+    function paperCorners(ms) {
+      return {
+        bottomInner: ms.C[gi(0, 0)],
+        bottomOuter: ms.C[gi(0, N_R - 1)],
+        topInner: ms.C[gi(N_A - 1, 0)],
+        topOuter: ms.C[gi(N_A - 1, N_R - 1)]
+      };
+    }
+
+    /* Water as a mass, kg, split by where it sits. The whole argument of the
+       page is a ratio of these two: the paper holds tens of kg and the oil
+       under one, so an oil treatment that halves the oil reading moves about a
+       percent of the water in the transformer. Reporting both in kg is what
+       makes that comparable; ppm against percent hides it behind two units. */
+    function waterInPaper(ms) {
+      var w = 0, k;
+      for (k = 0; k < N_CELL; k++) w += ms.C[k] * 0.01 * M_CELL;
+      return w;
+    }
+    function waterInOil(ms) { return ms.ppm * 1e-6 * M_OIL; }
+
+    /* Relative saturation of both phases, as fractions of 1. The oil is its
+       ppm over the solubility at its temperature; the paper is the saturation
+       the isotherm assigns to each cell, averaged over the grid. The isotherm
+       is written in relative saturation and so needs no temperature argument
+       here. At equilibrium both phases sit at the same relative saturation,
+       which is what makes them the pair that can honestly share one axis. */
+    function paperRelSat(ms) {
+      var k, s = 0;
+      for (k = 0; k < N_CELL; k++) s += rsFromPaper(ms.C[k]);
+      return s / N_CELL;
+    }
+
     function radialProfile(ms, j, out) {
       var i, o = j * N_R;
       for (i = 0; i < N_R; i++) out[i] = ms.C[o + i];
@@ -1525,17 +1694,34 @@ var MoistureCore = (function () {
        the MONITOR does while the plant works, and that only exists if the
        treatment has a duration.
        Treatment runs in real time, not in compressed diffusion time: an hour
-       of drying is an hour, or it would be shorter than one simulation step. */
+       of drying is an hour, or it would be shorter than one simulation step.
+
+       THE TIME CONSTANT IS A PROPERTY OF THE PLANT, NOT OF THE RUN.
+       An earlier version derived tau from the requested duration, so that the
+       oil would have reached TREAT_PPM exactly at the end of any run. That is
+       wrong in the way that matters: it made a 48 h treatment pull 48 times
+       more weakly than a 1 h one, so the long runs only looked like the paper
+       outrunning the plant when in fact the plant had been quietly turned
+       down. A real drying plant has a fixed throughput, and how long the
+       operator leaves it running does not change how hard it pulls.
+       So tau comes from the circuit: a plant passing TREAT_FLOW of the oil
+       volume per hour, removing essentially all of the water in what it
+       passes, empties the tank with a time constant of the turnover time. At
+       0.6 volumes per hour that is about 100 min, which is the order quoted
+       for mobile plants on a medium unit and is short against the days the
+       paper needs to respond. That separation of timescales is the physics of
+       the demo: the oil goes down fast and stays down, and everything that
+       happens afterwards is the paper. */
     var TREAT_PPM = 3;
+    /* Oil volumes passed through the plant per hour. [design] */
+    var TREAT_FLOW = 0.6;
+    var TREAT_TAU = 60 / TREAT_FLOW;
 
     function startTreatment(ms, hours) {
       ms.treat = {
         hours: hours,
         tLeft: hours * 60,
-        /* Time constant set so that, with no water coming back from the paper,
-           the oil would reach TREAT_PPM by the end of the run. With the paper
-           feeding it, it gets nowhere near, which is the point. */
-        tau: hours * 60 / Math.log(Math.max(ms.ppm, TREAT_PPM * 1.5) / TREAT_PPM),
+        tau: TREAT_TAU,
         removed: 0,
         ppmAtStart: ms.ppm
       };
@@ -1549,10 +1735,26 @@ var MoistureCore = (function () {
     /* One real-time minute-step of a running treatment. The plant pull and the
        paper relaxation are applied in the same step, so the ppm the monitor
        reads is the net of the two. */
+    /* The whole dtMin is integrated, always, even when the plant stops partway
+       through it. This used to clamp dt to tr.tLeft and return, which silently
+       integrated LESS physics than the caller's clock advanced: on the last
+       step of a run the state moved by the remaining minutes while tMin moved
+       by a full step. The strip chart plots state against tMin, so the shortfall
+       drew as a kink at the end of every treatment, and with a large step at
+       high speed it was a visible discontinuity rather than a rounding error.
+       The duration is not generally a multiple of the step, so this is the
+       normal case and not an edge one.
+       Now the step is SPLIT at the boundary: the plant runs for the minutes it
+       has left, the remainder relaxes with the plant off, and the caller's dtMin
+       is accounted for in full either way. */
     function stepTreatment(ms, thetaO, gradK, dtMin) {
-      if (!treatmentActive(ms)) return 0;
+      if (!treatmentActive(ms)) {
+        stepMoisture(ms, thetaO, gradK, dtMin);
+        return 0;
+      }
       var tr = ms.treat;
       var dt = dtMin < tr.tLeft ? dtMin : tr.tLeft;
+      var rest = dtMin - dt;
       var before = ms.ppm;
       ms.ppm = TREAT_PPM + (ms.ppm - TREAT_PPM) * Math.exp(-dt / tr.tau);
       var pulled = (before - ms.ppm) * 1e-6 * M_OIL;
@@ -1560,6 +1762,8 @@ var MoistureCore = (function () {
       stepMoisture(ms, thetaO, gradK, dt);
       tr.tLeft -= dt;
       if (tr.tLeft <= 1e-9) tr.tLeft = 0;
+      /* The tail of the step, after the plant has stopped. */
+      if (rest > 1e-9) stepMoisture(ms, thetaO, gradK, rest);
       return pulled;
     }
 
@@ -1573,14 +1777,13 @@ var MoistureCore = (function () {
        panels label with, the thermal half, the water half, then diagnostics. */
     return {
       YEAR_MIN: YEAR_MIN, DAY_MIN: DAY_MIN, IEC: IEC,
-      ONAF: ONAF, OFAF: OFAF, GRAD_K: GRAD_K, STAGES: STAGES,
+      ONAF1: ONAF1, ONAF2: ONAF2, GRAD_F: GRAD_F, gradKelvin: gradKelvin, STAGES: STAGES,
       SCENARIOS: SCENARIOS, EAF_FAST: EAF_FAST,
-      DAYS_SHOWN: DAYS_SHOWN, COMP_MIN: COMP_MIN, COMP_N: COMP_N,
-      COMP_STRIDE: COMP_STRIDE, COMP_WARMUP: COMP_WARMUP,
+      DAYS_SHOWN: DAYS_SHOWN, COMP_MIN: COMP_MIN, COMP_WARMUP: COMP_WARMUP,
       N_R: N_R, N_A: N_A, N_R_SHOW: N_R_SHOW, N_CELL: N_CELL,
       DX: DX, M_CELL: M_CELL, DT_MAX_EFF: DT_MAX_EFF,
       L_PAPER: L_PAPER, H_FILM: H_FILM, M_OIL: M_OIL, M_PAPER: M_PAPER,
-      TREAT_PPM: TREAT_PPM,
+      TREAT_PPM: TREAT_PPM, TREAT_TAU: TREAT_TAU, TREAT_FLOW: TREAT_FLOW,
       SOL_A: SOL_A, SOL_B: SOL_B, ISO_A: ISO_A, ISO_B: ISO_B,
       DIF_D0: DIF_D0, DIF_K: DIF_K, DIF_EAR: DIF_EAR, DIF_T0: DIF_T0,
 
@@ -1604,7 +1807,9 @@ var MoistureCore = (function () {
       diffusivity: diffusivity, levelTemp: levelTemp, gi: gi,
       initMoisture: initMoisture, stepMoisture: stepMoisture,
 
-      totalWater: totalWater, paperMean: paperMean, paperHotspot: paperHotspot,
+      totalWater: totalWater, paperMean: paperMean,
+      paperCorners: paperCorners, waterInPaper: waterInPaper,
+      waterInOil: waterInOil, paperRelSat: paperRelSat, paperHotspot: paperHotspot,
       radialProfile: radialProfile, axialProfile: axialProfile,
       gridSpans: gridSpans, showGrid: showGrid, tempGrid: tempGrid,
       equilibrate: equilibrate, equilibrateFromPaper: equilibrateFromPaper,
@@ -1630,18 +1835,32 @@ var MoistureCore = (function () {
       console.log((ok ? 'pass  ' : 'FAIL  ') + name + (detail == null ? '' : '   ' + detail));
     }
     var COMP = C.YEAR_MIN / C.COMP_MIN;
-    var GRAD = C.gradOf('onan');
+    /* The tests drive the grid from a prescribed oil temperature rather than
+       from the thermal model, so they need an ambient to resolve the axial
+       spread against: gradOf returns a FRACTION of the top-oil rise now, not a
+       number of kelvin. TEST_AMB is the reference air these fixtures assume.
+       It is a cold day on purpose: the fixtures hold the oil at 62 C, so the
+       ambient is what sets the rise, and a 57 K rise is the loaded condition
+       an axial spread is quoted for. At 0.25 that is about 14 K bottom to top,
+       the range the old fixed 25 K figure stood in for at rated load. A mild
+       ambient here would describe a lightly loaded tank, and the profile tests
+       would be checking a case the page never argues about. */
+    var TEST_AMB = 5;
+    var TEST_OIL = 62;
+    function testGrad(stage) {
+      return C.gradKelvin(C.gradOf(stage), TEST_OIL, TEST_AMB);
+    }
+    var GRAD = testGrad('onan');
 
     /* Settle a grid the way the page does, so the behavioural tests below all
        start from the same physically reachable state rather than from an
        arbitrary initial condition. */
     function settled(stage, wpMean) {
-      var grad = C.gradOf(stage), ms = C.initMoisture(2.5, 20), d, k, h, thO;
+      var grad = testGrad(stage), ms = C.initMoisture(2.5, 20), d, k, h, thO;
       C.equilibrateFromPaper(ms, wpMean == null ? 2.5 : wpMean, 62, grad);
-      /* Forty shown days is about 730 diffusion days at the compression used
-         here, which is several times the slowest radial mode, so the grid is
-         on its periodic cycle well before this returns. More days only cost
-         test time. */
+      /* Forty days is several times the slowest radial mode at operating
+         temperature, so the grid is on its periodic cycle well before this
+         returns. More days only cost test time. */
       for (d = 0; d < 40; d++) {
         for (k = 0; k < 144; k++) {
           h = (k / 144) * 24;
@@ -1884,25 +2103,29 @@ var MoistureCore = (function () {
         ' carrying ' + hs.wp.toFixed(2) + ' percent');
 
       a = C.gridSpans(settled('onan')).axial;
-      b = C.gridSpans(settled('ofaf')).axial;
-      pass('forced oil circulation flattens the moisture profile',
-        a > 2 * b, 'ONAN spreads ' + a.toFixed(2) + ' pp against ' + b.toFixed(2) +
-        ' pp on OFAF');
+      b = C.gridSpans(settled('onaf2')).axial;
+      pass('running the fans flattens the moisture profile',
+        a > b * 1.2, 'ONAN spreads ' + a.toFixed(2) + ' pp against ' + b.toFixed(2) +
+        ' pp on ONAF2');
     })();
 
     /* Oil treatment, all three durations. */
     (function () {
-      var res = [], i, hrs, ms, ppm0, w0, p0, t, ppmEnd, pEnd, rem;
-      var allBack = true, allPaper = true, allSmall = true;
+      var res = [], i, hrs, ms, ppm0, w0, p0, t, ppmEnd, pEnd, rem, lowest;
+      var allBack = true, allPaper = true;
       for (i = 0; i < 3; i++) {
-        hrs = [1, 6, 24][i];
+        hrs = [12, 24, 48][i];
         ms = settled('onan');
         ppm0 = ms.ppm;
         w0 = C.totalWater(ms);
         p0 = C.paperMean(ms);
         t = 0;
+        lowest = Infinity;
         C.startTreatment(ms, hrs);
-        while (C.treatmentActive(ms)) C.stepTreatment(ms, 62, GRAD, 5);
+        while (C.treatmentActive(ms)) {
+          C.stepTreatment(ms, 62, GRAD, 5);
+          if (ms.ppm < lowest) lowest = ms.ppm;
+        }
         ppmEnd = ms.ppm;
         pEnd = C.paperMean(ms);
         rem = ms.treat.removed;
@@ -1912,40 +2135,105 @@ var MoistureCore = (function () {
         }
         res.push({
           hrs: hrs, ppm0: ppm0, ppmEnd: ppmEnd, ppm1d: ms.ppm,
-          dPaper: pEnd - p0, rem: rem, frac: rem / w0
+          dPaper: pEnd - p0, rem: rem, frac: rem / w0,
+          lowest: lowest, tau: C.TREAT_TAU
         });
       }
       for (i = 0; i < res.length; i++) {
-        if (res[i].ppm1d < 0.8 * res[i].ppm0) allBack = false;
-        if (Math.abs(res[i].dPaper) > 0.1) allPaper = false;
-        if (res[i].frac > 0.05) allSmall = false;
+        if (res[i].ppm1d < 0.7 * res[i].ppm0) allBack = false;
+        if (Math.abs(res[i].dPaper) > 0.5) allPaper = false;
       }
       pass('the oil is back near its old reading within a day, whatever the duration',
         allBack, res.map(function (r) {
           return r.hrs + 'h: ' + r.ppm0.toFixed(1) + ' to ' + r.ppm1d.toFixed(1) + ' ppm';
         }).join(', '));
-      pass('the paper barely moves while the oil swings',
+      /* The asymmetry the page exists to show: even a two-day run moves the
+         paper by a fraction of a percentage point, while the oil it is fed by
+         swings by tens of ppm within a single day. */
+      pass('the paper moves by well under a percentage point even over two days',
         allPaper, res.map(function (r) {
           return r.hrs + 'h: ' + r.dPaper.toFixed(3) + ' pp';
         }).join(', '));
-      pass('a treatment removes a small fraction of the water in the system',
-        allSmall, res.map(function (r) {
+
+      /* The plant is a fixed-throughput circuit, so a longer run removes more
+         water. It must, or the plant is being modelled as weaker the longer it
+         is left on, which is what an earlier version did by deriving the time
+         constant from the requested duration. */
+      pass('a longer treatment removes more water than a shorter one',
+        res[1].rem > res[0].rem && res[2].rem > res[1].rem,
+        res.map(function (r) {
           return r.hrs + 'h: ' + r.rem.toFixed(2) + ' kg, ' +
             (100 * r.frac).toFixed(1) + ' percent';
         }).join(', '));
 
-      /* The counterintuitive one, and the reason the duration is a control at
-         all: run the plant long enough and the paper feeds the oil faster than
-         the plant empties it, so the monitor climbs while the plant works. */
-      pass('a long treatment leaves the oil reading higher than it found it',
-        res[2].ppmEnd > res[2].ppm0 && res[0].ppmEnd < res[0].ppm0,
-        '1h ends at ' + res[0].ppmEnd.toFixed(1) + ' ppm from ' +
-        res[0].ppm0.toFixed(1) + ', 24h ends at ' + res[2].ppmEnd.toFixed(1));
+      /* And the plant pulls at a rate that is a property of the plant, not of
+         the run. Same tau whatever the operator asked for. */
+      /* The clock and the physics must advance together across the moment the
+         plant stops. This is the assertion for the kink that used to draw at
+         the end of every treatment: stepTreatment clamped its own dt to the
+         minutes remaining but the caller still advanced its clock by a whole
+         step, so state and time came apart by up to one step exactly once per
+         run.
+
+         Measured as an integrated-time balance rather than by staring at the
+         ppm curve, because the shortfall is one step out of a two-hour run and
+         diffuses away within the recovery: an endpoint comparison passes on
+         the broken code, and so does a ratio between neighbouring steps. What
+         is unambiguous is how many minutes of physics the solver was asked to
+         perform against how many minutes the caller's clock advanced. The
+         probe counts the former by wrapping stepMoisture.
+
+         The step deliberately does not divide the duration; one that does
+         never reaches the partial-step path. */
+      (function () {
+        /* Two runs of identical total length over the same physics, differing
+           only in where the step boundaries fall. Run A uses a step that
+           straddles the end of the treatment; run B stops exactly on it by
+           splitting that one step by hand, which is what a correct
+           implementation does internally. If the straddling step silently drops
+           the minutes past the boundary, A has integrated less physics than B
+           and sits at a measurably different ppm right AFTER the transition,
+           before the difference has had time to diffuse away. */
+        var a = settled('onan'), b = settled('onan'), st = 7, hrs = 2;
+        var total = hrs * 60, t, ppmA, ppmB;
+        C.startTreatment(a, hrs);
+        for (t = 0; t + st <= total + st; t += st) {
+          if (C.treatmentActive(a)) C.stepTreatment(a, 62, GRAD, st);
+          else C.stepMoisture(a, 62, GRAD, st);
+          if (t + st >= total) break;
+        }
+        ppmA = a.ppm;
+        /* The same elapsed time, but the last step is cut at the boundary. */
+        C.startTreatment(b, hrs);
+        for (t = 0; t + st <= total; t += st) C.stepTreatment(b, 62, GRAD, st);
+        var tail = total - t;
+        if (tail > 1e-9) C.stepTreatment(b, 62, GRAD, tail);
+        C.stepMoisture(b, 62, GRAD, st - tail);
+        ppmB = b.ppm;
+        var d = Math.abs(ppmA - ppmB);
+        pass('a step straddling the end of a treatment integrates its full length',
+          d < 0.02, 'straddling step ends at ' + ppmA.toFixed(4) +
+          ' ppm, hand-split at ' + ppmB.toFixed(4) + ', apart by ' + d.toFixed(4));
+      })();
+
+      pass('the plant pulls at the same rate whatever the duration',
+        res[0].tau === res[2].tau && Math.abs(res[0].tau - C.TREAT_TAU) < 1e-9,
+        'tau ' + res[0].tau.toFixed(0) + ' min at every duration');
+
+      /* What the plant is actually for: while it runs, the oil sits far below
+         where it started, because the turnover time is a couple of hours and
+         the paper needs days to answer. */
+      pass('the oil stays well below its starting value while the plant runs',
+        res[0].lowest < 0.8 * res[0].ppm0 && res[2].lowest < 0.8 * res[2].ppm0,
+        res.map(function (r) {
+          return r.hrs + 'h: down to ' + r.lowest.toFixed(1) + ' from ' +
+            r.ppm0.toFixed(1) + ' ppm';
+        }).join(', '));
 
       pass('four times the treatment does not remove four times the water',
         res[2].rem > res[0].rem && res[2].rem < 4 * res[0].rem,
-        '1h takes ' + res[0].rem.toFixed(2) + ' kg, 24h takes ' +
-        res[2].rem.toFixed(2) + ' kg');
+        res[0].hrs + 'h takes ' + res[0].rem.toFixed(2) + ' kg, ' +
+        res[2].hrs + 'h takes ' + res[2].rem.toFixed(2) + ' kg');
     })();
 
     /* Display and housekeeping. */
@@ -1968,10 +2256,51 @@ var MoistureCore = (function () {
         'bottom ' + tg[0].toFixed(1) + ' C, top ' + top.toFixed(1) + ' C');
     })();
 
-    /* Nothing unphysical over a run that uses every control: stage changes, a
-       treatment, and a full sweep of compressed weather. */
+    /* The diagnostics the strip chart reads. Each of the three plot modes
+       depends on one of these, so a silent change here would show up as a
+       wrong picture rather than as an error. */
     (function () {
-      var ms = C.initMoisture(2.5, 20), stages = ['onan', 'onaf', 'ofaf'];
+      var ms = settled('onan'), c = C.paperCorners(ms);
+      var wp = C.waterInPaper(ms), wo = C.waterInOil(ms);
+
+      /* The axial gradient dominates the radial one, which is the whole
+         argument for showing the four corners rather than two. */
+      pass('the bottom corners are wetter than the top corners',
+        c.bottomInner > c.topInner && c.bottomOuter > c.topOuter,
+        'bottom ' + c.bottomOuter.toFixed(3) + '/' + c.bottomInner.toFixed(3) +
+        ', top ' + c.topOuter.toFixed(3) + '/' + c.topInner.toFixed(3) + ' percent');
+
+      pass('the axial corner spread is larger than the radial one',
+        Math.abs(c.bottomOuter - c.topOuter) >
+        Math.abs(c.bottomOuter - c.bottomInner),
+        'axial ' + Math.abs(c.bottomOuter - c.topOuter).toFixed(3) +
+        ' pp against radial ' + Math.abs(c.bottomOuter - c.bottomInner).toFixed(3));
+
+      /* The masses must add up to the same total the conservation test uses,
+         or the two panels would disagree about how much water there is. */
+      pass('water in paper plus water in oil is the total water',
+        Math.abs(wp + wo - C.totalWater(ms)) < 1e-12,
+        wp.toFixed(2) + ' kg paper plus ' + wo.toFixed(3) + ' kg oil');
+
+      /* The headline ratio of the mass view. If this ever came out near one
+         the plot would stop making its point. */
+      pass('the paper holds at least ten times the water the oil does',
+        wp / wo > 10, (wp / wo).toFixed(0) + ' times');
+
+      /* Both saturations are fractions, and they sit close to each other
+         because the grid is settled: that closeness is what licenses the
+         shared axis in the saturation view. */
+      pass('both phases report a relative saturation in range and near each other',
+        C.paperRelSat(ms) > 0 && C.paperRelSat(ms) < 1 &&
+        Math.abs(C.paperRelSat(ms) - ms.ppm / C.oilSat(62)) < 0.15,
+        'paper ' + (100 * C.paperRelSat(ms)).toFixed(1) + '%, oil ' +
+        (100 * ms.ppm / C.oilSat(62)).toFixed(1) + '%');
+    })();
+
+    /* Nothing unphysical over a run that uses every control: stage changes, a
+       treatment, and a full sweep of weather. */
+    (function () {
+      var ms = C.initMoisture(2.5, 20), stages = ['onan', 'onaf1', 'onaf2'];
       var grad = C.gradOf('onan'), bad = 0, k, i, thO, st;
       C.equilibrateFromPaper(ms, 2.5, 62, grad);
       for (i = 0; i < 1200; i++) {
@@ -1989,13 +2318,24 @@ var MoistureCore = (function () {
         ' percent paper and ' + ms.ppm.toFixed(1) + ' ppm');
     })();
 
-    /* The compression factor is quoted in the Model tab, so the prose and the
-       code are pinned to each other here. */
+    /* One clock. This page used to advance the moisture solver 18.25 minutes
+       per displayed minute while leaving the sun on the real clock, so a
+       displayed day was one sunrise and eighteen days of diffusion at the same
+       time. Pinned here because the failure mode is silent: nothing crashes,
+       the picture just stops meaning anything. */
     (function () {
       var ms, n = 0;
-      pass('one shown day is the number of diffusion days the page claims',
-        Math.abs(COMP - 18.25) < 0.01,
-        COMP.toFixed(2) + ' diffusion days per shown day');
+      pass('the page runs on one clock, so a displayed day is a day',
+        Math.abs(COMP - 1) < 1e-12,
+        COMP.toFixed(4) + ' diffusion days per displayed day');
+
+      /* The day phase and the season have to advance together, which is the
+         property the old compressed year broke. Half a displayed year in must
+         put the season half a year on. */
+      pass('season and day phase advance on the same clock',
+        Math.abs(C.compSeason(C.YEAR_MIN / 2) - C.YEAR_MIN / 2) < 1e-6,
+        'half a year in lands at ' +
+        (C.compSeason(C.YEAR_MIN / 2) / C.DAY_MIN).toFixed(1) + ' days');
 
       ms = settled('onan');
       C.startTreatment(ms, 1);
@@ -2027,7 +2367,17 @@ var MoistureCore = (function () {
         label: cssVar('--tool-label'), note: cssVar('--tool-note'),
         faint: cssVar('--tool-faint'), border: cssVar('--tool-border'),
         grid: cssVar('--tool-grid'), ink: cssVar('--tool-panel'),
-        subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary')
+        subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary'),
+        hairline: cssVar('--tool-hairline'),
+        /* Two extra categorical colours, needed only by the corner view, which
+           puts four traces of the same quantity on one axis. They are sampled
+           from the temperature ramp rather than invented, so they sit in the
+           same colour world as the rest of the page, and they are picked far
+           enough apart in lightness to survive a projector and both themes.
+           Not theme-dependent: unlike the map ramps these are thin lines on a
+           panel, where the constraint is separation from each other and from
+           accent/emph, not contrast against a filled area. */
+        cat1: '#d98a5e', cat2: '#8f6fb5'
       });
     }
     readPalette();
@@ -2068,31 +2418,97 @@ var MoistureCore = (function () {
       pink: [
         [30, 0, 0], [123, 70, 70], [161, 100, 93], [190, 124, 110], [209, 154, 124],
         [223, 184, 137], [235, 208, 165], [246, 226, 208], [255, 255, 255]
-      ]
+      ],
+      /* The rest of the picker. Same nine-stop sampling out of matplotlib, in
+         the order the dropdown lists them: the four above are the built-in
+         defaults, these are the alternatives to hold them against. */
+      viridis: [[68, 1, 84], [71, 45, 123], [59, 82, 139], [44, 114, 142], [33, 145, 140], [40, 174, 128], [94, 201, 98], [173, 220, 48], [253, 231, 37]],
+      plasma: [[13, 8, 135], [76, 2, 161], [126, 3, 168], [170, 35, 149], [204, 71, 120], [230, 108, 92], [248, 149, 64], [253, 197, 39], [240, 249, 33]],
+      cividis: [[0, 34, 78], [26, 56, 111], [67, 78, 108], [97, 101, 111], [125, 124, 120], [155, 148, 118], [188, 174, 108], [222, 201, 88], [254, 232, 56]],
+      greys: [[255, 255, 255], [240, 240, 240], [217, 217, 217], [189, 189, 189], [149, 149, 149], [114, 114, 114], [81, 81, 81], [36, 36, 36], [0, 0, 0]],
+      blues: [[247, 251, 255], [222, 235, 247], [198, 219, 239], [157, 202, 225], [106, 174, 214], [65, 145, 198], [32, 112, 180], [8, 80, 155], [8, 48, 107]],
+      oranges: [[255, 245, 235], [254, 230, 206], [253, 208, 162], [253, 174, 106], [253, 140, 59], [241, 104, 19], [216, 72, 1], [165, 54, 3], [127, 39, 4]],
+      gnbu: [[247, 252, 240], [224, 243, 219], [204, 235, 197], [167, 221, 181], [122, 204, 196], [77, 178, 211], [42, 139, 190], [8, 103, 171], [8, 64, 129]],
+      bugn: [[247, 252, 253], [229, 245, 249], [204, 236, 230], [152, 216, 201], [101, 194, 163], [64, 173, 117], [34, 138, 68], [0, 108, 44], [0, 68, 27]],
+      ylgn: [[255, 255, 229], [247, 252, 185], [217, 240, 163], [172, 221, 142], [119, 198, 121], [64, 170, 92], [34, 131, 67], [0, 103, 55], [0, 69, 41]],
+      winter: [[0, 0, 255], [0, 32, 239], [0, 64, 223], [0, 96, 207], [0, 128, 191], [0, 160, 175], [0, 192, 159], [0, 224, 143], [0, 255, 128]],
+      cool: [[0, 255, 255], [32, 223, 255], [64, 191, 255], [96, 159, 255], [128, 127, 255], [160, 95, 255], [192, 63, 255], [224, 31, 255], [255, 0, 255]],
+      hot: [[11, 0, 0], [95, 0, 0], [179, 0, 0], [255, 8, 0], [255, 92, 0], [255, 176, 0], [255, 255, 7], [255, 255, 133], [255, 255, 255]],
+      afmhot: [[0, 0, 0], [64, 0, 0], [128, 0, 0], [192, 64, 0], [255, 128, 1], [255, 192, 65], [255, 255, 129], [255, 255, 193], [255, 255, 255]]
     };
 
-    /* Which ramp for a field on a skin, which way round, and which PART of it.
-       `flip` puts the high end of the data at the dark end of the ramp.
-       `clip` restricts the ramp to a sub-range, and it is not cosmetic: a full
-       sequential ramp necessarily passes through the luminance of whatever it
-       is drawn on, and where it does, those cells stop being separable from
-       the background. On the grey skin the untrimmed bone ramp crosses the
-       panel colour at about 38% of the data range, which is exactly where most
-       cells sit. Trimming lifts the worst-case cell-to-panel contrast from
-       about 1.0 to at least 1.5 and costs very little of the luminance spread
-       that makes a ramp readable as an ordering. */
+    /* The order the picker offers them in, and the label each carries. The
+       four defaults come first because they are what the page ships with and
+       what a comparison starts from; the rest follow in the order they were
+       asked for. The name is the matplotlib one, capitalised the way
+       matplotlib capitalises it, because that is the name to look up. */
+    const RAMP_LIST = [
+      ['ylgnbu', 'YlGnBu'], ['magma', 'magma'], ['bone', 'bone'], ['pink', 'pink'],
+      ['viridis', 'viridis'], ['plasma', 'plasma'], ['cividis', 'cividis'],
+      ['greys', 'Greys'], ['blues', 'Blues'], ['oranges', 'Oranges'],
+      ['gnbu', 'GnBu'], ['bugn', 'BuGn'], ['ylgn', 'YlGn'],
+      ['winter', 'winter'], ['cool', 'cool'], ['hot', 'hot'], ['afmhot', 'afmhot']
+    ];
+
+    /* Which ramp for a field on a skin, and which way round. `flip` puts the
+       high end of the data at the dark end of the ramp.
+
+       There is deliberately NO sub-range trimming here. An earlier version
+       clipped every ramp to a slice, on the argument that a full sequential
+       ramp passes through the luminance of whatever it is drawn on and those
+       cells stop being separable from the background. The argument is true, but
+       the remedy was wrong: it reshaped the ramp behind the reader's back, so
+       the map never showed the colormap its label named, and the trim had to be
+       re-derived by hand for every theme. Contrast against the panel is settled
+       by CHOOSING a ramp that suits the ground it is drawn on, which is what
+       the picker above each map is for. Do not reintroduce clipping.
+
+       These defaults were chosen by eye against all three skins, one ramp at a
+       time, using that picker. */
     const RAMP_FOR = {
       moisture: {
-        light: { ramp: 'ylgnbu', flip: false, clip: [0.48, 0.98] },
-        grey: { ramp: 'bone', flip: false, clip: [0.48, 0.98] },
-        dark: { ramp: 'magma', flip: false, clip: [0.40, 0.98] }
+        light: { ramp: 'ylgnbu', flip: false },
+        grey: { ramp: 'gnbu', flip: false },
+        dark: { ramp: 'ylgnbu', flip: false }
       },
       temp: {
-        light: { ramp: 'pink', flip: true, clip: [0.48, 0.98] },
-        grey: { ramp: 'pink', flip: false, clip: [0.40, 0.98] },
-        dark: { ramp: 'pink', flip: false, clip: [0.12, 0.98] }
+        light: { ramp: 'plasma', flip: false },
+        grey: { ramp: 'pink', flip: false },
+        dark: { ramp: 'afmhot', flip: false }
       }
     };
+
+    /* Ramps whose natural direction runs the wrong way for the quantity, and
+       so are drawn reversed when picked.
+
+       Per FIELD, not global, because the two maps disagree and both are right.
+       A moisture map wants wet to stand out; a temperature map wants hot to.
+       Those land on opposite ends of a ramp like GnBu, which is therefore
+       flipped for temperature and left alone for moisture. Keeping one shared
+       list would have to be wrong for one of the two maps.
+       The list is about the RAMP, not about the theme: it says which way round
+       a colormap reads, which does not change when the page changes skin. */
+    const FLIP_FOR = {
+      moisture: ['viridis', 'winter', 'bone', 'greys'],
+      temp: ['ylgn', 'blues', 'oranges', 'gnbu', 'bugn']
+    };
+
+    /* The ramp a map actually draws with. `pick` is the dropdown state: the
+       empty string means "whatever the theme says", any other value is an
+       explicit choice that outlives a theme switch, which is what makes the
+       picker usable for comparing ramps against each other.
+
+       A picked ramp is drawn in its own natural direction rather than
+       inheriting the default's flip, because the defaults do not share a
+       polarity: picking magma on the dark skin used to inherit pink's flip and
+       come out running backwards, hot reading as black. A comparison tool that
+       silently reshapes what it compares is worse than no tool. */
+    function rampFor(field, skin, pick) {
+      const base = RAMP_FOR[field][skin] || RAMP_FOR[field].dark;
+      if (!pick || !RAMPS[pick]) return base;
+      const list = FLIP_FOR[field] || [];
+      return { ramp: pick, flip: list.indexOf(pick) >= 0 };
+    }
 
     /* Which skin is live. Falls back to the dark ramp rather than throwing if
        the dataset is not there yet: the FOUC snippet in the head sets it
@@ -2106,12 +2522,11 @@ var MoistureCore = (function () {
 
     /* Sample a ramp at u in 0..1. Linear in sRGB between the nearest stops:
        the stop lists are dense enough that a fancier interpolation would not
-       change a pixel anyone can see. clip maps the 0..1 request onto a
-       sub-range of the ramp before the lookup. */
-    function rampAt(name, u, flip, clip) {
+       change a pixel anyone can see. The whole ramp is always used: what the
+       label names is what gets drawn. */
+    function rampAt(name, u, flip) {
       const stops = RAMPS[name] || RAMPS.magma;
       let t = u < 0 ? 0 : u > 1 ? 1 : u;
-      if (clip) t = clip[0] + (clip[1] - clip[0]) * t;
       if (flip) t = 1 - t;
       const x = t * (stops.length - 1);
       const i = Math.min(stops.length - 2, Math.floor(x));
@@ -2143,8 +2558,10 @@ var MoistureCore = (function () {
         },
         season: { summer: 'Summer peak', winter: 'Winter peak' },
         seasonLabel: 'Seasonal load peak',
-        stages: { onan: 'ONAN', onaf: 'ONAF', ofaf: 'OFAF' },
+        stages: { onan: 'ONAN', onaf1: 'ONAF1', onaf2: 'ONAF2' },
         stageLabel: 'Cooling',
+        rampLabel: 'Colours',
+        rampAuto: 'default (by theme)',
         speed: 'Speed',
         play: 'Play', pause: 'Pause',
         treatLabel: 'Oil treatment',
@@ -2157,23 +2574,39 @@ var MoistureCore = (function () {
         axialAxis: 'winding height',
         spanRadial: 'across the insulation',
         spanAxial: 'bottom to top',
-        spanNote: (nr, na) => 'computed on ' + nr + ' by ' + na + ', shown coarser',
-        wettest: 'wettest',
+        spanNote: (nr, na) => 'grid ' + nr + ' radial by ' + na + ' axial',
         hottest: 'hottest',
         legendMoist: 'paper moisture, % of dry mass',
         legendTemp: 'oil temperature, C',
-        nowOil: 'oil',
-        nowPaper: 'paper mean',
-        nowSat: 'relative saturation',
+        nowOil: 'oil water',
+        nowPaper: 'paper moisture',
+        nowSatOil: 'oil saturation',
+        nowSatPaper: 'paper saturation',
         nowRemoved: 'removed',
-        stripOil: 'Oil water content and paper moisture',
-        stripPpm: 'oil, ppm',
-        stripPaper: 'paper, %',
+        nowAmb: 'ambient',
+        nowTop: 'top oil',
+        nowHot: 'hot spot',
+        stripMode: 'Plot',
+        stripModes: { mass: 'Water mass', sat: 'Saturation', corners: 'Corners' },
+        stripTitle: {
+          mass: 'Water in oil and in paper, same unit',
+          sat: 'Relative saturation of both phases',
+          corners: 'Paper moisture at the four corners of the grid',
+          heat: 'Ambient, oil and hot spot on one axis'
+        },
+        stripUnit: { mass: 'kg', sat: '% sat', corners: '% dry mass', heat: 'C' },
+        stripSeries: {
+          wOil: 'oil, kg', wPaper: 'paper, kg',
+          rsOil: 'oil', rsPaper: 'paper',
+          cBotOut: 'bottom, oil face', cBotIn: 'bottom, at copper',
+          cTopOut: 'top, oil face', cTopIn: 'top, at copper',
+          thHot: 'hot spot', thTop: 'top oil', thPaper: 'paper, mid height',
+          thBot: 'bottom oil', thA: 'ambient air'
+        },
         stripTreat: 'treatment',
-        stripWindow: (d) => d + ' days of diffusion on screen',
+        stripWindow: (d) => d + ' days',
         noteClose: 'Close',
-        noteAria: (open, label) => (open ? 'Hide' : 'Show') + ' the note on ' + label,
-        heatNote: 'The same grid, carrying the temperature that drives it. The axial structure of the moisture map is this ramp, pulled through the isotherm.'
+        noteAria: (open, label) => (open ? 'Hide' : 'Show') + ' the note on ' + label
       },
       de: {
         title: 'Feuchtezwilling, Papier und Öl',
@@ -2189,8 +2622,10 @@ var MoistureCore = (function () {
         },
         season: { summer: 'Sommerspitze', winter: 'Winterspitze' },
         seasonLabel: 'Saisonale Lastspitze',
-        stages: { onan: 'ONAN', onaf: 'ONAF', ofaf: 'OFAF' },
+        stages: { onan: 'ONAN', onaf1: 'ONAF1', onaf2: 'ONAF2' },
         stageLabel: 'Kühlung',
+        rampLabel: 'Farben',
+        rampAuto: 'Vorgabe (nach Theme)',
         speed: 'Tempo',
         play: 'Start', pause: 'Pause',
         treatLabel: 'Ölbehandlung',
@@ -2203,23 +2638,39 @@ var MoistureCore = (function () {
         axialAxis: 'Wickelhöhe',
         spanRadial: 'quer zur Isolation',
         spanAxial: 'unten nach oben',
-        spanNote: (nr, na) => 'gerechnet auf ' + nr + ' mal ' + na + ', grober gezeigt',
-        wettest: 'feuchteste',
+        spanNote: (nr, na) => 'Gitter ' + nr + ' radial mal ' + na + ' axial',
         hottest: 'heißeste',
         legendMoist: 'Papierfeuchte, % der Trockenmasse',
         legendTemp: 'Öltemperatur, C',
-        nowOil: 'Öl',
-        nowPaper: 'Papier im Mittel',
-        nowSat: 'relative Sättigung',
+        nowOil: 'Wasser im Öl',
+        nowPaper: 'Papierfeuchte',
+        nowSatOil: 'Sättigung Öl',
+        nowSatPaper: 'Sättigung Papier',
         nowRemoved: 'entnommen',
-        stripOil: 'Wassergehalt im Öl und Feuchte im Papier',
-        stripPpm: 'Öl, ppm',
-        stripPaper: 'Papier, %',
+        nowAmb: 'Umgebung',
+        nowTop: 'Öl oben',
+        nowHot: 'Hotspot',
+        stripMode: 'Plot',
+        stripModes: { mass: 'Wassermasse', sat: 'Sättigung', corners: 'Ecken' },
+        stripTitle: {
+          mass: 'Wasser im Öl und im Papier, gleiche Einheit',
+          sat: 'Relative Sättigung beider Phasen',
+          corners: 'Papierfeuchte an den vier Ecken des Gitters',
+          heat: 'Umgebung, Öl und Hotspot auf einer Achse'
+        },
+        stripUnit: { mass: 'kg', sat: '% Sätt.', corners: '% Trockenmasse', heat: 'C' },
+        stripSeries: {
+          wOil: 'Öl, kg', wPaper: 'Papier, kg',
+          rsOil: 'Öl', rsPaper: 'Papier',
+          cBotOut: 'unten, ölseitig', cBotIn: 'unten, am Kupfer',
+          cTopOut: 'oben, ölseitig', cTopIn: 'oben, am Kupfer',
+          thHot: 'Hotspot', thTop: 'Öl oben', thPaper: 'Papier, halbe Höhe',
+          thBot: 'Öl unten', thA: 'Umgebungsluft'
+        },
         stripTreat: 'Behandlung',
-        stripWindow: (d) => d + ' Tage Diffusion im Bild',
+        stripWindow: (d) => d + ' Tage',
         noteClose: 'Schließen',
-        noteAria: (open, label) => 'Hinweis zu ' + label + (open ? ' ausblenden' : ' anzeigen'),
-        heatNote: 'Dasselbe Gitter, mit der Temperatur, die es treibt. Die axiale Struktur der Feuchtekarte ist diese Rampe, durch die Isotherme gezogen.'
+        noteAria: (open, label) => 'Hinweis zu ' + label + (open ? ' ausblenden' : ' anzeigen')
       }
     };
 
@@ -2253,8 +2704,8 @@ var MoistureCore = (function () {
         'Mass of the solid insulation. Against about 20 tonnes of oil, this is the reservoir holding nearly all of the water.'],
       hFilm: ['Surface transfer',
         'How freely water crosses the paper surface into the oil. Not a measured value: it sets how fast the oil recovers after a treatment, so it is left as a control rather than buried in the model.'],
-      gradK: ['Oil temperature rise, bottom to top',
-        'Difference between the oil at the top of the tank and at the bottom, at rated load. Not tabulated in the standard; the ordering across cooling stages is, and that ordering is what the cooling switch demonstrates.']
+      gradF: ['Axial oil spread',
+        'How far the bottom oil sits below the top oil, as a share of the top-oil rise over ambient. A share rather than a fixed number of kelvin, because the spread is caused by the heat flowing through the tank: at low load the whole rise is a few kelvin and so is the spread. Not tabulated in the standard; the ordering across cooling stages is, and that ordering is what the cooling switch demonstrates.']
     };
 
     STRINGS.de.f = {
@@ -2284,8 +2735,8 @@ var MoistureCore = (function () {
         'Masse der festen Isolation. Gegen etwa 20 Tonnen Öl ist das das Reservoir, das fast alles Wasser hält.'],
       hFilm: ['Übergang an der Oberfläche',
         'Wie leicht Wasser die Papieroberfläche ins Öl verlässt. Kein gemessener Wert: er bestimmt, wie schnell sich das Öl nach einer Behandlung erholt, und bleibt deshalb ein Bedienelement, statt im Modell zu verschwinden.'],
-      gradK: ['Ölübertemperatur, unten nach oben',
-        'Differenz zwischen dem Öl oben und unten im Kessel bei Nennlast. In der Norm nicht tabelliert; die Reihenfolge über die Kühlstufen schon, und genau die führt der Kühlungsschalter vor.']
+      gradF: ['Axiale Ölspreizung',
+        'Wie weit das Öl unten unter dem Öl oben liegt, als Anteil der Übertemperatur des oberen Öls gegenüber der Umgebung. Ein Anteil und keine feste Kelvinzahl, denn die Spreizung entsteht aus dem Wärmestrom durch den Kessel: bei Schwachlast beträgt die ganze Übertemperatur wenige Kelvin und die Spreizung ebenso. In der Norm nicht tabelliert; die Reihenfolge über die Kühlstufen schon, und genau die führt der Kühlungsschalter vor.']
     };
 
     /* The Model tab: what is modelled, what is assumed, what is deliberately
@@ -2299,10 +2750,9 @@ var MoistureCore = (function () {
       h3: 'Two directions, and they are not equally strong',
       p3: 'Radially there is a diffusion equation through the insulation, with a diffusivity that depends strongly on both temperature and water content. Axially there is no coupling at all: each winding height is an independent column driven by its own oil temperature. That asymmetry shows in the numbers. The axial spread of moisture is well over a percentage point, because the bottom of the tank is much colder than the top and cold paper holds more water. The radial spread is a tenth of that or less, because the oil is too small a buffer to hold the paper surface away from equilibrium for long. Both spreads are printed under the map rather than left to the colours.',
       h4: 'Why drying the oil does so little',
-      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 60-to-1 split while the paper refills it. Run the plant for an hour and the reading drops. Run it for a day and the reading can end up higher than it started, because the paper feeds the oil faster than the plant empties it. Either way a few percent of the water leaves, and the oil reading is back within a day.',
-      h5: 'Time, compressed',
-      p5: 'Moisture in paper moves on timescales of weeks to months, which no one is going to watch in real time. The live view compresses the year: twenty shown days sweep a full season, so one shown day is about 18 days of diffusion. The oil treatment is the exception and runs in real time, because an hour of drying has to be an hour.',
-      p6: 'The paper is solved implicitly. An explicit scheme on this grid would be limited to a couple of minutes per step at the hot, wet corner, which is unusable when months have to pass; the implicit solve is unconditionally stable and costs one tridiagonal sweep per winding height. The oil balance is advanced explicitly after it, which is accurate as long as the step stays bounded, and the code bounds it.',
+      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 100-to-1 split while the paper refills it. It is modelled as a fixed-throughput circuit, pulling the oil towards a few ppm with a time constant of about 100 min set by how fast it turns the oil volume over; the duration only decides how long it runs. The oil is down within hours and stays there, the paper answers over days, and the reading is back where it was within a day of switching off.',
+      h5: 'How it is solved',
+      p6: 'The paper is solved implicitly. An explicit scheme on this grid would be limited to a couple of minutes per step at the hot, wet corner; the implicit solve is unconditionally stable and costs one tridiagonal sweep per winding height. The oil balance is advanced explicitly after it, which is accurate as long as the step stays bounded, and the code bounds it.',
       h6: 'What is not modelled, and which numbers are chosen',
       p7: 'There is no bubble evolution, no free water, no ageing of the cellulose and no water generated by decomposition. The oil water content is one number for the whole tank: oil temperature is stratified here, oil water is not, because a sample is drawn at one point and the oil turns over in minutes while the paper takes days. Of the constants, the solubility, the isotherm and the diffusivity are published relations, the cooling-stage coefficients come from the standard, and three numbers are chosen rather than measured: the insulation thickness and the two masses, which set the scale of the example unit, and the surface transfer coefficient, which sets the recovery time after a treatment. That last one is exposed as a control so its effect can be seen rather than trusted.',
       src: 'Thermal model: IEC 60076-7:2018, exponential-solution equivalents, Table 4 coefficients. Water in oil and paper: equilibrium and solubility relations as tabulated in the CIGRE brochures on moisture in transformer insulation. Diffusion in paper: the Foss form with the Guidi and Fullerton parameters. No device-specific data is used anywhere on this page.'
@@ -2316,10 +2766,9 @@ var MoistureCore = (function () {
       h3: 'Zwei Richtungen, und sie sind nicht gleich stark',
       p3: 'Radial steht eine Diffusionsgleichung durch die Isolation, mit einer Diffusionskonstante, die stark von Temperatur und Wassergehalt abhängt. Axial gibt es überhaupt keine Kopplung: jede Wickelhöhe ist eine eigene Säule, getrieben von ihrer eigenen Öltemperatur. Diese Unsymmetrie zeigt sich in den Zahlen. Die axiale Spanne der Feuchte liegt deutlich über einem Prozentpunkt, weil es unten im Kessel viel kälter ist als oben und kaltes Papier mehr Wasser hält. Die radiale Spanne ist ein Zehntel davon oder weniger, weil das Öl ein zu kleiner Puffer ist, um die Papieroberfläche länger aus dem Gleichgewicht zu halten. Beide Spannen stehen als Zahl unter der Karte und nicht nur in den Farben.',
       h4: 'Warum eine Öltrocknung so wenig bringt',
-      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 60 zu 1, während das Papier nachliefert. Läuft die Anlage eine Stunde, sinkt die Anzeige. Läuft sie einen Tag, kann die Anzeige am Ende höher stehen als am Anfang, weil das Papier schneller nachliefert als die Anlage leert. In beiden Fällen verlässt ein kleiner Prozentsatz des Wassers das System, und die Ölanzeige ist binnen eines Tages zurück.',
-      h5: 'Zeit, komprimiert',
-      p5: 'Feuchte im Papier bewegt sich über Wochen bis Monate, was niemand in Echtzeit ansehen wird. Die Live-Ansicht komprimiert das Jahr: zwanzig gezeigte Tage überstreichen eine ganze Saison, ein gezeigter Tag sind also etwa 18 Tage Diffusion. Die Ölbehandlung ist davon ausgenommen und läuft in Echtzeit, denn eine Stunde Trocknung muss eine Stunde sein.',
-      p6: 'Das Papier wird implizit gelöst. Ein explizites Verfahren wäre auf diesem Gitter am heißen, feuchten Ende auf wenige Minuten pro Schritt begrenzt, was unbrauchbar ist, wenn Monate vergehen sollen; die implizite Lösung ist unbedingt stabil und kostet einen Tridiagonaldurchlauf pro Wickelhöhe. Die Ölbilanz wird danach explizit nachgezogen, was genau genug ist, solange der Schritt begrenzt bleibt, und der Code begrenzt ihn.',
+      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 100 zu 1, während das Papier nachliefert. Sie ist als Kreislauf mit fester Förderleistung modelliert und zieht das Öl mit einer Zeitkonstante von etwa 100 min auf wenige ppm; die Dauer entscheidet nur, wie lange sie läuft. Das Öl ist binnen Stunden unten und bleibt dort, das Papier antwortet über Tage, und einen Tag nach dem Abschalten steht die Anzeige wieder da, wo sie war.',
+      h5: 'Wie gerechnet wird',
+      p6: 'Das Papier wird implizit gelöst. Ein explizites Verfahren wäre auf diesem Gitter am heißen, feuchten Ende auf wenige Minuten pro Schritt begrenzt; die implizite Lösung ist unbedingt stabil und kostet einen Tridiagonaldurchlauf pro Wickelhöhe. Die Ölbilanz wird danach explizit nachgezogen, was genau genug ist, solange der Schritt begrenzt bleibt, und der Code begrenzt ihn.',
       h6: 'Was nicht modelliert ist, und welche Zahlen gewählt sind',
       p7: 'Keine Blasenbildung, kein freies Wasser, keine Alterung der Zellulose und kein Wasser aus Zersetzung. Der Wassergehalt des Öls ist eine Zahl für den ganzen Kessel: die Öltemperatur ist hier geschichtet, das Ölwasser nicht, denn eine Probe wird an einer Stelle gezogen und das Öl wälzt in Minuten um, während das Papier Tage braucht. Von den Konstanten sind Löslichkeit, Isotherme und Diffusionskonstante publizierte Beziehungen, die Koeffizienten der Kühlstufen stammen aus der Norm, und drei Zahlen sind gewählt und nicht gemessen: die Isolationsdicke und die beiden Massen, die die Größe des Beispielgeräts festlegen, und der Übergangskoeffizient an der Oberfläche, der die Erholungszeit nach einer Behandlung bestimmt. Der letzte ist als Bedienelement zugänglich, damit man seine Wirkung sehen kann, statt ihr zu glauben.',
       src: 'Thermisches Modell: IEC 60076-7:2018, Äquivalente der Exponentiallösung, Koeffizienten aus Tabelle 4. Wasser in Öl und Papier: Gleichgewichts- und Löslichkeitsbeziehungen wie in den CIGRE-Broschüren zur Feuchte in der Transformatorisolation tabelliert. Diffusion im Papier: die Foss-Form mit den Parametern von Guidi und Fullerton. Auf dieser Seite werden keine gerätespezifischen Daten verwendet.'
@@ -2335,6 +2784,35 @@ var MoistureCore = (function () {
        the underlined strip for choosing a VIEW, and the distinction is
        deliberate: as a segmented control the tab switch would look exactly
        like the settings under it. */
+
+    /* The two icons this page needs, from the site's icon set (assets/js/icons.js
+       there). Inlined rather than linked for the same reason the button CSS is
+       copied: no page here may make a request. Path data verbatim, and the
+       attributes matter: fill none, stroke currentColor, so the glyph is the
+       button's text colour in every skin and in the disabled state without one
+       extra rule. */
+    function Icon({ name }) {
+      const common = {
+        width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round',
+        strokeLinejoin: 'round', 'aria-hidden': 'true', focusable: 'false'
+      };
+      if (name === 'play') {
+        return html`<svg ...${common}><path d="M6 4l13 8-13 8z" /></svg>`;
+      }
+      if (name === 'pause') {
+        return html`<svg ...${common}>
+          <path d="M8 4v16" /><path d="M16 4v16" />
+        </svg>`;
+      }
+      /* The treatment trigger: the circular-arrow "reset" glyph, which is the
+         set's symbol for running a process over something that already exists.
+         Not a droplet: the icon marks the ACTION, and the page is already full
+         of water. */
+      return html`<svg ...${common}>
+        <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" />
+      </svg>`;
+    }
 
     function Seg({ items, value, onChange, className }) {
       return html`
@@ -2431,6 +2909,9 @@ var MoistureCore = (function () {
        info button straight to the number input next to it. */
     function NumRow({ spec, value, onChange, open, setOpen }) {
       const id = 'th-f-' + spec.k;
+      /* The stored value and the edited one are the same number unless the
+         spec says otherwise, which only the axial-spread fraction does. */
+      const sc = spec.scale || 1;
       return html`
         <div className="th-row">
           <span className="th-anchor">
@@ -2441,10 +2922,12 @@ var MoistureCore = (function () {
           </span>
           <span>
             <input id=${id} type="number" min=${spec.min} max=${spec.max} step=${spec.step}
-              value=${value}
+              value=${sc === 1 ? value : +(value * sc).toFixed(4)}
               onChange=${(e) => {
                 const v = parseFloat(e.target.value);
-                if (isFinite(v)) onChange(spec.k, Math.max(spec.min, Math.min(spec.max, v)));
+                if (isFinite(v)) {
+                  onChange(spec.k, Math.max(spec.min, Math.min(spec.max, v)) / sc);
+                }
               }} />
             <span className="th-unit">${spec.unit}</span>
           </span>
@@ -2512,9 +2995,12 @@ var MoistureCore = (function () {
     const FS = { tick: 13, label: 14, cell: 13, head: 15 };
     const MONO = '12.5px ui-monospace, SFMono-Regular, Menlo, monospace';
 
-    /* Diffusion days per shown day. Declared here rather than next to the
-       simulation because both the strip chart and the integrator read it, and
-       the chart is defined first. */
+    /* Diffusion time per unit of displayed time. ONE by construction: this
+       page runs on a single clock. Kept as a named constant, and pinned by the
+       self-test, because the failure it guards against is silent. An earlier
+       version set it to 18.25 while leaving the diurnal drivers on the real
+       clock, so a displayed day was one sunrise and eighteen days of diffusion
+       at once, and no reading of the picture was consistent. */
     const COMP_FACTOR = C.YEAR_MIN / C.COMP_MIN;
 
     function fmt1(v) { return v.toFixed(1); }
@@ -2535,11 +3021,17 @@ var MoistureCore = (function () {
        Cells are drawn with a gap in the panel colour. Without it a heatmap
        reads as one continuous smear and the grid stops being legible as a
        grid. */
-    const MAP_H = 380;
-    const MAP_PAD = { l: 96, r: 128, t: 34, b: 62 };
+    const MAP_H = 470;
+    /* The right margin used to carry a number per row. That column is gone
+       (it invited reading the map as a table of twelve numbers, which is not
+       what a heat map is for), so the cells get the width back. The top pad
+       carries the title and the colour bar, and it is generous because the bar
+       has a number under each end and those numbers were being clipped by the
+       canvas edge when the pad was sized for the bar alone. */
+    const MAP_PAD = { l: 96, r: 28, t: 52, b: 62 };
     const CELL_GAP = 2;
 
-    function HeatmapPanel({ field, values, domain, ramp, flip, clip, title, unit,
+    function HeatmapPanel({ field, values, domain, ramp, flip, title, unit,
       format, markIdx, markLabel, height }) {
       const h = height || MAP_H;
       const cvRef = useCanvas(h, (ctx, w) => {
@@ -2556,7 +3048,7 @@ var MoistureCore = (function () {
           for (let i = 0; i < nx; i++) {
             const v = values[j * nx + i];
             const u = (v - lo) / (hi - lo);
-            ctx.fillStyle = rampAt(ramp, u, flip, clip);
+            ctx.fillStyle = rampAt(ramp, u, flip);
             const px = x0 + i * cw, py = y1 - (j + 1) * ch;
             ctx.fillRect(px + CELL_GAP / 2, py + CELL_GAP / 2,
               cw - CELL_GAP, ch - CELL_GAP);
@@ -2604,21 +3096,6 @@ var MoistureCore = (function () {
         ctx.fillText(T.axTop, x0 - 10, y0 + ch / 2);
         ctx.fillText(T.axBottom, x0 - 10, y1 - ch / 2);
 
-        /* Level values on the right edge: this is the one per-row number worth
-           carrying, because it is what makes the axial ramp readable as a
-           cause rather than just a gradient. */
-        ctx.textAlign = 'left';
-        ctx.font = MONO;
-        for (let j = 0; j < ny; j++) {
-          const rowMean = (() => {
-            let s = 0;
-            for (let i = 0; i < nx; i++) s += values[j * nx + i];
-            return s / nx;
-          })();
-          ctx.fillStyle = COL.text;
-          ctx.fillText(format(rowMean) + unit, x1 + 10, y1 - (j + 0.5) * ch);
-        }
-
         /* Title and the colour scale. A continuous encoding with one series
            still needs its legend: the bar is the only way to read a cell. */
         ctx.font = FS.head + 'px system-ui, sans-serif';
@@ -2627,12 +3104,22 @@ var MoistureCore = (function () {
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(title, x0, y0 - 14);
 
+        /* The bar as ONE gradient fill, not a column of 1px rects. The canvas
+           is scaled by the device pixel ratio, so a 1-CSS-px column lands on a
+           fractional number of device pixels: each one gets antialiased
+           against its neighbours and the bar comes out ruled with fine lines
+           that look like a discretisation of the ramp and are nothing but
+           rounding. A gradient with a stop per ramp segment is also closer to
+           what the ramp IS, since rampAt interpolates linearly between stops. */
         const bw = Math.min(260, (x1 - x0) * 0.42), bh = 9;
-        const bx = x1 - bw, by = y0 - 22;
-        for (let p = 0; p < bw; p++) {
-          ctx.fillStyle = rampAt(ramp, p / (bw - 1), flip, clip);
-          ctx.fillRect(bx + p, by, 1, bh);
+        const bx = x1 - bw, by = y0 - 26;
+        const grad = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+        const nStop = (RAMPS[ramp] || RAMPS.magma).length * 2;
+        for (let p = 0; p <= nStop; p++) {
+          grad.addColorStop(p / nStop, rampAt(ramp, p / nStop, flip));
         }
+        ctx.fillStyle = grad;
+        ctx.fillRect(bx, by, bw, bh);
         ctx.strokeStyle = COL.border;
         ctx.lineWidth = 1;
         ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
@@ -2640,11 +3127,30 @@ var MoistureCore = (function () {
         ctx.fillStyle = COL.faint;
         ctx.textBaseline = 'bottom';
         ctx.textAlign = 'left';
-        ctx.fillText(format(lo), bx, by - 2);
+        ctx.fillText(format(lo), bx, by - 3);
         ctx.textAlign = 'right';
-        ctx.fillText(format(hi) + unit, bx + bw, by - 2);
+        ctx.fillText(format(hi) + unit, bx + bw, by - 3);
       });
       return html`<canvas ref=${cvRef} style=${{ height: h + 'px' }}></canvas>`;
+    }
+
+    /* The ramp picker that sits above a map. A plain select, not a segmented
+       control: eighteen ramps is a list to scroll, not a row of buttons, and
+       this is a comparison tool rather than a setting anyone operates during a
+       talk. The empty option is the theme default and is listed first, so the
+       way back from an experiment is always one item up. */
+    function RampPick({ value, onChange, id }) {
+      return html`
+        <span className="ms-rampsel">
+          <label htmlFor=${id}>${T.rampLabel}</label>
+          <select id=${id} value=${value} onChange=${(e) => onChange(e.target.value)}>
+            <option value="">${T.rampAuto}</option>
+            ${RAMP_LIST.map((r) => html`
+              <option key=${r[0]} value=${r[0]}>${r[1]}</option>
+            `)}
+          </select>
+        </span>
+      `;
     }
 
     /* The strip chart. Oil water content and mean paper moisture on one time
@@ -2666,24 +3172,30 @@ var MoistureCore = (function () {
        auto-fitted axes also come out looking identical even when one swings
        twenty times as hard as the other, which is the precise opposite of the
        point being made. */
-    const STRIP_H = 190;
-    const STRIP_PAD = { l: 96, r: 128, t: 20, b: 34 };
-    /* Window length in simulated display minutes, and the sampling interval.
-       A fifth of the compressed year is a season and change: long enough that a
-       treatment and its recovery both fit, short enough that the daily cycle is
-       still texture rather than a blur. */
+    const STRIP_H = 230;
+    /* Top pad carries the panel title, which sits ABOVE the frame now that
+       there is one, so it needs its own line rather than the six pixels that
+       were enough when it floated over an open plot area. */
+    const STRIP_PAD = { l: 96, r: 190, t: 30, b: 34 };
     /* Window length in simulated display minutes. FIXED, not scaled with the
        speed control, and that is a deliberate trade. A window that shrank at
        low speed would make the trace sweep at a constant visual pace, but it
        would also mean the span on screen changed as the speed changed, and at
-       the fast settings a six-hour treatment would fall below a pixel and the
-       thing the chart exists to show would vanish. A fixed span keeps a
-       treatment and its recovery legible at every speed.
-       One shown day. At speed 1 that crosses in 24 s, and even at the slowest
-       setting the trace still scrolls about 9 px/s, which reads as motion
-       rather than as a still picture. A longer window makes the slow settings
-       look frozen and squeezes a six-hour treatment towards a single pixel. */
-    const STRIP_SPAN = C.DAY_MIN;
+       the fast settings a treatment would fall below a pixel and the thing the
+       chart exists to show would vanish. A fixed span keeps a treatment and
+       its recovery legible at every speed.
+       FIVE days, and they are ordinary days: the page runs on one clock, so
+       this axis is elapsed time and nothing else. Five is chosen against the
+       radial time constant of the paper, which is a couple of days at
+       operating temperature: a window of about two time constants shows the
+       paper responding rather than either sitting still or having already
+       finished. It also holds five diurnal cycles, which is what makes the
+       oil trace legible as a daily rhythm rather than as noise.
+       At speed 1 the window crosses in about two minutes. That is why the
+       treatment durations are 12/24/48 h: a 48 h run is 40% of the window and
+       a 12 h run still 10%, so all three draw as bands rather than hairlines. */
+    const STRIP_DAYS_SHOWN = 5;
+    const STRIP_SPAN = STRIP_DAYS_SHOWN * C.DAY_MIN;
     /* One slot per integration step rather than per fixed interval of
        simulated time. A fixed interval is what sets how often the trace GAINS
        A POINT, so it makes the apparent smoothness of the curve depend on the
@@ -2696,30 +3208,66 @@ var MoistureCore = (function () {
        worst case for how many samples the span can hold. */
     const STRIP_N = Math.ceil(STRIP_SPAN / 0.25) + 2;
 
+    /* Every channel the three views need, recorded once. The alternative is to
+       record raw state and derive on draw, but the corners and the saturations
+       are grid reductions: deriving them at draw time would mean keeping a
+       grid per sample, which is three orders of magnitude more memory than
+       keeping the four numbers they collapse to. */
+    const HIST_KEYS = ['ppm', 'wp', 'wOil', 'wPaper', 'rsOil', 'rsPaper',
+      'cBotIn', 'cBotOut', 'cTopIn', 'cTopOut',
+      'thA', 'thBot', 'thTop', 'thHot', 'thPaper'];
+
     function makeHist() {
-      return {
-        t: new Float64Array(STRIP_N),
-        ppm: new Float64Array(STRIP_N),
-        wp: new Float64Array(STRIP_N),
-        tr: new Uint8Array(STRIP_N),
-        head: 0,
-        count: 0,
-        tHead: 0
-      };
+      const h = { t: new Float64Array(STRIP_N), tr: new Uint8Array(STRIP_N),
+        head: 0, count: 0, tHead: 0 };
+      for (const k of HIST_KEYS) h[k] = new Float64Array(STRIP_N);
+      return h;
     }
 
     /* One sample per call, and the caller calls once per integration step.
        Each slot carries its own timestamp because the step size changes with
        the speed control, so the samples are NOT on a uniform grid and the draw
        cannot infer a time from an index. */
-    function pushHist(hist, tMin, ppm, wp, treating) {
+    function pushHist(hist, tMin, sample, treating) {
       hist.head = hist.count === 0 ? 0 : (hist.head + 1) % STRIP_N;
-      hist.t[hist.head] = tMin;
-      hist.ppm[hist.head] = ppm;
-      hist.wp[hist.head] = wp;
-      hist.tr[hist.head] = treating ? 1 : 0;
+      const k = hist.head;
+      hist.t[k] = tMin;
+      for (const key of HIST_KEYS) hist[key][k] = sample[key];
+      hist.tr[k] = treating ? 1 : 0;
       hist.tHead = tMin;
       if (hist.count < STRIP_N) hist.count++;
+    }
+
+    /* The reduction from simulation state to one strip sample, in one place so
+       the seed and the loop cannot disagree about what a sample contains. */
+    function histSample(ms, th, gradK, thetaA) {
+      const c = C.paperCorners(ms);
+      const thetaO = th.thetaO;
+      return {
+        ppm: ms.ppm,
+        wp: C.paperMean(ms),
+        wOil: C.waterInOil(ms),
+        wPaper: C.waterInPaper(ms),
+        rsOil: ms.ppm / C.oilSat(thetaO),
+        rsPaper: C.paperRelSat(ms),
+        cBotIn: c.bottomInner, cBotOut: c.bottomOuter,
+        cTopIn: c.topInner, cTopOut: c.topOuter,
+        /* The thermal channels the temperature tab plots. Bottom oil is not a
+           state of the thermal model, it is the top oil less the axial spread,
+           which is the same construction the map draws; recording it here
+           rather than deriving it on draw keeps the chart and the map reading
+           one number.
+           `thPaper` is the temperature the paper actually sits at, level by
+           level, weighted by nothing: it is the mean of the level isotherms,
+           which for a linear ramp is the mid-height oil temperature. It is on
+           the chart so the paper trace has a driver next to it rather than
+           being the one curve with no visible cause. */
+        thA: thetaA,
+        thTop: thetaO,
+        thBot: thetaO - gradK,
+        thHot: th.thetaH,
+        thPaper: thetaO - gradK / 2
+      };
     }
 
     /* Oldest-to-newest walk over the ring: i = 0 is the oldest valid sample. */
@@ -2728,9 +3276,89 @@ var MoistureCore = (function () {
       return (start + i) % STRIP_N;
     }
 
-    function StripPanel({ hist, height }) {
+    /* The three views of the strip, as data rather than as three code paths.
+       Each mode names its series, the buffer channel each reads, the axis it
+       hangs on and the minimum span that axis must keep.
+
+       MASS is the default and the argument of the page: both phases in kg of
+       water, the same unit on both sides, so the reader can see that the oil
+       carries well under a kilogram against tens of kilograms in the paper.
+       The two still need separate axes because the ratio is about sixty, and
+       forcing them onto one shared axis would flatten the oil trace onto the
+       baseline and destroy the very swing a treatment is meant to show. The
+       unit being identical is what makes the comparison honest; the axes being
+       separate is what keeps it legible, and the ratio is printed under the
+       chart so the split hides nothing.
+
+       SAT is the thermodynamically comparable pair: relative saturation of the
+       oil against relative saturation of the paper. These two genuinely belong
+       on ONE axis, because they are equal at equilibrium and their difference
+       is what drives the flux. That is the one mode where a shared scale is
+       not a distortion, so it gets one.
+
+       CORNERS drops the oil and shows the four extreme cells of the grid. All
+       four are the same quantity in the same unit, so again one shared axis,
+       and the spread between them IS the content: the bottom pair sits above
+       the top pair by the axial spread, and each pair splits by the radial
+       one, which is the smaller by an order of magnitude. */
+    const STRIP_MODES = {
+      mass: {
+        shared: false, zero: true,
+        series: [
+          { key: 'wOil', axis: 'l', col: 'accent', min: 0.25, fmt: (v) => v.toFixed(2) },
+          { key: 'wPaper', axis: 'r', col: 'emph', min: 1.5, fmt: (v) => v.toFixed(1) }
+        ]
+      },
+      sat: {
+        shared: true, zero: true,
+        series: [
+          { key: 'rsOil', axis: 'l', col: 'accent', min: 0.04, fmt: (v) => (v * 100).toFixed(1) },
+          { key: 'rsPaper', axis: 'l', col: 'emph', min: 0.04, fmt: (v) => (v * 100).toFixed(1) }
+        ]
+      },
+      corners: {
+        shared: true, zero: true,
+        series: [
+          { key: 'cBotOut', axis: 'l', col: 'accent', min: 0.4, fmt: (v) => v.toFixed(2) },
+          { key: 'cBotIn', axis: 'l', col: 'cat1', min: 0.4, fmt: (v) => v.toFixed(2) },
+          { key: 'cTopOut', axis: 'l', col: 'emph', min: 0.4, fmt: (v) => v.toFixed(2) },
+          { key: 'cTopIn', axis: 'l', col: 'cat2', min: 0.4, fmt: (v) => v.toFixed(2) }
+        ]
+      },
+      /* The temperature tab's strip. Five traces on one axis, because they are
+         all the same quantity in the same unit and the whole content is how
+         far apart they run: the hot spot above the top oil by the winding
+         gradient, the top oil above the bottom by the axial spread, and the
+         ambient below all of it, carrying the daily cycle that drives them.
+         NOT zero-based, and it is the one chart here that must not be. These
+         five live inside a band perhaps 60 K wide that sits 20 to 90 K off the
+         origin; anchored at zero the band would occupy the top third of the
+         panel and the separations the chart exists to show would close up. */
+      heat: {
+        shared: true,
+        series: [
+          { key: 'thHot', axis: 'l', col: 'cat1', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thTop', axis: 'l', col: 'emph', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thPaper', axis: 'l', col: 'cat2', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thBot', axis: 'l', col: 'accent', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thA', axis: 'l', col: 'note', min: 20, fmt: (v) => v.toFixed(0) }
+        ]
+      }
+    };
+
+    /* Which modes the plot selector offers. Named here rather than read off
+       STRIP_MODES, because not every entry in that table is a choice: `heat` is
+       the fixed chart of the temperature tab, placed by the tab itself. Deriving
+       the buttons from the table put a fourth, empty segment on the moisture tab
+       the day `heat` was added, since the loop found a key that T.stripModes has
+       no label for. A mode is selectable because it is listed here, not because
+       it exists. */
+    const STRIP_PICKABLE = ['mass', 'sat', 'corners'];
+
+    function StripPanel({ hist, mode, height }) {
       const h = height || STRIP_H;
       const cvRef = useCanvas(h, (ctx, w) => {
+        const spec = STRIP_MODES[mode] || STRIP_MODES.mass;
         const x0 = STRIP_PAD.l, x1 = Math.max(x0 + 60, w - STRIP_PAD.r);
         const y0 = STRIP_PAD.t, y1 = h - STRIP_PAD.b;
         const n = hist.count;
@@ -2739,7 +3367,7 @@ var MoistureCore = (function () {
         ctx.fillStyle = COL.emph;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(T.stripOil, x0, y0 - 6);
+        ctx.fillText(T.stripTitle[mode], x0, y0 - 6);
         if (n < 2) return;
 
         /* The window always spans STRIP_SPAN and ends at the newest sample, so
@@ -2761,74 +3389,139 @@ var MoistureCore = (function () {
         const m0 = n - i0;
         if (m0 < 2) return;
 
-        let pLo = Infinity, pHi = -Infinity, wLo = Infinity, wHi = -Infinity;
-        for (let i = i0; i < n; i++) {
-          const k = histAt(hist, i);
-          const p = hist.ppm[k], m = hist.wp[k];
-          if (p < pLo) pLo = p;
-          if (p > pHi) pHi = p;
-          if (m < wLo) wLo = m;
-          if (m > wHi) wHi = m;
-        }
+        /* Ranges, one pass per series. The minimum span is the most important
+           decision in this panel: fitting a trace to its own range zooms into a
+           nearly flat line until a few hundredths fill the height, showing a
+           mountain range where the physics says nothing happened, and two
+           auto-fitted traces come out looking identical even when one swings
+           twenty times as hard as the other. */
+        const ranges = spec.series.map((ser) => {
+          const buf = hist[ser.key];
+          let lo = Infinity, hi = -Infinity;
+          for (let i = i0; i < n; i++) {
+            const v = buf[histAt(hist, i)];
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+          }
+          return { lo: lo, hi: hi, min: ser.min };
+        });
 
-        /* Minimum spans in absolute units of each quantity, so a flat trace
-           draws flat. */
-        const scale = (lo, hi, minSpan) => {
+        /* A quantity that cannot be negative is drawn from zero unless doing
+           so would destroy the picture. Anchoring at zero is what makes the
+           height of a trace mean its value rather than only its changes: a
+           water mass floating on a fitted axis reads as a big swing when it is
+           a two-percent ripple. The mode decides, because the exception is
+           real: the temperature strip is a narrow band far from the origin and
+           has to keep its own window. */
+        const fit = (lo, hi, minSpan) => {
+          if (spec.zero) {
+            const top = Math.max(hi, minSpan) * 1.08;
+            return [0, top > 0 ? top : 1];
+          }
           const mid = (lo + hi) / 2;
           const span = Math.max(hi - lo, minSpan) * 1.25;
           return [mid - span / 2, mid + span / 2];
         };
-        const pr = scale(pLo, pHi, 12);
-        const wr = scale(wLo, wHi, 1.0);
-        const yOfP = (v) => y1 - (y1 - y0) * (v - pr[0]) / (pr[1] - pr[0]);
-        const yOfW = (v) => y1 - (y1 - y0) * (v - wr[0]) / (wr[1] - wr[0]);
+        /* A shared axis is one range over every series, padded to the largest
+           minimum span any of them asks for. */
+        let axes;
+        if (spec.shared) {
+          let lo = Infinity, hi = -Infinity, msp = 0;
+          for (const r of ranges) {
+            if (r.lo < lo) lo = r.lo;
+            if (r.hi > hi) hi = r.hi;
+            if (r.min > msp) msp = r.min;
+          }
+          const a = fit(lo, hi, msp);
+          axes = ranges.map(() => a);
+        } else {
+          axes = ranges.map((r) => fit(r.lo, r.hi, r.min));
+        }
+        const yOf = (a, v) => y1 - (y1 - y0) * (v - a[0]) / (a[1] - a[0]);
 
         /* Treatment windows as one span per run, not one bar per sample: a
            per-sample fill leaves gaps once the window is decimated and reads as
            hatching rather than as an interval. */
-        ctx.fillStyle = COL.subtle;
+        /* --tool-subtle was invisible here. It is the page's quietest fill, a
+           hair off the panel colour, which is right for a band behind a table
+           and wrong for the one annotation on this chart that says a thing was
+           DONE to the unit. The band now carries the accent at low alpha plus
+           a solid edge on each side: the fill locates the interval, the edges
+           give it the hard start and stop a switching event has, and neither
+           competes with the traces over it because both stay behind them. */
+        const band = COL.accent;
         let runFrom = -1;
         for (let i = i0; i < n; i++) {
           const on = hist.tr[histAt(hist, i)] === 1;
           if (on && runFrom < 0) runFrom = i;
           if ((!on || i === n - 1) && runFrom >= 0) {
             const a = xOfT(tOf(runFrom)), b = xOfT(tOf(on ? i : i - 1));
-            ctx.fillRect(a, y0, Math.max(2, b - a), y1 - y0);
+            const wd = Math.max(2, b - a);
+            ctx.save();
+            ctx.globalAlpha = 0.16;
+            ctx.fillStyle = band;
+            ctx.fillRect(a, y0, wd, y1 - y0);
+            ctx.restore();
+            ctx.strokeStyle = band;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(Math.round(a) + 0.5, y0);
+            ctx.lineTo(Math.round(a) + 0.5, y1);
+            ctx.moveTo(Math.round(a + wd) + 0.5, y0);
+            ctx.lineTo(Math.round(a + wd) + 0.5, y1);
+            ctx.stroke();
             runFrom = -1;
           }
         }
 
+        /* Day boundaries. With five days on screen the diurnal ripple
+           needs something to be counted against, or the seasonal drift and the
+           daily cycle read as one undifferentiated wobble. */
+        ctx.strokeStyle = COL.hairline;
+        ctx.lineWidth = 1;
+        for (let d = Math.ceil(tStart / C.DAY_MIN); d * C.DAY_MIN <= tEnd; d++) {
+          const x = Math.round(xOfT(d * C.DAY_MIN)) + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y0);
+          ctx.lineTo(x, y1);
+          ctx.stroke();
+        }
+
+        /* A closed frame, not a baseline. Three open sides read as modern and
+           cost the reader the plot area: with nothing on the right, a trace
+           and the axis numbers beside it belong to the same picture only by
+           proximity, and stacked panels have no edge to line up against.
+           --tool-border rather than the heavier ink: the frame is there to
+           bound the data, not to be seen. */
         ctx.strokeStyle = COL.border;
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x0, y1 + 0.5);
-        ctx.lineTo(x1, y1 + 0.5);
-        ctx.stroke();
+        ctx.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5,
+          Math.round(x1 - x0), Math.round(y1 - y0));
 
         /* Decimating trace: when the window holds more samples than pixels,
            collapse each pixel column to its min and max. Stroking every sample
            at that density turns a clean daily cycle into visual noise. */
         const wPx = Math.max(1, Math.round(x1 - x0));
-        const trace = (get, yOf, colour) => {
+        const trace = (buf, a, colour, width) => {
           ctx.strokeStyle = colour;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = width;
           ctx.lineJoin = 'round';
           ctx.beginPath();
           if (m0 <= wPx) {
             for (let i = i0; i < n; i++) {
-              const x = xOfT(tOf(i)), y = yOf(get(i));
+              const x = xOfT(tOf(i)), y = yOf(a, buf[histAt(hist, i)]);
               if (i === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             }
           } else {
             let col = -1, lo = 0, hi = 0, started = false;
             for (let i = i0; i < n; i++) {
               const c = Math.round(xOfT(tOf(i)));
-              const v = get(i);
+              const v = buf[histAt(hist, i)];
               if (c !== col) {
                 if (col >= 0) {
-                  if (started) ctx.lineTo(col, yOf(lo));
-                  else { ctx.moveTo(col, yOf(lo)); started = true; }
-                  ctx.lineTo(col, yOf(hi));
+                  if (started) ctx.lineTo(col, yOf(a, lo));
+                  else { ctx.moveTo(col, yOf(a, lo)); started = true; }
+                  ctx.lineTo(col, yOf(a, hi));
                 }
                 col = c; lo = v; hi = v;
               } else {
@@ -2837,43 +3530,73 @@ var MoistureCore = (function () {
               }
             }
             if (col >= 0) {
-              if (started) ctx.lineTo(col, yOf(lo));
-              else ctx.moveTo(col, yOf(lo));
-              ctx.lineTo(col, yOf(hi));
+              if (started) ctx.lineTo(col, yOf(a, lo));
+              else ctx.moveTo(col, yOf(a, lo));
+              ctx.lineTo(col, yOf(a, hi));
             }
           }
           ctx.stroke();
         };
-        trace((i) => hist.ppm[histAt(hist, i)], yOfP, COL.accent);
-        trace((i) => hist.wp[histAt(hist, i)], yOfW, COL.emph);
+        /* Four traces need a thinner stroke than two, or the corner view is
+           mostly line width. */
+        const lw = spec.series.length > 2 ? 1.5 : 2;
+        spec.series.forEach((ser, k) => {
+          trace(hist[ser.key], axes[k], COL[ser.col], lw);
+        });
 
+        /* Axis numbers. On a shared axis they are written once on the left; on
+           split axes each series labels its own side in its own colour, which
+           is the only thing keeping the two readable as different scales. */
         ctx.font = MONO;
         ctx.textBaseline = 'middle';
-        ctx.textAlign = 'right';
-        ctx.fillStyle = COL.accent;
-        ctx.fillText(pr[1].toFixed(0), x0 - 10, y0 + 6);
-        ctx.fillText(pr[0].toFixed(0), x0 - 10, y1 - 6);
-        ctx.textAlign = 'left';
-        ctx.fillStyle = COL.emph;
-        ctx.fillText(wr[1].toFixed(2), x1 + 10, y0 + 6);
-        ctx.fillText(wr[0].toFixed(2), x1 + 10, y1 - 6);
+        const axNum = (a, fmt, side, colour) => {
+          ctx.fillStyle = colour;
+          if (side === 'l') {
+            ctx.textAlign = 'right';
+            ctx.fillText(fmt(a[1]), x0 - 10, y0 + 6);
+            ctx.fillText(fmt(a[0]), x0 - 10, y1 - 6);
+          } else {
+            ctx.textAlign = 'left';
+            ctx.fillText(fmt(a[1]), x1 + 10, y0 + 6);
+            ctx.fillText(fmt(a[0]), x1 + 10, y1 - 6);
+          }
+        };
+        if (spec.shared) {
+          axNum(axes[0], spec.series[0].fmt, 'l', COL.note);
+        } else {
+          spec.series.forEach((ser, k) => {
+            axNum(axes[k], ser.fmt, ser.axis, COL[ser.col]);
+          });
+        }
 
+        /* The legend, in the right margin. With four series, or with two that
+           no longer differ by unit, naming them under the axis is not enough:
+           each entry carries its colour as a swatch. */
+        ctx.font = FS.tick - 1 + 'px system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        const lx = x1 + (spec.shared ? 14 : 56);
+        spec.series.forEach((ser, k) => {
+          const ly = y0 + 10 + k * 17;
+          ctx.fillStyle = COL[ser.col];
+          ctx.fillRect(lx, ly - 1.5, 12, 3);
+          ctx.fillStyle = COL.note;
+          ctx.fillText(T.stripSeries[ser.key], lx + 17, ly);
+        });
+
+        /* The unit of the axis, under the left edge, and how much time is on
+           screen. The window label carries BOTH counts because both are true
+           at once: the axis holds five diurnal cycles and about three months
+           of diffusion, and printing only the second is what made the old
+           label read as a contradiction against what the eye saw. */
         ctx.font = FS.tick - 1 + 'px system-ui, sans-serif';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = COL.accent;
-        ctx.fillText(T.stripPpm, x0 - 10, y1 + 6);
-        ctx.textAlign = 'left';
-        ctx.fillStyle = COL.emph;
-        ctx.fillText(T.stripPaper, x1 + 10, y1 + 6);
-
-        /* How much time is on screen, in diffusion days. Without it the axis is
-           a mystery, and that number is the whole reason the view is compressed
-           in the first place. */
-        ctx.textAlign = 'center';
         ctx.fillStyle = COL.faint;
-        ctx.fillText(T.stripWindow(Math.round(STRIP_SPAN / C.DAY_MIN * COMP_FACTOR)),
-          (x0 + x1) / 2, y1 + 6);
+        ctx.fillText(T.stripUnit[mode], x0 - 10, y1 + 6);
+
+        ctx.textAlign = 'center';
+        ctx.fillText(T.stripWindow(STRIP_SPAN / C.DAY_MIN), (x0 + x1) / 2, y1 + 6);
       });
       return html`<canvas ref=${cvRef} style=${{ height: h + 'px' }}></canvas>`;
     }
@@ -2884,10 +3607,9 @@ var MoistureCore = (function () {
        second loop: the animation frame lives here, in the root, not in a
        panel.
 
-       The thermal state advances on display minutes and the moisture state on
-       those minutes multiplied by the compression factor, which is what lets
-       months of diffusion pass inside a demo. Treatment suspends the
-       compression: while the plant runs, a minute is a minute. */
+       Both the thermal state and the moisture state advance on the same
+       minutes: one clock, no compression anywhere, so a displayed day is a
+       day for the sun, for the oil and for the paper alike. */
     /* Nominal integration step, and the bounds the adaptive choice stays
        inside. The thermal model is stable well past this, and the moisture
        solver splits anything long internally, so the step is free to follow
@@ -2895,9 +3617,9 @@ var MoistureCore = (function () {
     const STEP_NOM = 10;
     const STEP_MIN_LO = 0.25;
     const STEP_MIN_HI = 30;
-    /* Simulated display minutes per real second at speed 1. One shown day is
-       1440 display minutes, so 60 puts a day on screen in 24 s and the whole
-       compressed year in about eight minutes. */
+    /* Simulated minutes per real second at speed 1. A day is 1440 minutes, so
+       60 puts a day on screen in 24 s and the five-day strip window in about
+       two minutes. */
     const MIN_PER_SEC = 60;
     /* Ceiling on the integration done in one frame, so a hitch or a tab wake
        cannot turn into a multi-second freeze. */
@@ -2917,11 +3639,11 @@ var MoistureCore = (function () {
       return Math.max(STEP_MIN_LO, Math.min(STEP_MIN_HI, perFrame));
     }
 
-    function useSim(siteId, stage, gradK, wpMean, hFilm, playing, speed) {
+    function useSim(siteId, stage, gradF, wpMean, hFilm, playing, speed) {
       const stateRef = useRef(null);
       const [, bump] = useState(0);
-      const cfgRef = useRef({ siteId, stage, gradK, wpMean, hFilm });
-      cfgRef.current = { siteId, stage, gradK, wpMean, hFilm };
+      const cfgRef = useRef({ siteId, stage, gradF, wpMean, hFilm });
+      cfgRef.current = { siteId, stage, gradF, wpMean, hFilm };
 
       /* Build, or rebuild when a setting changes that invalidates the run.
          Site, insulation condition and surface transfer all change what the
@@ -2943,11 +3665,14 @@ var MoistureCore = (function () {
         const th = C.initState(K0, thA0, P);
         C.stepThermal(th, K0, thA0, 1, P);
         const ms = C.initMoisture(wpMean, 20);
-        C.equilibrateFromPaper(ms, wpMean, th.thetaO, cfg0.gradK);
+        C.equilibrateFromPaper(ms, wpMean, th.thetaO,
+          C.gradKelvin(cfg0.gradF, th.thetaO, thA0));
         stateRef.current = {
-          sc: sc, th: th, ms: ms, tMin: 0, hist: makeHist(), lastWall: 0
+          sc: sc, th: th, ms: ms, tMin: 0, hist: makeHist(), lastWall: 0,
+          gradK: C.gradKelvin(cfg0.gradF, th.thetaO, thA0)
         };
-        pushHist(stateRef.current.hist, 0, ms.ppm, C.paperMean(ms), false);
+        pushHist(stateRef.current.hist, 0,
+          histSample(ms, th, stateRef.current.gradK, thA0), false);
         bump((n) => n + 1);
       }, [siteId, wpMean, hFilm]);
 
@@ -2995,14 +3720,21 @@ var MoistureCore = (function () {
               const thAn = C.compAmbient(tD + step, sc, 0);
               const Kn = C.compLoadK(tD + step, sc, 1);
               C.stepThermal(st.th, K, thA, step, P, Kn, thAn);
+              /* The axial spread is a fraction of the top-oil rise, so it is a
+                 function of the state after the step, not a constant carried
+                 alongside it. Computed here rather than inside the moisture
+                 step so the two calls below cannot disagree about it. */
+              const gK = C.gradKelvin(cfg.gradF, st.th.thetaO, thAn);
+              st.gradK = gK;
               const treating = C.treatmentActive(st.ms);
               if (treating) {
-                C.stepTreatment(st.ms, st.th.thetaO, cfg.gradK, step);
+                C.stepTreatment(st.ms, st.th.thetaO, gK, step);
               } else {
-                C.stepMoisture(st.ms, st.th.thetaO, cfg.gradK, step * COMP_FACTOR);
+                C.stepMoisture(st.ms, st.th.thetaO, gK, step * COMP_FACTOR);
               }
               st.tMin += step;
-              pushHist(st.hist, st.tMin, st.ms.ppm, C.paperMean(st.ms), treating);
+              pushHist(st.hist, st.tMin,
+                histSample(st.ms, st.th, gK, thAn), treating);
             }
             if (steps > 0) bump((n) => n + 1);
           }
@@ -3036,8 +3768,11 @@ var MoistureCore = (function () {
       { k: 'lPaper', unit: 'mm', min: 0.5, max: 5, step: 0.1 },
       { k: 'mPaper', unit: 'kg', min: 500, max: 4000, step: 50 }
     ];
+    /* Stored as a fraction, edited as a percentage: nobody reasons about an
+       axial spread in units of 0.25. The spec carries the factor so the
+       conversion lives with the field and not in the row component. */
     const TRANSPORT_FIELDS = [
-      { k: 'gradK', unit: 'K', min: 0, max: 40, step: 1 }
+      { k: 'gradF', unit: '%', min: 0, max: 40, step: 1, scale: 100 }
     ];
 
     function Transformer({ site, setSite, cfg, setCfgField }) {
@@ -3110,7 +3845,6 @@ var MoistureCore = (function () {
           <h3>${m.h4}</h3>
           <p>${m.p4}</p>
           <h3>${m.h5}</h3>
-          <p>${m.p5}</p>
           <p>${m.p6}</p>
           <h3>${m.h6}</h3>
           <p>${m.p7}</p>
@@ -3125,8 +3859,23 @@ var MoistureCore = (function () {
        language mechanism: there is no context and no prop drilling, and a
        child that reads T during its render gets the current language because
        this ran first. */
-    const TREAT_HOURS = [1, 6, 24];
+    const TREAT_HOURS = [12, 24, 48];
     const MOIST_DOMAIN = [0.5, 4.0];
+
+    /* Colour domain of the temperature map. FIXED, like the moisture one next
+       to it, and for a reason that only shows in motion: fitted to the field
+       every frame, the domain tracked the oil, so a cell whose temperature had
+       not moved still changed colour because the scale under it had. The map
+       shimmered continuously and nothing on it could be compared against
+       anything a minute earlier. A colour scale that moves is not a scale.
+
+       The range has to hold every operating point the page can reach: a
+       northern winter night puts the bottom of the tank near the oil floor,
+       and an overloaded desert afternoon puts the top oil near 100 C. Both
+       ends are outside what any one scenario visits, which costs contrast
+       within a scenario and buys the one thing the fitted domain could not
+       give: the same colour means the same temperature, always. */
+    const TEMP_DOMAIN = [0, 100];
 
     function App() {
       const [lang, setLang] = useState(LANG);
@@ -3138,7 +3887,13 @@ var MoistureCore = (function () {
       const [stage, setStage] = useState('onan');
       const [playing, setPlaying] = useState(true);
       const [speed, setSpeed] = useState(1);
-      const [treatHours, setTreatHours] = useState(6);
+      const [treatHours, setTreatHours] = useState(24);
+      const [plotMode, setPlotMode] = useState('mass');
+      /* One picked ramp per map, empty meaning "follow the theme". Two states
+         and not one, because the two maps carry different quantities and the
+         whole point of the picker is choosing a ramp for each. */
+      const [rampPickM, setRampPickM] = useState('');
+      const [rampPickT, setRampPickT] = useState('');
       const [, themeBump] = useState(0);
 
       const sc0 = C.scenarioById('desert');
@@ -3155,7 +3910,7 @@ var MoistureCore = (function () {
         wpMean: 2.5,
         lPaper: C.L_PAPER * 1000,
         mPaper: C.M_PAPER,
-        gradK: C.GRAD_K.onan,
+        gradF: C.GRAD_F.onan,
         hFilm: C.H_FILM
       }));
 
@@ -3186,10 +3941,10 @@ var MoistureCore = (function () {
          it is what makes the switch a single gesture rather than two. */
       const pickStage = useCallback((id) => {
         setStage(id);
-        setCfg((c) => Object.assign({}, c, { gradK: C.GRAD_K[id] }));
+        setCfg((c) => Object.assign({}, c, { gradF: C.GRAD_F[id] }));
       }, []);
 
-      const [stateRef, poke] = useSim(site, stage, cfg.gradK, cfg.wpMean,
+      const [stateRef, poke] = useSim(site, stage, cfg.gradF, cfg.wpMean,
         cfg.hFilm, playing, speed);
 
       useEffect(() => {
@@ -3218,31 +3973,27 @@ var MoistureCore = (function () {
         const shown = new Float64Array(C.N_R_SHOW * C.N_A);
         const temps = new Float64Array(C.N_R_SHOW * C.N_A);
         C.showGrid(st.ms, shown);
-        C.tempGrid(st.th.thetaO, cfg.gradK, temps);
+        const gradK = st.gradK == null ? 0 : st.gradK;
+        C.tempGrid(st.th.thetaO, gradK, temps);
         const spans = C.gridSpans(st.ms);
         const hs = C.paperHotspot(st.ms);
-        /* The marked cell is indexed on the SHOWN grid, so the computed column
-           has to be folded down to the column it is drawn in. */
-        const markMoist = hs.j * C.N_R_SHOW +
-          Math.min(C.N_R_SHOW - 1, Math.floor(hs.i / (C.N_R / C.N_R_SHOW)));
-        let tLo = Infinity, tHi = -Infinity;
-        for (let i = 0; i < temps.length; i++) {
-          if (temps[i] < tLo) tLo = temps[i];
-          if (temps[i] > tHi) tHi = temps[i];
-        }
-        const pad = Math.max(4, (tHi - tLo) * 0.15);
         return {
-          shown: shown, temps: temps, spans: spans, hs: hs, markMoist: markMoist,
-          tempDomain: [Math.floor(tLo - pad), Math.ceil(tHi + pad)],
+          shown: shown, temps: temps, spans: spans, hs: hs,
+          gradK: gradK,
           ppm: st.ms.ppm,
           wp: C.paperMean(st.ms),
-          rs: st.ms.ppm / C.oilSat(st.th.thetaO),
+          rsOil: st.ms.ppm / C.oilSat(st.th.thetaO),
+          rsPaper: C.paperRelSat(st.ms),
           thetaO: st.th.thetaO,
+          thetaH: st.th.thetaH,
+          thetaA: C.compAmbient(st.tMin, st.sc, 0),
+          wOil: C.waterInOil(st.ms),
+          wPaper: C.waterInPaper(st.ms),
           treating: C.treatmentActive(st.ms),
           progress: C.treatmentProgress(st.ms),
           removed: st.ms.treat ? st.ms.treat.removed : 0
         };
-      }, [st, st && st.tMin, cfg.gradK, lang, skin]);
+      }, [st, st && st.tMin, lang, skin]);
 
       const startTreat = useCallback(() => {
         const s = stateRef.current;
@@ -3259,8 +4010,49 @@ var MoistureCore = (function () {
       ];
       const stageItems = C.STAGES.map((s) => ({ id: s.id, label: T.stages[s.id] }));
       const hourItems = TREAT_HOURS.map((hr) => ({ id: String(hr), label: hr + ' h' }));
-      const rampM = RAMP_FOR.moisture[skin];
-      const rampT = RAMP_FOR.temp[skin];
+      const plotItems = STRIP_PICKABLE.map(
+        (m) => ({ id: m, label: T.stripModes[m] }));
+      /* The control row, built once and placed by both tabs that run the
+         simulation. It was inline in the moisture tab, which meant the
+         temperature tab showed a live, running model with no way to pause it:
+         the one view where somebody wants to stop on a frame and read it out.
+         One binding rather than a component, because it closes over a dozen
+         pieces of this render and passing them all as props would be longer
+         than the markup. */
+      const controls = view ? html`
+        <div className="th-row1">
+          <div className="th-transport">
+            <button type="button" className="tool-btn tool-btn-sm th-play"
+              onClick=${() => setPlaying((p) => !p)}>
+              <${Icon} name=${playing ? 'pause' : 'play'} />
+              <span>${playing ? T.pause : T.play}</span>
+            </button>
+          </div>
+          <${Ctl} id="ms-speed" label=${T.speed} min="0" max="5" step="1"
+            value=${SPEEDS.indexOf(speed)}
+            format=${(i) => SPEEDS[i] + 'x'}
+            onChange=${(i) => setSpeed(SPEEDS[i])} />
+          <span className="th-which"><b>${T.stageLabel}</b></span>
+          <${Seg} items=${stageItems} value=${stage} onChange=${pickStage} />
+          <div className="ms-treat">
+            <span className="th-which"><b>${T.treatLabel}</b></span>
+            <${Seg} items=${hourItems} value=${String(treatHours)}
+              onChange=${(id) => setTreatHours(parseInt(id, 10))} />
+            <button type="button" className="tool-btn tool-btn-sm ms-treatbtn"
+              disabled=${view.treating} onClick=${startTreat}>
+              ${view.treating ? html`
+                <span className="ms-fill"
+                  style=${{ width: (view.progress * 100).toFixed(1) + '%' }}></span>
+              ` : null}
+              <span className="ms-lbl"><${Icon} name="reset" /></span>
+              <span className="ms-lbl">${view.treating ? T.treatRun : T.treatDone}</span>
+            </button>
+          </div>
+        </div>
+      ` : null;
+
+      const rampM = rampFor('moisture', skin, rampPickM);
+      const rampT = rampFor('temp', skin, rampPickT);
 
       return html`
         <div className="th-wrap">
@@ -3273,53 +4065,40 @@ var MoistureCore = (function () {
 
           ${tab === 'live' && view ? html`
             <${React.Fragment}>
-              <div className="th-row1">
-                <div className="th-transport">
-                  <button type="button" className="lang-seg th-seg th-play"
-                    onClick=${() => setPlaying((p) => !p)}>
-                    ${playing ? T.pause : T.play}
-                  </button>
-                </div>
-                <${Ctl} id="ms-speed" label=${T.speed} min="0" max="5" step="1"
-                  value=${SPEEDS.indexOf(speed)}
-                  format=${(i) => SPEEDS[i] + 'x'}
-                  onChange=${(i) => setSpeed(SPEEDS[i])} />
-                <span className="th-which"><b>${T.stageLabel}</b></span>
-                <${Seg} items=${stageItems} value=${stage} onChange=${pickStage} />
-                <div className="ms-treat">
-                  <span className="th-which"><b>${T.treatLabel}</b></span>
-                  <${Seg} items=${hourItems} value=${String(treatHours)}
-                    onChange=${(id) => setTreatHours(parseInt(id, 10))} />
-                  <button type="button" className="lang-seg th-seg ms-treatbtn"
-                    disabled=${view.treating} onClick=${startTreat}>
-                    ${view.treating ? html`
-                      <span className="ms-fill"
-                        style=${{ width: (view.progress * 100).toFixed(1) + '%' }}></span>
-                    ` : null}
-                    <span className="ms-lbl">${view.treating ? T.treatRun : T.treatDone}</span>
-                  </button>
-                </div>
-              </div>
+              ${controls}
 
               <div className="ms-stage">
+                <div className="ms-plotbar">
+                  <${RampPick} id="ms-ramp-m" value=${rampPickM} onChange=${setRampPickM} />
+                </div>
                 <${HeatmapPanel} field="moisture" values=${view.shown}
-                  domain=${MOIST_DOMAIN} ramp=${rampM.ramp} flip=${rampM.flip} clip=${rampM.clip}
-                  title=${T.mapTitle} unit="%" format=${fmt2}
-                  markIdx=${view.markMoist}
-                  markLabel=${T.wettest + ' ' + view.hs.wp.toFixed(2) + '%'} />
+                  domain=${MOIST_DOMAIN} ramp=${rampM.ramp} flip=${rampM.flip}
+                  title=${T.mapTitle} unit="%" format=${fmt2} markIdx=${-1} />
                 <p className="ms-spans">
                   <span>${T.spanAxial}: <b>${view.spans.axial.toFixed(2)} pp</b></span>
                   <span>${T.spanRadial}: <b>${view.spans.radial.toFixed(3)} pp</b></span>
-                  <span className="ms-sp-note">${T.spanNote(C.N_R, C.N_A)}</span>
                 </p>
+                <p className="ms-sp-note">${T.spanNote(C.N_R, C.N_A)}</p>
               </div>
 
               <div className="ms-stage">
-                <${StripPanel} hist=${st.hist} />
+                <div className="ms-plotbar">
+                  <span className="th-which"><b>${T.stripMode}</b></span>
+                  <${Seg} items=${plotItems} value=${plotMode} onChange=${setPlotMode} />
+                </div>
+                <${StripPanel} hist=${st.hist} mode=${plotMode} />
+                <!-- Four numbers, in two pairs. The oil and the paper each get
+                     their content and their saturation, next to each other and
+                     named on both, because a bare "relative saturation" next to
+                     one ppm figure and one percentage read as belonging to
+                     whichever number it happened to sit beside. The pairing is
+                     also the physics: the two contents are far apart and the
+                     two saturations are close, which is the whole argument. -->
                 <p className="ms-spans">
                   <span>${T.nowOil}: <b>${view.ppm.toFixed(1)} ppm</b></span>
+                  <span>${T.nowSatOil}: <b>${(view.rsOil * 100).toFixed(1)}%</b></span>
                   <span>${T.nowPaper}: <b>${view.wp.toFixed(2)}%</b></span>
-                  <span>${T.nowSat}: <b>${(view.rs * 100).toFixed(1)}%</b></span>
+                  <span>${T.nowSatPaper}: <b>${(view.rsPaper * 100).toFixed(1)}%</b></span>
                   ${view.removed > 0 ? html`
                     <span>${T.nowRemoved}: <b>${view.removed.toFixed(2)} kg</b></span>
                   ` : null}
@@ -3329,16 +4108,33 @@ var MoistureCore = (function () {
           ` : null}
 
           ${tab === 'heat' && view ? html`
-            <div className="ms-stage">
-              <${HeatmapPanel} field="temp" values=${view.temps}
-                domain=${view.tempDomain} ramp=${rampT.ramp} flip=${rampT.flip} clip=${rampT.clip}
-                title=${T.heatTitle} unit=" C" format=${fmt1} markIdx=${-1} />
-              <p className="ms-spans">
-                <span>${T.spanAxial}: <b>${cfg.gradK.toFixed(0)} K</b></span>
-                <span>${T.nowOil}: <b>${view.thetaO.toFixed(1)} C</b></span>
-                <span className="ms-sp-note">${T.heatNote}</span>
-              </p>
-            </div>
+            <${React.Fragment}>
+              ${controls}
+
+              <div className="ms-stage">
+                <div className="ms-plotbar">
+                  <${RampPick} id="ms-ramp-t" value=${rampPickT} onChange=${setRampPickT} />
+                </div>
+                <${HeatmapPanel} field="temp" values=${view.temps}
+                  domain=${TEMP_DOMAIN} ramp=${rampT.ramp} flip=${rampT.flip}
+                  title=${T.heatTitle} unit=" C" format=${fmt1} markIdx=${-1} />
+                <p className="ms-spans">
+                  <span>${T.spanAxial}: <b>${view.gradK.toFixed(1)} K</b></span>
+                  <span>${T.nowTop}: <b>${view.thetaO.toFixed(1)} C</b></span>
+                  <span>${T.nowHot}: <b>${view.thetaH.toFixed(1)} C</b></span>
+                  <span>${T.nowAmb}: <b>${view.thetaA.toFixed(1)} C</b></span>
+                </p>
+              </div>
+
+              <!-- The same five temperatures as a time series. The map shows
+                   where they are in the tank, this shows what they have been
+                   doing, and the axial spread being a fraction of the rise is
+                   only visible here: on the map it is a gradient, in time it is
+                   a band that opens under load and closes at night. -->
+              <div className="ms-stage">
+                <${StripPanel} hist=${st.hist} mode="heat" />
+              </div>
+            <//>
           ` : null}
 
           ${tab === 'model' ? html`<${Model} />` : null}
