@@ -29,7 +29,16 @@ html[data-theme="dark"] {
   --tool-label:    #99a4af;
   --tool-note:     #778390;
   --tool-faint:    #566472;
-  --tool-border:   #374656;
+  /* Not the fourth rung of the even ladder any more, but solved from the
+     contrast requirement (2026-09-17, taken over from the author's site, where
+     the same round happened on 2026-09-06). --tool-border outlines frames, the
+     segmented controls, the buttons and, since this change, Pico's form fields.
+     Those are user interface components, and WCAG 1.4.11 asks for 3:1 against
+     every adjacent surface. The old #374656 sat at 1.65 to 1.84 against the
+     backgrounds used here and was invisible on a beamer; #68798a holds 3.56 to
+     3.97 against the page, the card, --tool-surface, --tool-panel and
+     --tool-subtle. */
+  --tool-border:   #68798a;
   --tool-hairline: #1a2a3a;
   --tool-grid:     #45596d;
   --tool-ink:      #0a1928;
@@ -59,7 +68,9 @@ html[data-theme="light"] {
   --tool-label:    #485563;
   --tool-note:     #687481;
   --tool-faint:    #8b96a1;
-  --tool-border:   #afb8c1;
+  /* See the dark skin: solved for 3:1, not a rung of the ladder. The old
+     #afb8c1 sat at 1.80 to 2.01, #838b94 holds 3.09 to 3.45. */
+  --tool-border:   #838b94;
   --tool-hairline: #d5dce3;
   --tool-grid:     #d5dce3;
   --tool-ink:      #ecf3fb;
@@ -72,6 +83,22 @@ html[data-theme="light"] {
   --tool-sig-warn: #a16207;
   --tool-sig-bad:  #b91c1c;
   --tool-sig-info: #0369a1;
+}
+
+/* Couple Pico's form border to --tool-border (2026-09-17, as on the author's
+   site). Pico ships #2a3140 on dark and #cfd5e2 on light, both around 1.3:1
+   against the page: number fields and selects read as borderless while the
+   segments and buttons next to them carry an outline. The grey skin is the
+   exception and keeps its white, which is stronger still.
+
+   The attribute is doubled on purpose: Pico's light values hang on
+   `:root:not([data-theme=dark])`, specificity 0-2-0, and a plain
+   html[data-theme="light"] is only 0-1-1 and would lose. Doubled it is 0-2-1.
+   Grey carries data-theme="dark" as well and is therefore matched here too,
+   but the block below is 0-3-1 and wins; it also sets --tool-border to white,
+   so both paths would agree anyway. */
+html[data-theme][data-theme] {
+  --pico-form-element-border-color: var(--tool-border);
 }
 
 /* === GREY SKIN (the default here: white on mid grey, outlines instead of
@@ -206,7 +233,12 @@ html[data-skin="grey"][data-skin="grey"][data-skin="grey"] * {
   padding: 2px 8px;
   margin: 0;
   background: transparent;
-  border: 1px solid var(--pico-muted-border-color);
+  /* --tool-border, not --pico-muted-border-color (2026-09-17). Pico's muted
+     border is a hairline meant for separators; at #262e3a on dark and #d8e0ea
+     on light it left the unselected segments at about 1.3:1, so the control
+     read as one selected pill next to two ghosts. --tool-border is solved for
+     3:1 and is what every framed element on these pages already uses. */
+  border: 1px solid var(--tool-border);
   cursor: pointer;
   color: var(--pico-muted-color);
   line-height: 1.6;
@@ -484,7 +516,9 @@ html.lang-vt::view-transition-new(root) {
   cursor: pointer;
 }
 /* Pico redefines colour and border on button:is(:hover,:active,:focus); both
-   have to be taken back explicitly or the tab grows a blue box. */
+   have to be taken back explicitly or the tab grows a blue box.
+   See the shared focus rule near the end of this file for the third thing it
+   sets there, the box-shadow ring. */
 .tabstrip > button:hover:not(.active),
 .tabstrip > button:focus:not(.active) {
   background: transparent;
@@ -531,3 +565,38 @@ html.lang-vt::view-transition-new(root) {
 /* Pure size modifier: it restates no colours, so a variant can never drift
    from the base. */
 .tool-btn-sm { padding: 0.28rem 0.7rem; font-size: 0.74rem; border-radius: 7px; }
+
+
+/* === FOCUS ============================================================
+   Pico draws its focus ring as a box-shadow on plain :focus, not on
+   :focus-visible. A mouse click therefore leaves a blue box sitting on
+   whatever was clicked until focus moves elsewhere, which on the tab strip
+   looked like a tab had got stuck (reported 2026-09-17). It only showed on
+   the dark and light skins: the ring is --pico-primary-focus, a translucent
+   blue that vanishes into the grey skin's own borders.
+
+   So the ring is dropped for pointer focus and reissued as an outline under
+   :focus-visible, which is the keyboard case it exists for. An outline rather
+   than a box-shadow because it follows border-radius, never affects layout,
+   and stays visible in forced-colours mode. Keep this together in one place:
+   split across the button classes it drifted, and .tool-btn never had it at
+   all. */
+.tabstrip > button:focus,
+.lang-seg:focus,
+.tool-btn:focus,
+.th-info:focus {
+  box-shadow: none;
+  --pico-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+.lang-seg:focus-visible,
+.tool-btn:focus-visible,
+.th-info:focus-visible {
+  outline: 2px solid var(--pico-primary);
+  outline-offset: 2px;
+}
+/* The tabs sit tight against the hairline they underline, so their ring goes
+   inside: an offset one would cross the strip's bottom border. */
+.tabstrip > button:focus-visible {
+  outline: 2px solid var(--pico-primary);
+  outline-offset: -3px;
+}

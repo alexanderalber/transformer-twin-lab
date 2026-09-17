@@ -237,19 +237,11 @@
     }
     .th-popclose:hover { background: var(--tool-hairline); color: var(--tool-text); }
 
-    /* Segmented buttons take their outline from --pico-muted-border-color,
-       which is #262e3a on the dark skin and #d8e0ea on the light one: both sit
-       at about 1.4:1 against their own background and disappear on a beamer.
-       The grey skin is the reference here, #9aa1a6 on #55595f at about 2.6:1,
-       and is deliberately left exactly as it is. --tool-faint lands at about
-       3.0:1 on the other two (#566472 on #14181f, #8b96a1 on #ffffff), which
-       reads as a group of buttons without shouting. Hover, focus and the active
-       state keep the accent, hence the three exclusions; scoped to .th-wrap, so
-       the theme switcher in the page header stays identical across the site. */
-    html[data-skin="dark"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus),
-    html[data-skin="light"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus) {
-      border-color: var(--tool-faint);
-    }
+    /* The local segment outline override that used to sit here is gone
+       (2026-09-17). It lifted .th-wrap segments from Pico's muted border to
+       --tool-faint, about 3.0:1, and left the page header untouched.
+       .lang-seg in app.css now takes --tool-border everywhere, which is solved
+       for 3:1 and lands at 3.56 to 3.97 on dark, 3.09 to 3.45 on light. */
 
     /* Range sliders. Pico leaves the thumb to the browser, and the browser
        default is a pale disc that disappears on the grey skin from six metres
@@ -1645,9 +1637,12 @@ var MoistureCore = (function () {
       return out;
     }
 
-    /* The temperature field on the same geometry, for the second map. Radially
-       uniform: this model carries no conduction through the paper, and the
-       point of showing it is the axial ramp that drives the moisture map. */
+    /* The temperature field on the moisture geometry. Radially uniform: this
+       model carries no conduction through the paper, so every cell of a level
+       sits at that level's oil temperature. No longer drawn as a map for
+       exactly that reason, since 16 identical columns read as a measured field
+       through the insulation. Kept because the self-test guards the direction
+       of the axial ramp through it. */
     function tempGrid(thetaO, gradK, out) {
       var j, k, t;
       for (j = 0; j < N_A; j++) {
@@ -2377,16 +2372,14 @@ var MoistureCore = (function () {
         faint: cssVar('--tool-faint'), border: cssVar('--tool-border'),
         grid: cssVar('--tool-grid'), ink: cssVar('--tool-panel'),
         subtle: cssVar('--tool-subtle'), accent: cssVar('--pico-primary'),
-        hairline: cssVar('--tool-hairline'),
-        /* Two extra categorical colours, needed only by the corner view, which
-           puts four traces of the same quantity on one axis. They are sampled
-           from the temperature ramp rather than invented, so they sit in the
-           same colour world as the rest of the page, and they are picked far
-           enough apart in lightness to survive a projector and both themes.
-           Not theme-dependent: unlike the map ramps these are thin lines on a
-           panel, where the constraint is separation from each other and from
-           accent/emph, not contrast against a filled area. */
-        cat1: '#d98a5e', cat2: '#8f6fb5'
+        hairline: cssVar('--tool-hairline')
+        /* No categorical hues here on purpose. The two that used to sit at the
+           end of this list were hardcoded hex, which meant they ignored the
+           skin: the grey skin is defined as one accent over a compressed grey
+           ladder, and a mauve and an orange line landed on it as two colours it
+           does not own. Every multi-trace chart now separates its series by
+           line pattern instead, so the whole palette is read from CSS variables
+           and follows every skin by construction. */
       });
     }
     readPalette();
@@ -2577,7 +2570,6 @@ var MoistureCore = (function () {
         treatRun: 'Drying',
         treatDone: 'Treat',
         mapTitle: 'Paper moisture',
-        heatTitle: 'Oil temperature',
         axCopper: 'copper', axOil: 'oil', axBottom: 'bottom', axTop: 'top',
         radialAxis: 'through the insulation',
         axialAxis: 'winding height',
@@ -2586,15 +2578,11 @@ var MoistureCore = (function () {
         spanNote: (nr, na) => 'grid ' + nr + ' radial by ' + na + ' axial',
         hottest: 'hottest',
         legendMoist: 'paper moisture, % of dry mass',
-        legendTemp: 'oil temperature, C',
         nowOil: 'oil water',
         nowPaper: 'paper moisture',
         nowSatOil: 'oil saturation',
         nowSatPaper: 'paper saturation',
         nowRemoved: 'removed',
-        nowAmb: 'ambient',
-        nowTop: 'top oil',
-        nowHot: 'hot spot',
         stripMode: 'Plot',
         stripModes: { mass: 'Water mass', sat: 'Saturation', corners: 'Corners',
           radial: 'Radial', axial: 'Axial' },
@@ -2603,11 +2591,12 @@ var MoistureCore = (function () {
           sat: 'Relative saturation of both phases',
           corners: 'Paper moisture at the four corners of the grid',
           heat: 'Ambient, oil and hot spot on one axis',
+          load: 'Load factor driving them, per unit',
           radial: 'One trace per radial cell, averaged over the levels',
           axial: 'One trace per level, averaged across the insulation'
         },
         stripUnit: { mass: 'kg', sat: '% sat', corners: '% dry mass', heat: 'C',
-          radial: '% dry mass', axial: '% dry mass' },
+          load: 'pu', radial: '% dry mass', axial: '% dry mass' },
         /* The two ends of the ramp legend, in series order: first entry is the
            first cell of the grid, which is the top of the bar. */
         stripEnds: { radial: ['copper', 'oil'], axial: ['bottom', 'top'] },
@@ -2648,7 +2637,6 @@ var MoistureCore = (function () {
         treatRun: 'Trocknet',
         treatDone: 'Starten',
         mapTitle: 'Papierfeuchte',
-        heatTitle: 'Öltemperatur',
         axCopper: 'Kupfer', axOil: 'Öl', axBottom: 'unten', axTop: 'oben',
         radialAxis: 'durch die Isolation',
         axialAxis: 'Wickelhöhe',
@@ -2657,15 +2645,11 @@ var MoistureCore = (function () {
         spanNote: (nr, na) => 'Gitter ' + nr + ' radial mal ' + na + ' axial',
         hottest: 'heißeste',
         legendMoist: 'Papierfeuchte, % der Trockenmasse',
-        legendTemp: 'Öltemperatur, C',
         nowOil: 'Wasser im Öl',
         nowPaper: 'Papierfeuchte',
         nowSatOil: 'Sättigung Öl',
         nowSatPaper: 'Sättigung Papier',
         nowRemoved: 'entnommen',
-        nowAmb: 'Umgebung',
-        nowTop: 'Öl oben',
-        nowHot: 'Hotspot',
         stripMode: 'Plot',
         stripModes: { mass: 'Wassermasse', sat: 'Sättigung', corners: 'Ecken',
           radial: 'Radial', axial: 'Axial' },
@@ -2674,11 +2658,12 @@ var MoistureCore = (function () {
           sat: 'Relative Sättigung beider Phasen',
           corners: 'Papierfeuchte an den vier Ecken des Gitters',
           heat: 'Umgebung, Öl und Hotspot auf einer Achse',
+          load: 'Last, die sie treibt, in pu',
           radial: 'Eine Kurve je Radialzelle, über die Ebenen gemittelt',
           axial: 'Eine Kurve je Ebene, über die Isolation gemittelt'
         },
         stripUnit: { mass: 'kg', sat: '% Sätt.', corners: '% Trockenmasse', heat: 'C',
-          radial: '% Trockenmasse', axial: '% Trockenmasse' },
+          load: 'pu', radial: '% Trockenmasse', axial: '% Trockenmasse' },
         stripEnds: { radial: ['Kupfer', 'Öl'], axial: ['unten', 'oben'] },
         stripSeries: {
           wOil: 'Öl, kg', wPaper: 'Papier, kg',
@@ -3195,10 +3180,22 @@ var MoistureCore = (function () {
        twenty times as hard as the other, which is the precise opposite of the
        point being made. */
     const STRIP_H = 230;
+    /* The temperature tab's two heights. The strip there carries the whole tab
+       since the map came out, so it gets more room; the load strip under it is
+       a single zero-based trace and needs only enough height to show the shape
+       of the daily cycle. */
+    const STRIP_H_TALL = 340;
+    const STRIP_H_LOAD = 150;
     /* Top pad carries the panel title, which sits ABOVE the frame now that
        there is one, so it needs its own line rather than the six pixels that
        were enough when it floated over an open plot area. */
     const STRIP_PAD = { l: 96, r: 190, t: 30, b: 34 };
+    /* Named line patterns. Long enough to read from the back of a room rather
+       than as a textured line, and in `dash` the gap is shorter than the stroke
+       so a steep section does not break into dots. `dot` is the third step
+       where a chart needs one, and it is round-capped so the dots stay dots at
+       1.5px rather than turning into short bars. */
+    const DASHES = { dash: [7, 4], dot: [1.5, 4.5] };
     /* Window length in simulated display minutes. FIXED, not scaled with the
        speed control, and that is a deliberate trade. A window that shrank at
        low speed would make the trace sweep at a constant visual pace, but it
@@ -3237,7 +3234,7 @@ var MoistureCore = (function () {
        keeping the four numbers they collapse to. */
     const HIST_KEYS = ['ppm', 'wp', 'wOil', 'wPaper', 'rsOil', 'rsPaper',
       'cBotIn', 'cBotOut', 'cTopIn', 'cTopOut',
-      'thA', 'thBot', 'thTop', 'thHot', 'thPaper'];
+      'thA', 'thBot', 'thTop', 'thHot', 'thPaper', 'K'];
 
     /* The profile channels: one trace per grid element in each direction, the
        other direction averaged away. Sixteen radial cells and six axial
@@ -3284,7 +3281,7 @@ var MoistureCore = (function () {
 
     /* The reduction from simulation state to one strip sample, in one place so
        the seed and the loop cannot disagree about what a sample contains. */
-    function histSample(ms, th, gradK, thetaA) {
+    function histSample(ms, th, gradK, thetaA, K) {
       const c = C.paperCorners(ms);
       const thetaO = th.thetaO;
       C.radialMean(ms, RAD_TMP);
@@ -3312,7 +3309,12 @@ var MoistureCore = (function () {
         thTop: thetaO,
         thBot: thetaO - gradK,
         thHot: th.thetaH,
-        thPaper: thetaO - gradK / 2
+        thPaper: thetaO - gradK / 2,
+        /* The load factor that produced this step. Recorded rather than
+           recomputed on draw: the strip plots against stored timestamps, and
+           evaluating the load profile again at draw time would sample a
+           continuous function at points the integrator never visited. */
+        K: K
       };
       for (let i = 0; i < C.N_R; i++) out[RAD_KEYS[i]] = RAD_TMP[i];
       for (let j = 0; j < C.N_A; j++) out[AX_KEYS[j]] = AX_TMP[j];
@@ -3365,13 +3367,22 @@ var MoistureCore = (function () {
           { key: 'rsPaper', axis: 'l', col: 'emph', min: 0.04, fmt: (v) => (v * 100).toFixed(1) }
         ]
       },
+      /* Four traces, but only two dimensions: where in the insulation, and
+         where in the tank. So they ride two channels instead of four colours.
+         Colour is the radial position and reuses the saturation plot's pair,
+         where accent is the oil side and emph the paper: here accent is the
+         oil face and emph the cell at the copper, which is the same reading
+         one step further in. Dash is the height, solid for the bottom and
+         dashed for the top. Four arbitrary hues made the eye match traces to a
+         legend; this way a glance gives the axis directly, and the two pairs
+         stay apart even where the traces cross. */
       corners: {
         shared: true, zero: true,
         series: [
           { key: 'cBotOut', axis: 'l', col: 'accent', min: 0.4, fmt: (v) => v.toFixed(2) },
-          { key: 'cBotIn', axis: 'l', col: 'cat1', min: 0.4, fmt: (v) => v.toFixed(2) },
-          { key: 'cTopOut', axis: 'l', col: 'emph', min: 0.4, fmt: (v) => v.toFixed(2) },
-          { key: 'cTopIn', axis: 'l', col: 'cat2', min: 0.4, fmt: (v) => v.toFixed(2) }
+          { key: 'cBotIn', axis: 'l', col: 'emph', min: 0.4, fmt: (v) => v.toFixed(2) },
+          { key: 'cTopOut', axis: 'l', col: 'accent', dash: 'dash', min: 0.4, fmt: (v) => v.toFixed(2) },
+          { key: 'cTopIn', axis: 'l', col: 'emph', dash: 'dash', min: 0.4, fmt: (v) => v.toFixed(2) }
         ]
       },
       /* The temperature tab's strip. Five traces on one axis, because they are
@@ -3385,12 +3396,35 @@ var MoistureCore = (function () {
          panel and the separations the chart exists to show would close up. */
       heat: {
         shared: true,
+        /* Five traces on one accent plus the grey ladder, no extra hues. The
+           three oil-circuit temperatures are the same quantity at three depths
+           into the same flow, so they share the accent and separate by dash,
+           getting sparser downward: hot spot solid, top oil dashed, bottom oil
+           dotted. The other two are not that quantity and leave the accent
+           family altogether, paper solid in emph and ambient dashed in faint,
+           which also puts the one trace that is not a transformer temperature
+           at the quietest weight on the panel.
+           This is what the grey skin needs (one accent, a compressed grey
+           ladder, no second hue), and the other two skins inherit it: the
+           colours are CSS variables, so nothing here is per-theme. */
         series: [
-          { key: 'thHot', axis: 'l', col: 'cat1', min: 20, fmt: (v) => v.toFixed(0) },
-          { key: 'thTop', axis: 'l', col: 'emph', min: 20, fmt: (v) => v.toFixed(0) },
-          { key: 'thPaper', axis: 'l', col: 'cat2', min: 20, fmt: (v) => v.toFixed(0) },
-          { key: 'thBot', axis: 'l', col: 'accent', min: 20, fmt: (v) => v.toFixed(0) },
-          { key: 'thA', axis: 'l', col: 'note', min: 20, fmt: (v) => v.toFixed(0) }
+          { key: 'thHot', axis: 'l', col: 'accent', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thTop', axis: 'l', col: 'accent', dash: 'dash', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thBot', axis: 'l', col: 'accent', dash: 'dot', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thPaper', axis: 'l', col: 'emph', min: 20, fmt: (v) => v.toFixed(0) },
+          { key: 'thA', axis: 'l', col: 'faint', dash: 'dash', min: 20, fmt: (v) => v.toFixed(0) }
+        ]
+      },
+      /* The load factor under the temperature strip, sharing its time axis.
+         Zero-based on purpose, the opposite call from `heat` above: per unit
+         load is a ratio whose distance from zero is the quantity, and the
+         daily cycle riding on a base of 0.6 only reads as a cycle when the
+         base is visible under it. The minimum span is a full per unit so a
+         flat profile stays a flat line instead of being zoomed into noise. */
+      load: {
+        shared: true, zero: true,
+        series: [
+          { key: 'K', axis: 'l', col: 'accent', min: 1.0, fmt: (v) => v.toFixed(2) }
         ]
       }
     };
@@ -3498,8 +3532,26 @@ var MoistureCore = (function () {
            not evenly spaced and an index-derived time would stretch and
            squeeze the trace whenever the speed changed. */
         const tEnd = hist.tHead, tStart = tEnd - STRIP_SPAN;
-        const xOfT = (t) => x0 + (x1 - x0) * (t - tStart) / STRIP_SPAN;
+        const pxPerMin = (x1 - x0) / STRIP_SPAN;
+        const xOfT = (t) => x0 + (t - tStart) * pxPerMin;
         const tOf = (i) => hist.t[histAt(hist, i)];
+        /* How far the window has scrolled, in pixels, for the dash phase. A
+           dash pattern starts at phase zero at the first point of the path,
+           which is a fixed place on the canvas, so as the data slides left the
+           pattern stays put and the dashes appear to crawl backwards along the
+           curve. Offsetting the phase by the scroll distance pins each dash to
+           the data under it: the pattern then travels with the trace, as a
+           dashed line drawn on a moving strip of paper would.
+           The value is +tStart in pixels because the phase at a point is its
+           distance along the path, x - x0 = (t - tStart)*px, and adding
+           tStart*px cancels the only term that moves, leaving t*px: a phase
+           that depends on the sample's own timestamp and on nothing else.
+           Approximate, strictly: the phase runs along the PATH, which on a
+           steep section is up to about a third longer than its horizontal
+           extent, so a little drift survives. Measured against the ambient
+           trace, the steepest one here, the residue is around 1% of the
+           uncorrected crawl and stays far under a pixel per frame. */
+        const dashPhase = tStart * pxPerMin;
 
         /* First sample still inside the window. The buffer holds more than the
            window when the steps are small, so the old tail is skipped rather
@@ -3622,10 +3674,18 @@ var MoistureCore = (function () {
            collapse each pixel column to its min and max. Stroking every sample
            at that density turns a clean daily cycle into visual noise. */
         const wPx = Math.max(1, Math.round(x1 - x0));
-        const trace = (buf, a, colour, width) => {
+        const trace = (buf, a, colour, width, dash) => {
           ctx.strokeStyle = colour;
           ctx.lineWidth = width;
           ctx.lineJoin = 'round';
+          /* Set on the context and cleared again below, because the dash
+             pattern is state: left standing it would dash every later stroke
+             in this panel, the axes and the treatment bands included. */
+          if (dash) {
+            ctx.setLineDash(DASHES[dash] || DASHES.dash);
+            ctx.lineDashOffset = dashPhase;
+            if (dash === 'dot') ctx.lineCap = 'round';
+          }
           ctx.beginPath();
           if (m0 <= wPx) {
             for (let i = i0; i < n; i++) {
@@ -3656,6 +3716,11 @@ var MoistureCore = (function () {
             }
           }
           ctx.stroke();
+          if (dash) {
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+            ctx.lineCap = 'butt';
+          }
         };
         /* The colour of one series. Categorical modes name a palette entry;
            the profile modes hand their position along the ramp instead, so the
@@ -3670,7 +3735,7 @@ var MoistureCore = (function () {
         const lw = spec.series.length > 8 ? 1.2
           : spec.series.length > 2 ? 1.5 : 2;
         spec.series.forEach((ser, k) => {
-          trace(hist[ser.key], axes[k], colOf(ser), lw);
+          trace(hist[ser.key], axes[k], colOf(ser), lw, ser.dash);
         });
 
         /* Axis numbers. On a shared axis they are written once on the left; on
@@ -3727,11 +3792,27 @@ var MoistureCore = (function () {
           ctx.textBaseline = 'bottom';
           ctx.fillText(T.stripEnds[mode][1], lx + 17, by1 + 1);
           ctx.textBaseline = 'middle';
-        } else {
+        } else if (spec.series.length > 1) {
+          /* Only worth drawing when there is something to tell apart. A single
+             trace is already named by the title above it, and a one-entry
+             legend beside it is a swatch pointing at the only line on screen. */
           spec.series.forEach((ser, k) => {
             const ly = y0 + 10 + k * 17;
             ctx.fillStyle = COL[ser.col];
-            ctx.fillRect(lx, ly - 1.5, 12, 3);
+            /* The swatch carries the pattern too, or the legend claims
+               several entries of one identical colour. Drawn as explicit fills
+               rather than with setLineDash: at 12px wide a stroked pattern
+               lands wherever its phase happens to fall, fills do not. */
+            if (ser.dash === 'dash') {
+              ctx.fillRect(lx, ly - 1.5, 5, 3);
+              ctx.fillRect(lx + 7, ly - 1.5, 5, 3);
+            } else if (ser.dash === 'dot') {
+              for (let dx = 0; dx <= 10; dx += 3.5) {
+                ctx.fillRect(lx + dx, ly - 1.5, 2, 3);
+              }
+            } else {
+              ctx.fillRect(lx, ly - 1.5, 12, 3);
+            }
             ctx.fillStyle = COL.note;
             ctx.fillText(T.stripSeries[ser.key], lx + 17, ly);
           });
@@ -3825,7 +3906,7 @@ var MoistureCore = (function () {
           gradK: C.gradKelvin(cfg0.gradF, th.thetaO, thA0)
         };
         pushHist(stateRef.current.hist, 0,
-          histSample(ms, th, stateRef.current.gradK, thA0), false);
+          histSample(ms, th, stateRef.current.gradK, thA0, K0), false);
         bump((n) => n + 1);
       }, [siteId, wpMean, hFilm]);
 
@@ -3887,7 +3968,7 @@ var MoistureCore = (function () {
               }
               st.tMin += step;
               pushHist(st.hist, st.tMin,
-                histSample(st.ms, st.th, gK, thAn), treating);
+                histSample(st.ms, st.th, gK, thAn, Kn), treating);
             }
             if (steps > 0) bump((n) => n + 1);
           }
@@ -4028,7 +4109,6 @@ var MoistureCore = (function () {
        ends are outside what any one scenario visits, which costs contrast
        within a scenario and buys the one thing the fitted domain could not
        give: the same colour means the same temperature, always. */
-    const TEMP_DOMAIN = [0, 100];
 
     function App() {
       const [lang, setLang] = useState(LANG);
@@ -4039,14 +4119,22 @@ var MoistureCore = (function () {
       const [site, setSiteRaw] = useState('desert');
       const [stage, setStage] = useState('onan');
       const [playing, setPlaying] = useState(true);
-      const [speed, setSpeed] = useState(1);
+      /* 2x, not 1x: at single speed the strip window takes about two minutes to
+         cross, which is longer than anyone watches a slide before the point has
+         to have landed. The slower settings stay one click away for stopping on
+         a detail. */
+      const [speed, setSpeed] = useState(2);
       const [treatHours, setTreatHours] = useState(24);
-      const [plotMode, setPlotMode] = useState('mass');
+      /* Radial rather than the water masses: the radial profile is the one
+         plot that shows the paper surface moving against its depth, which is
+         the mechanism the whole tab is about, and it survives a treatment as a
+         fan opening and closing rather than as two lines shifting. The mass
+         plot stays a click away for the balance. */
+      const [plotMode, setPlotMode] = useState('radial');
       /* One picked ramp per map, empty meaning "follow the theme". Two states
          and not one, because the two maps carry different quantities and the
          whole point of the picker is choosing a ramp for each. */
       const [rampPickM, setRampPickM] = useState('');
-      const [rampPickT, setRampPickT] = useState('');
       const [, themeBump] = useState(0);
 
       const sc0 = C.scenarioById('desert');
@@ -4124,22 +4212,17 @@ var MoistureCore = (function () {
       const view = useMemo(() => {
         if (!st) return null;
         const shown = new Float64Array(C.N_R_SHOW * C.N_A);
-        const temps = new Float64Array(C.N_R_SHOW * C.N_A);
         C.showGrid(st.ms, shown);
         const gradK = st.gradK == null ? 0 : st.gradK;
-        C.tempGrid(st.th.thetaO, gradK, temps);
         const spans = C.gridSpans(st.ms);
         const hs = C.paperHotspot(st.ms);
         return {
-          shown: shown, temps: temps, spans: spans, hs: hs,
+          shown: shown, spans: spans, hs: hs,
           gradK: gradK,
           ppm: st.ms.ppm,
           wp: C.paperMean(st.ms),
           rsOil: st.ms.ppm / C.oilSat(st.th.thetaO),
           rsPaper: C.paperRelSat(st.ms),
-          thetaO: st.th.thetaO,
-          thetaH: st.th.thetaH,
-          thetaA: C.compAmbient(st.tMin, st.sc, 0),
           wOil: C.waterInOil(st.ms),
           wPaper: C.waterInPaper(st.ms),
           treating: C.treatmentActive(st.ms),
@@ -4205,7 +4288,6 @@ var MoistureCore = (function () {
       ` : null;
 
       const rampM = rampFor('moisture', skin, rampPickM);
-      const rampT = rampFor('temp', skin, rampPickT);
 
       return html`
         <div className="th-wrap">
@@ -4268,34 +4350,31 @@ var MoistureCore = (function () {
             <${React.Fragment}>
               ${controls}
 
-              <div className="ms-stage ms-mapsplit">
-                <${HeatmapPanel} field="temp" values=${view.temps}
-                  domain=${TEMP_DOMAIN} ramp=${rampT.ramp} flip=${rampT.flip}
-                  title=${T.heatTitle} unit=" C" format=${fmt1} markIdx=${-1} />
-                <div className="ms-mapside">
-                  <${RampPick} id="ms-ramp-t" value=${rampPickT} onChange=${setRampPickT} />
-                  <${RampBar} ramp=${rampT.ramp} flip=${rampT.flip}
-                    domain=${TEMP_DOMAIN} unit=" C" format=${fmt1} />
-                  <div className="ms-sidefacts">
-                    <${SideFact} label=${T.spanAxial}
-                      value=${view.gradK.toFixed(1) + ' K'} />
-                    <${SideFact} label=${T.nowTop}
-                      value=${view.thetaO.toFixed(1) + ' C'} />
-                    <${SideFact} label=${T.nowHot}
-                      value=${view.thetaH.toFixed(1) + ' C'} />
-                    <${SideFact} label=${T.nowAmb}
-                      value=${view.thetaA.toFixed(1) + ' C'} />
-                  </div>
-                </div>
+              <!-- No heat map here, and no numeric readout either. The
+                   temperature field is radially uniform by construction: this
+                   model carries no conduction through the paper, so the paper
+                   sits at its local oil temperature, and drawn on the moisture
+                   grid it produced 16 identical columns that read as a measured
+                   field through the insulation. Every number the readout beside
+                   it carried is the right-hand end of a trace below, so it went
+                   with the map rather than repeating the chart in digits. -->
+              <!-- The five temperatures as a time series: the axial spread
+                   being a fraction of the rise is visible here as a band that
+                   opens under load and closes at night. Taller than the strips
+                   on the moisture tab because it is now the only chart carrying
+                   the field, and five traces inside a band need the height to
+                   stay apart from each other on a projector. -->
+              <div className="ms-stage">
+                <${StripPanel} hist=${st.hist} mode="heat" height=${STRIP_H_TALL} />
               </div>
 
-              <!-- The same five temperatures as a time series. The map shows
-                   where they are in the tank, this shows what they have been
-                   doing, and the axial spread being a fraction of the rise is
-                   only visible here: on the map it is a gradient, in time it is
-                   a band that opens under load and closes at night. -->
+              <!-- The cause underneath the effect, on the same time axis and
+                   the same left margin so the two read as one stacked chart:
+                   every feature in the temperatures above has its origin in
+                   this line, delayed by the oil time constant. Short, because
+                   it is a driver and not a result. -->
               <div className="ms-stage">
-                <${StripPanel} hist=${st.hist} mode="heat" />
+                <${StripPanel} hist=${st.hist} mode="load" height=${STRIP_H_LOAD} />
               </div>
             <//>
           ` : null}
