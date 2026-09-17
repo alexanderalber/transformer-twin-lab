@@ -2734,6 +2734,7 @@
         laneLoad: 'LOAD',
         laneRate: 'aging rate, dry paper at 98 C = 1',
         lanePaper: ', paper ', laneLeaking: ', leaking',
+        markTreat: 'oil treatment',
         sigmaPts: 'sigma points',
         axRemaining: 'remaining years to DP 200',
         axYears: 'years',
@@ -2831,6 +2832,7 @@
         laneLoad: 'LAST',
         laneRate: 'Alterungsrate, trockenes Papier bei 98 C = 1',
         lanePaper: ', Papier ', laneLeaking: ', undicht',
+        markTreat: 'Ölbehandlung',
         sigmaPts: 'Sigma-Punkte',
         axRemaining: 'verbleibende Jahre bis DP 200',
         axYears: 'Jahre',
@@ -3032,7 +3034,11 @@
       const m = new Float32Array(N_OUT), fac = new Float32Array(N_OUT);
       const f0 = C.rateFactor(m0);
       m.fill(m0); fac.fill(f0);
-      return { m: m, fac: fac, cur: m0, at: -1 };
+      /* marks: display times of the oil treatments, in the same monotone
+         clock the cursor runs on. The draw turns them into vertical lines
+         that scroll left with the window; entries older than the widest
+         window are dropped there, so this never grows without bound. */
+      return { m: m, fac: fac, cur: m0, at: -1, marks: [] };
     }
 
     /* Fill every step the cursor has crossed since the last frame. A long
@@ -3058,11 +3064,17 @@
     /* Oil treatment: a one-shot press, not a mode. It sets the state dry at
        the instant it is pressed and nothing else; the relaxation above then
        carries it back towards whatever the tank is heading for. */
-    function treatMoisture(ms, idx) {
+    function treatMoisture(ms, idx, tNow) {
       ms.cur = C.MOIST_DRY;
       ms.at = idx;
       ms.m[idx] = ms.cur;
       ms.fac[idx] = C.rateFactor(ms.cur);
+      /* Remember when it happened, so the strip chart can show the press and
+         not just its consequence. Drop what has scrolled out of the widest
+         window; the list holds a handful of entries at most. */
+      ms.marks.push(tNow);
+      const keep = tNow - COMP_MIN;
+      while (ms.marks.length && ms.marks[0] < keep) ms.marks.shift();
     }
 
     /* ── Decade range for the rate lane ──────────────────────────────────
@@ -3526,6 +3538,40 @@
           ctx.lineJoin = 'bevel';   // same reason as the temperature lane
           pathSeries(ctx, gR, i0, i1, xOfI, yOfR, wPlot, false); ctx.stroke();
           ctx.restore();
+
+          /* Oil treatments. Each press leaves a dashed vertical that scrolls
+             left with everything else, so the sag in the rate lane has a
+             visible cause and not just an effect. Drawn over the curves but
+             under the now edge; only the newest one inside the window carries
+             the label, otherwise a burst of presses stacks text on itself. */
+          if (moist.marks && moist.marks.length) {
+            const vis = moist.marks.filter((tm) => tm >= t0 && tm <= t1);
+            if (vis.length) {
+              ctx.save();
+              ctx.strokeStyle = COL.accent;
+              ctx.lineWidth = 1.4;
+              ctx.setLineDash([5, 4]);
+              ctx.globalAlpha = 0.75;
+              ctx.beginPath();
+              vis.forEach((tm) => {
+                const x = Math.round(xOfT(tm)) + 0.5;
+                LANES.forEach((ln) => { ctx.moveTo(x, ln[0]); ctx.lineTo(x, ln[1]); });
+              });
+              ctx.stroke();
+              ctx.setLineDash([]);
+              /* The label goes to the left of its line unless that would run
+                 off the plot, which is where it lands right after a press. */
+              const xL = xOfT(vis[vis.length - 1]);
+              ctx.globalAlpha = 1;
+              ctx.font = '600 13px system-ui, sans-serif';
+              ctx.fillStyle = COL.accent;
+              ctx.textBaseline = 'bottom';
+              const wTx = ctx.measureText(T.markTreat).width;
+              if (xL - 6 - wTx >= x0) { ctx.textAlign = 'right'; ctx.fillText(T.markTreat, xL - 6, LANE.rB - 5); }
+              else { ctx.textAlign = 'left'; ctx.fillText(T.markTreat, xL + 6, LANE.rB - 5); }
+              ctx.restore();
+            }
+          }
 
           // Now: the right-hand edge, and the date it stands on.
           ctx.save();
@@ -4862,7 +4908,7 @@
              the thermal ring have to agree on which sample is the newest. */
           const ms = moistRef.current;
           const idx = wrapI(Math.floor(cursorRef.current / STRIDE));
-          if (treatRef.current) { treatRef.current = false; treatMoisture(ms, idx); }
+          if (treatRef.current) { treatRef.current = false; treatMoisture(ms, idx, cursorRef.current); }
           else advanceMoisture(ms, idx, targetRef.current);
           const p1 = PERF ? performance.now() : 0;
           if (PERF) perfPush(framePeriod, p1 - p0, nSmp, capSmp);
