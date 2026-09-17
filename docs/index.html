@@ -6,7 +6,7 @@
   <script>document.documentElement.lang=(new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||'en');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>transformer-twin-lab</title>
-  <meta name="description" content="Interactive demos on uncertainty in transformer digital twins.">
+  <meta name="description" content="Demos on transformer digital twins.">
   <link rel="stylesheet" href="assets/css/pico.min.css">
   <link rel="stylesheet" href="assets/css/app.css">
   <!-- Favicon: the bare triangle on a transparent ground, no plate behind it.
@@ -120,7 +120,7 @@
   <main class="container" style="max-width:820px">
     <!-- The title sits in the header row next to the switchers, the way the
          four demo pages do it; only the subtitle is left here. -->
-    <p style="color:var(--tool-label);margin:0.6rem 0 0" data-i18n="sub">Interactive demos on uncertainty in transformer digital twins.</p>
+    <p style="color:var(--tool-label);margin:0.6rem 0 0" data-i18n="sub">Demos on transformer digital twins.</p>
     <ul class="tw-linklist">
       <li>
         <svg class="tw-link-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
@@ -128,7 +128,7 @@
           <circle cx="19.5" cy="22" r="1.7" fill="currentColor" stroke="none"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="duval.html" data-i18n="t.duval">Duval Triangle 1, under measurement uncertainty</a></p>
+          <p class="tw-link-title"><a href="duval.html" data-i18n="t.duval">Duval triangle under uncertainty</a></p>
           <p class="tw-link-desc" data-i18n="d.duval">One DGA result in Duval Triangle 1, and the cloud of diagnoses it could equally have meant. Push the relative measurement uncertainty from 5 to 35 percent and the point starts crossing zone boundaries.</p>
         </div>
       </li>
@@ -138,7 +138,7 @@
           <circle cx="18.7" cy="17.6" r="1.7" fill="currentColor" stroke="none"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="pentagon.html" data-i18n="t.pentagon">Duval Pentagon 1 and 2, under measurement uncertainty</a></p>
+          <p class="tw-link-title"><a href="pentagon.html" data-i18n="t.pentagon">Duval pentagon under uncertainty</a></p>
           <p class="tw-link-desc" data-i18n="d.pentagon">The same question in five gases. One point in Duval Pentagon 1 and 2, and the region of diagnoses that the laboratory error bar really covers.</p>
         </div>
       </li>
@@ -153,7 +153,7 @@
           <line x1="20.5" y1="15" x2="25" y2="15"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="thermal.html" data-i18n="t.thermal">Thermal mini-twin, IEC 60076-7</a></p>
+          <p class="tw-link-title"><a href="thermal.html" data-i18n="t.thermal">Thermal mini-twin</a></p>
           <p class="tw-link-desc" data-i18n="d.thermal">A year of top-oil and hot-spot temperature computed from a load profile, and four ways to propagate the uncertainty in it into the remaining life of the insulation.</p>
         </div>
       </li>
@@ -180,7 +180,7 @@
           <path d="M16 4.5c5.2 6.2 7.8 10 7.8 13.1a7.8 7.8 0 0 1-15.6 0C8.2 14.5 10.8 10.7 16 4.5Z"/>
         </svg>
         <div>
-          <p class="tw-link-title"><a href="moisture.html" data-i18n="t.moisture">Moisture twin, paper and oil</a></p>
+          <p class="tw-link-title"><a href="moisture.html" data-i18n="t.moisture">Moisture mini-twin</a></p>
           <p class="tw-link-desc" data-i18n="d.moisture">Where the water actually sits. The same reading in ppm means very different moisture in the paper depending on temperature, and drying the oil barely touches the paper at all.</p>
         </div>
       </li>
@@ -225,17 +225,17 @@
   <script>
   (function () {
     var DE = {
-      'sub': 'Interaktive Demos zur Unsicherheit in digitalen Zwillingen von Leistungstransformatoren.',
+      'sub': 'Demos zu digitalen Zwillingen von Leistungstransformatoren.',
 
-      't.duval': 'Duval-Dreieck 1 unter Messunsicherheit',
+      't.duval': 'Duval-Dreieck unter Unsicherheit',
       'd.duval': 'Ein DGA-Ergebnis im Duval-Dreieck 1, und die Wolke der Diagnosen, die es genauso gut hätte bedeuten können. Zieht man die relative Messunsicherheit von 5 auf 35 Prozent hoch, wandert der Punkt über Zonengrenzen.',
-      't.pentagon': 'Duval-Pentagon 1 und 2 unter Messunsicherheit',
+      't.pentagon': 'Duval-Pentagon unter Unsicherheit',
       'd.pentagon': 'Dieselbe Frage in fünf Gasen. Ein Punkt im Duval-Pentagon 1 und 2, und das Gebiet der Diagnosen, das der Fehlerbalken des Labors tatsächlich abdeckt.',
-      't.thermal': 'Thermischer Mini-Zwilling, IEC 60076-7',
+      't.thermal': 'Thermischer Mini-Zwilling',
       'd.thermal': 'Ein Jahr Öl- und Hotspot-Temperatur, aus einem Lastprofil gerechnet, und vier Wege, deren Unsicherheit in die Restlebensdauer der Isolierung fortzupflanzen.',
       't.levels': 'Fünf Stufen eines digitalen Zwillings',
       'd.levels': 'Ein Transformator, ein thermisches Modell, fünf Aufgaben: den Zustand beschreiben, einen Kühlungsfehler diagnostizieren, die nächsten 48 Stunden vorhersagen, zwischen Fahrweisen entscheiden und den Regelkreis schließen.',
-      't.moisture': 'Feuchtezwilling, Papier und Öl',
+      't.moisture': 'Feuchte-Mini-Zwilling',
       'd.moisture': 'Wo das Wasser wirklich sitzt. Derselbe ppm-Wert bedeutet je nach Temperatur sehr unterschiedliche Feuchte im Papier, und eine Öltrocknung rührt das Papier kaum an.',
 
       'sources': 'Quellen: IEC 60599 und CIGRE TB 771 (Fehlerzonen im Duval-Dreieck 1); Duval und Lamarre 2014 und CIGRE TB 771 (Duval-Pentagon 1 und 2); IEC 60076-7 (Belastungsrichtlinie); IEC 60076-2 (Grenzen der Übertemperatur); CIGRE TB 738 (Alterung unter Feuchte); Lundgaard et al. 2004 (Alterungskinetik); Parton und Logan 1981 (Tagesgang der Temperatur); CIGRE TB 349 (Feuchte in Öl und Papier); Guidi und Fullerton 1974 und Garcia et al. 2005 (Feuchtediffusion im Papier). Alles rechnet lokal im Browser, nichts wird hochgeladen.',
@@ -253,8 +253,8 @@
     els.forEach(function (e) { EN.set(e, e.textContent); });
 
     var META = {
-      en: { title: 'transformer-twin-lab', desc: 'Interactive demos on uncertainty in transformer digital twins.' },
-      de: { title: 'transformer-twin-lab', desc: 'Interaktive Demos zur Unsicherheit in digitalen Zwillingen von Leistungstransformatoren.' }
+      en: { title: 'transformer-twin-lab', desc: 'Demos on transformer digital twins.' },
+      de: { title: 'transformer-twin-lab', desc: 'Demos zu digitalen Zwillingen von Leistungstransformatoren.' }
     };
 
     function apply(lang) {
