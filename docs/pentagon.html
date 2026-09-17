@@ -73,11 +73,9 @@
     .pt-bar { display: flex; align-items: center; justify-content: center; gap: 10px; height: 28px; }
     .pt-bar.pt-under { margin-top: 8px; }
     .pt-seg-group { display: flex; }
-    /* On the light skin the muted border of an inactive segment is the same
-       pale hairline the panels use and the group loses its edges. */
-    html[data-skin="light"] .pt-wrap .lang-seg:not(.active):not(:hover):not(:focus) {
-      border-color: var(--tool-faint);
-    }
+    /* The light-skin segment override that used to sit here is gone
+       (2026-09-17): .lang-seg in app.css now takes --tool-border in every
+       skin, solved for 3:1, which is stronger than the --tool-faint patch. */
     .pt-slider { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--tool-note); }
     .pt-slider .pt-n { font-variant-numeric: tabular-nums; color: var(--tool-text); width: 46px; text-align: right; }
     /* Range slider, same rules as the thermal page. Pico leaves the thumb to

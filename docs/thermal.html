@@ -242,19 +242,11 @@
     }
     .th-popclose:hover { background: var(--tool-hairline); color: var(--tool-text); }
 
-    /* Segmented buttons take their outline from --pico-muted-border-color,
-       which is #262e3a on the dark skin and #d8e0ea on the light one: both sit
-       at about 1.4:1 against their own background and disappear on a beamer.
-       The grey skin is the reference here, #9aa1a6 on #55595f at about 2.6:1,
-       and is deliberately left exactly as it is. --tool-faint lands at about
-       3.0:1 on the other two (#566472 on #14181f, #8b96a1 on #ffffff), which
-       reads as a group of buttons without shouting. Hover, focus and the active
-       state keep the accent, hence the three exclusions; scoped to .th-wrap, so
-       the theme switcher in the page header stays identical across the site. */
-    html[data-skin="dark"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus),
-    html[data-skin="light"] .th-wrap .lang-seg:not(.active):not(:hover):not(:focus) {
-      border-color: var(--tool-faint);
-    }
+    /* The local segment outline override that used to sit here is gone
+       (2026-09-17). It lifted .th-wrap segments from Pico's muted border to
+       --tool-faint, about 3.0:1, and left the page header untouched.
+       .lang-seg in app.css now takes --tool-border everywhere, which is solved
+       for 3:1 and lands at 3.56 to 3.97 on dark, 3.09 to 3.45 on light. */
 
     /* Range sliders. Pico leaves the thumb to the browser, and the browser
        default is a pale disc that disappears on the grey skin from six metres
