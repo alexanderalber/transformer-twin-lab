@@ -32,56 +32,6 @@
     .lv-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
     .lv-note { margin: 0; font-size: 12px; color: var(--tool-note); }
 
-    /* Tabs: the house pattern for choosing a VIEW, as opposed to .lang-seg,
-       which chooses a SETTING. The distinction is the point: as a segmented
-       control the tab switch would look exactly like the half dozen settings
-       under it. Underlined tabs say "these are the sections" instead.
-       The strip carries the baseline and the active tab overpaints it thicker,
-       so the underline must sit ON the strip's line, hence the negative bottom
-       margin on the buttons. */
-    .tabstrip {
-      display: flex;
-      gap: 22px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid var(--tool-hairline);
-      /* A line of air under the strip, for every tab at once. Each tab keeps
-         its own margin on top of this for whatever else it needs; putting the
-         common part here is what stops the four from drifting apart. */
-      margin-bottom: 20px;
-    }
-    .tabstrip > button {
-      margin: 0 0 -1px;
-      padding: 4px 2px 6px;
-      width: auto;
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      border-radius: 0;
-      font-size: 1rem;
-      font-weight: 500;
-      line-height: 1.3;
-      color: var(--tool-label);
-      cursor: pointer;
-    }
-    /* Pico redefines colour and border on button:is(:hover,:active,:focus);
-       both have to be taken back explicitly or the tab grows a blue box. */
-    .tabstrip > button:hover:not(.active),
-    .tabstrip > button:focus:not(.active) {
-      background: transparent;
-      border-color: transparent;
-      border-bottom-color: var(--tool-hairline);
-      color: var(--tool-emph);
-    }
-    .tabstrip > button.active,
-    .tabstrip > button.active:hover,
-    .tabstrip > button.active:focus {
-      background: transparent;
-      color: var(--pico-primary);
-      border-bottom-color: var(--pico-primary);
-      font-weight: 600;
-    }
-    .tabstrip > button:disabled { opacity: 0.45; cursor: not-allowed; }
-
     /* ── Number tiles ─────────────────────────────────────────────────────
        The row of readouts over every chart. Sized for a projector: the value
        is 34 px, roughly three times the readout size on the thermal page,
@@ -98,6 +48,16 @@
     .lv-split .lv-tiles { gap: 10px 22px; }
     .lv-tile { min-width: 128px; }
     .lv-split .lv-tile { min-width: 118px; }
+    /* Six tiles is one more than any other tab shows, and on the prescriptive
+       tab they sit in the split, so the row had a single tile dropping onto a
+       second line. nowrap instead of a smaller min-width: the tiles are not
+       what overflows, the 34 px values are, so the row is allowed to shrink
+       its gaps and its value size rather than wrap. Still large enough to read
+       from the back row, which is the only size constraint that counts. */
+    .lv-tiles.lv-tiles-6 { flex-wrap: nowrap; gap: 10px 16px; }
+    .lv-tiles-6 .lv-tile { min-width: 0; }
+    .lv-tiles-6 .lv-tile .lv-v { font-size: 29px; }
+    .lv-tiles-6 .lv-tile .lv-k { white-space: nowrap; }
     .lv-tile .lv-k {
       display: block; font-size: 13px; line-height: 1.3;
       letter-spacing: 0.02em; color: var(--tool-label);
@@ -314,6 +274,16 @@
     @media (max-width: 980px) {
       .lv-split { flex-direction: column; }
       .lv-log { flex: 1 1 auto; width: 100%; height: 240px; }
+    }
+    /* The six-tile row is held on one line only while there is width for it.
+       Between 980 px and about 1200 px the log still takes its 350 px out of
+       the row, and the German labels no longer fit: there nowrap would push
+       the last tile out of the panel rather than onto a second line, so the
+       wrap is given back. Above 1200 px, and below 980 px where the split has
+       already stacked, the row is on one line either way. */
+    @media (min-width: 981px) and (max-width: 1200px) {
+      .lv-tiles.lv-tiles-6 { flex-wrap: wrap; }
+      .lv-tiles-6 .lv-tile { min-width: 118px; }
     }
   </style>
   <script src="assets/js/react.production.min.js"></script>
@@ -2056,8 +2026,24 @@
       ctx.restore();
     }
 
-    /* Horizontal grid plus its labels on the left. The grid is the axis: no
-       box around the plot, the same as on the other two pages. */
+    /* One closed frame per plot lane. Reading a value off a grid line needs
+       something to read it against, and a lane bounded only on the right gives
+       the eye nothing near the labels. Where two lanes share a canvas the gap
+       between their boxes separates them by itself, so there is no separator
+       hairline on top of it. */
+    function plotFrame(ctx, x0, x1, yT, yB) {
+      ctx.save();
+      ctx.strokeStyle = COL.border;
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(x0 - 0.5, yT - 0.5, x1 - x0 + 0.5, yB - yT + 1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /* Horizontal grid plus its labels on the left. The grid replaces a y axis
+       line; the box around the plot comes from plotFrame. */
     function yAxis(ctx, x0, x1, yOf, lo, hi, step, unit) {
       ctx.save();
       ctx.font = '13px system-ui, sans-serif';
@@ -2588,8 +2574,7 @@
          of the last clock label that sits past the end of the axis. */
       padL: 74, padR: 112,
       tT: 16, tB: 330,      // temperature lane
-      sep: 342,
-      kT: 356, kB: 440,     // load lane
+      kT: 356, kB: 440,     // load lane, the 26 px gap above holds its title
       xLab: 446
     };
     const D1_HOURS = 48;
@@ -2652,13 +2637,8 @@
         pathSeries(ctx, (k) => A.thHtwin[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
         ctx.restore();
 
-        // Lane separator: two panels on one canvas, not one crowded plot.
-        ctx.save();
-        ctx.strokeStyle = COL.border;
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x0 - D1.padL + 2, D1.sep + 0.5); ctx.lineTo(x1, D1.sep + 0.5); ctx.stroke();
-        ctx.restore();
+        plotFrame(ctx, x0, x1, D1.tT, D1.tB);
+        plotFrame(ctx, x0, x1, D1.kT, D1.kB);
 
         // Load lane, its own tiny axis on the same x.
         ctx.save();
@@ -2685,8 +2665,9 @@
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.fillStyle = COL.note;
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(T.laneLoad, x0 + 5, D1.sep + 5);
+        // The lane title sits in the gap above its frame, not inside the plot.
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(T.laneLoad, x0 + 5, D1.kT - 5);
         ctx.restore();
 
         xAxis(ctx, x0, x1, D1.kB, t0, t1, LIVE_TICK_MIN, clockOf);
@@ -2795,7 +2776,7 @@
        residual. The marks stand where they happened and scroll off the left
        edge with everything else. */
     const D2_H = 462;
-    const D2 = { padL: 74, padR: 112, tT: 18, tB: 252, sep: 264, rT: 292, rB: 436 };
+    const D2 = { padL: 74, padR: 112, tT: 18, tB: 252, rT: 292, rB: 436 };
     const D2_HOURS = 48;
     /* The residual axis has to hold a band four tenths of a kelvin wide and a
        fault worth eleven, and the stream walks from one to the other without
@@ -2898,12 +2879,8 @@
         pathSeries(ctx, (k) => A.thOtwin[ph(k)], 0, N - 1, xOfI, yOfT, wPlot, false); ctx.stroke();
         ctx.restore();
 
-        ctx.save();
-        ctx.strokeStyle = COL.border;
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x0 - D2.padL + 2, D2.sep + 0.5); ctx.lineTo(x1, D2.sep + 0.5); ctx.stroke();
-        ctx.restore();
+        plotFrame(ctx, x0, x1, D2.tT, D2.tB);
+        plotFrame(ctx, x0, x1, D2.rT, D2.rB);
 
         // Bottom panel: the residual, its band, and the zero it should sit on.
         ctx.save();
@@ -2999,8 +2976,10 @@
         ctx.fillStyle = COL.note;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(T.laneTopOil, x0 + 5, D2.tT + 2);
-        ctx.fillText(T.laneResid(live.band.toFixed(2)), x0 + 5, D2.sep + 5);
+        // The top lane has no room above its frame, so its title stays inside.
+        ctx.fillText(T.laneTopOil, x0 + 5, D2.tT + 5);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(T.laneResid(live.band.toFixed(2)), x0 + 5, D2.rT - 5);
         ctx.restore();
 
         /* The verdict, as a chip inside the residual panel. It is the one thing
@@ -3176,6 +3155,7 @@
         ctx.fillText(T.measured, xn - 6, P3.tT - 6);
         ctx.restore();
 
+        plotFrame(ctx, x0, x1, P3.tT, P3.tB);
         xAxis(ctx, x0, x1, P3.tB, h0, h1, 12, (v) => (v > 0 ? '+' : '') + v + ' h');
       });
 
@@ -3211,8 +3191,7 @@
     const A5 = {
       padL: 74, padR: 26,
       tT: 18, tB: 300,        // hot-spot lane
-      sep: 312,
-      kT: 326, kB: 414,       // load lane
+      kT: 326, kB: 414,       // load lane, the 26 px gap above holds its title
       sgT: 426, sgB: 448      // cooling stage band, x axis sits on its floor
     };
     const A5_HOURS = 48;
@@ -3319,12 +3298,8 @@
         }
         ctx.restore();
 
-        ctx.save();
-        ctx.strokeStyle = COL.border;
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x0 - A5.padL + 2, A5.sep + 0.5); ctx.lineTo(x1, A5.sep + 0.5); ctx.stroke();
-        ctx.restore();
+        plotFrame(ctx, x0, x1, A5.tT, A5.tB);
+        plotFrame(ctx, x0, x1, A5.kT, A5.kB);
 
         // Load lane: what was asked, what was given, and the difference.
         ctx.save();
@@ -3393,8 +3368,11 @@
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(T.laneLoadBoth, x0 + 5, A5.sep + 5);
-        ctx.fillText(T.laneHotSpot, x0 + 5, A5.tT + 2);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(T.laneLoadBoth, x0 + 5, A5.kT - 5);
+        // The top lane has no room above its frame, so its title stays inside.
+        ctx.textBaseline = 'top';
+        ctx.fillText(T.laneHotSpot, x0 + 5, A5.tT + 5);
         ctx.restore();
 
         xAxis(ctx, x0, x1, A5.sgB, 0, A5_HOURS, 6, (v) => v + ' h');
@@ -3426,7 +3404,7 @@
       return html`
         <div className="lv-split">
           <div className="lv-main">
-            <div className="lv-tiles">
+            <div className="lv-tiles lv-tiles-6">
               <${Tile} label=${T.tHotSpot} value=${run.thH[iNow].toFixed(1)} unit="°C" emph=${true} />
               <${Tile} label=${T.tPredicted(run.horizonMin)}
                 value=${predEnd.toFixed(1)} unit="°C" />
@@ -3594,6 +3572,7 @@
         // Clock time rather than hours from the start: the three switches are
         // labelled with clock times, and the axis has to be readable in the
         // same words.
+        plotFrame(ctx, x0, x1, D4.tT, D4.tB);
         xAxis(ctx, x0, x1, D4.tB, 0, D4_HOURS, 6, (v) => {
           const hh = Math.round(v) % 24;
           return (hh < 10 ? '0' : '') + hh + ':00';

@@ -32,56 +32,6 @@
     .th-sep { color: var(--tool-faint); margin: 0 0.42em; font-weight: 400; }
     .th-note { margin: 0; font-size: 12px; color: var(--tool-note); }
 
-    /* Tabs: the house pattern for choosing a VIEW, as opposed to .lang-seg,
-       which chooses a SETTING. The distinction is the point: as a segmented
-       control the tab switch would look exactly like the half dozen settings
-       under it. Underlined tabs say "these are the sections" instead.
-       The strip carries the baseline and the active tab overpaints it thicker,
-       so the underline must sit ON the strip's line, hence the negative bottom
-       margin on the buttons. */
-    .tabstrip {
-      display: flex;
-      gap: 22px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid var(--tool-hairline);
-      /* A line of air under the strip, for every tab at once. Each tab keeps
-         its own margin on top of this for whatever else it needs; putting the
-         common part here is what stops the four from drifting apart. */
-      margin-bottom: 20px;
-    }
-    .tabstrip > button {
-      margin: 0 0 -1px;
-      padding: 4px 2px 6px;
-      width: auto;
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      border-radius: 0;
-      font-size: 1rem;
-      font-weight: 500;
-      line-height: 1.3;
-      color: var(--tool-label);
-      cursor: pointer;
-    }
-    /* Pico redefines colour and border on button:is(:hover,:active,:focus);
-       both have to be taken back explicitly or the tab grows a blue box. */
-    .tabstrip > button:hover:not(.active),
-    .tabstrip > button:focus:not(.active) {
-      background: transparent;
-      border-color: transparent;
-      border-bottom-color: var(--tool-hairline);
-      color: var(--tool-emph);
-    }
-    .tabstrip > button.active,
-    .tabstrip > button.active:hover,
-    .tabstrip > button.active:focus {
-      background: transparent;
-      color: var(--pico-primary);
-      border-bottom-color: var(--pico-primary);
-      font-weight: 600;
-    }
-    .tabstrip > button:disabled { opacity: 0.45; cursor: not-allowed; }
-
     /* Row 1: the stage controls of the current tab. One line, no wrapping.
        Not a height budget, a reading one: wrapped, the transport, the sliders
        and the stage buttons stop reading as one control row. */
@@ -107,10 +57,21 @@
        to be readable from the back of the room. */
     .th-seg { font-size: 14px; padding: 5px 12px; line-height: 1.5; }
     .th-transport { display: flex; align-items: center; gap: 12px; }
-    .th-play {
-      width: auto; min-width: 82px; margin: 0; padding: 5px 14px;
-      font-size: 14px; line-height: 1.5;
+    /* The action buttons on this page are .tool-btn, whose values are the
+       site's. What is overridden here is size only, and for one reason: these
+       are read from the back of a conference room, where the shared 0.8rem is
+       a notch too small. No colours are restated, so a button here can never
+       drift from the shared rule. min-width holds the transport still when the
+       label flips between play and pause. */
+    .th-play, .th-treat, .th-export {
+      font-size: 14px; padding: 5px 14px; line-height: 1.5;
+      /* Every label here is a two-word action ("oil treatment", "use this year
+         in Lifetime", and longer in German). Wrapped, the button grows to two
+         lines and the 44 px control row breaks: the row is one line by design,
+         see .th-row1. */
+      white-space: nowrap;
     }
+    .th-play { min-width: 104px; }
     /* The plot is a wide strip, not a card, and now that "now" is pinned to the
        right-hand edge there is nothing on it to click. */
     .th-stage { cursor: default; }
@@ -330,19 +291,24 @@
       box-shadow: 0 0 0 3px var(--pico-primary-focus);
     }
 
-    /* The three stage buttons of the Live tab. Oil treatment is a one-shot, so
-       it never latches: it flashes for a moment instead. */
-    .th-stage-btns { display: flex; align-items: center; gap: 0; }
+    /* The stage controls of the Live tab, and the one place on this page where
+       the button/segment distinction is visible side by side. Oil treatment
+       PERFORMS an action once, so it is a .tool-btn with an icon and it never
+       latches: it flashes for a moment instead. The two faults are states the
+       run is left in, so they stay segments with aria-pressed, joined into one
+       control by .th-faults. They used to sit in one flush row with the
+       treatment button, which made a one-shot action look like a third fault
+       state. The gap is what separates the two kinds now. */
+    .th-stage-btns { display: flex; align-items: center; gap: 12px; }
+    .th-faults { display: flex; align-items: center; gap: 0; }
     .th-fire {
       background: var(--pico-primary); border-color: var(--pico-primary);
       color: var(--pico-primary-inverse);
     }
-    /* Hands the year in the ring over to the Lifetime tab. Not one of the stage
-       buttons: it changes nothing on this tab, so it stands on its own. */
-    /* One notch smaller than the stage buttons: the row is full, and this is
-       the label that pays for the space the site name used to take. */
-    .th-export { white-space: nowrap; font-size: 13px; padding: 4px 10px; }
-    .th-export:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* Hands the year in the ring over to the Lifetime tab: an action on the
+       simulated data, hence the download glyph, and it stands on its own
+       because it changes nothing on this tab. Its size and nowrap come from
+       the shared rule at the top of this block. */
 
     /* ── Lifetime tab ────────────────────────────────────────────────────
        One large distribution with a method switch above it, then the two
@@ -379,6 +345,7 @@
   <script src="assets/js/react.production.min.js"></script>
   <script src="assets/js/react-dom.production.min.js"></script>
   <script src="assets/js/htm.js"></script>
+  <script src="assets/js/icons.js"></script>
 </head>
 <body>
   <header class="container tw-head">
@@ -3255,13 +3222,15 @@
     const LIVE_H = 540;
     const LANE = {
       padL: 62, padR: 14,
-      tT: 12, tB: 246,      // temperature lane, 234 px
-      sep1: 254,
-      kT: 262, kB: 386,     // load lane, its band from sep1 to sep2 is 25 % of the canvas
-      sep2: 394,
-      rT: 414, rB: 522,     // ageing-rate lane, its title sits just under sep2
+      tT: 12, tB: 242,      // temperature lane, 230 px
+      kT: 262, kB: 386,     // load lane, 124 px; the 20 px gap above holds its title
+      rT: 414, rB: 522,     // ageing-rate lane, its title sits in the gap above rT
       xLab: 525
     };
+    /* The three plot boxes as [top, bottom] pairs: anything that spans the
+       whole chart height (time grid, the "now" cursor) is drawn per lane so it
+       stops at each frame instead of crossing the gaps between them. */
+    const LANES = [[LANE.tT, LANE.tB], [LANE.kT, LANE.kB], [LANE.rT, LANE.rB]];
     const K_FULL = 1.4;
 
     /* Display minutes per real second at speed 1x: one displayed day per ten
@@ -3424,7 +3393,9 @@
           marks.forEach((mk) => {
             const x = xOfT(mk[0]);
             ctx.strokeStyle = COL.grid; ctx.globalAlpha = 0.18; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(x, LANE.tT); ctx.lineTo(x, LANE.rB); ctx.stroke();
+            ctx.beginPath();
+            LANES.forEach((ln) => { ctx.moveTo(x, ln[0]); ctx.lineTo(x, ln[1]); });
+            ctx.stroke();
             ctx.globalAlpha = 1;
             ctx.fillStyle = COL.note;
             ctx.fillText(mk[1], x + (view === 'day' ? 0 : 4), LANE.xLab);
@@ -3459,17 +3430,25 @@
           pathSeries(ctx, gH, i0, i1, xOfI, yOfT, wPlot, false); ctx.stroke();
           ctx.restore();
 
-          // Lane separators: two panels on one canvas, not one crowded plot.
-          const hair = (y) => {
+          /* One closed frame per lane. Reading a value off a grid line needs
+             something to read it against, and a plot bounded only on the right
+             gives the eye nothing near the labels. The old full-width
+             separators between the lanes are gone: with three boxed panels
+             they were a second set of lines saying the same thing, and the gap
+             between the boxes separates them by itself. */
+          const laneFrame = (yT, yB) => {
             ctx.save();
             ctx.strokeStyle = COL.border;
-            ctx.globalAlpha = 0.55;
+            ctx.globalAlpha = 0.75;
             ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(x0 - LANE.padL + 2, y + 0.5); ctx.lineTo(x1, y + 0.5); ctx.stroke();
+            ctx.beginPath();
+            ctx.rect(x0 - 0.5, yT - 0.5, x1 - x0 + 0.5, yB - yT + 1);
+            ctx.stroke();
             ctx.restore();
           };
-          hair(LANE.sep1);
-          hair(LANE.sep2);
+          laneFrame(LANE.tT, LANE.tB);
+          laneFrame(LANE.kT, LANE.kB);
+          laneFrame(LANE.rT, LANE.rB);
 
           // Load lane: same x, its own tiny axis.
           ctx.save();
@@ -3496,8 +3475,9 @@
           ctx.font = '600 11px system-ui, sans-serif';
           ctx.fillStyle = COL.note;
           ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
-          ctx.fillText(T.laneLoad, x0 + 4, LANE.sep1 + 5);
+          // Lane titles sit in the gap above their frame, not inside the plot.
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(T.laneLoad, x0 + 4, LANE.kT - 5);
           ctx.restore();
 
           // Ageing-rate lane, log axis: the same year spans decades.
@@ -3505,10 +3485,10 @@
           ctx.font = '12px system-ui, sans-serif';
           ctx.fillStyle = COL.note;
           ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
+          ctx.textBaseline = 'bottom';
           ctx.fillText(T.laneRate
             + T.lanePaper + moist.cur.toFixed(2) + ' %' + (leak ? T.laneLeaking : ''),
-            x0 + 4, LANE.sep2 + 5);
+            x0 + 4, LANE.rT - 5);
           ctx.textAlign = 'right';
           ctx.textBaseline = 'middle';
           for (let d = Math.ceil(rs.lo - 1e-9); d <= rs.hi + 1e-9; d++) {
@@ -3552,7 +3532,10 @@
           ctx.strokeStyle = COL.emph;
           ctx.globalAlpha = 0.8;
           ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(x1 - 0.5, LANE.tT); ctx.lineTo(x1 - 0.5, LANE.rB); ctx.stroke();
+          // Per lane, so the cursor does not bridge the gaps between the boxes.
+          ctx.beginPath();
+          LANES.forEach((ln) => { ctx.moveTo(x1 - 0.5, ln[0]); ctx.lineTo(x1 - 0.5, ln[1]); });
+          ctx.stroke();
           ctx.restore();
 
           ctx.save();
@@ -3619,6 +3602,17 @@
       if (v >= 1) return v.toFixed(2);
       return String(Number(v.toPrecision(2)));
     }
+
+    /* Icons come from assets/js/icons.js, the shared set. A local script tag
+       is not an external request: the file sits next to the page and the demo
+       still runs from a stick over file://, which is the rule that matters.
+       The glyphs are stroked in currentColor, so they are the button's text
+       colour in every skin and in the disabled state without one extra rule.
+       Three buttons on this page carry one, and they are exactly the three
+       that DO something: the transport, the oil treatment, and the hand-off of
+       the simulated year to the Lifetime tab. The fault toggles and every
+       segmented control next to them stay bare. */
+    const Icon = ({ name }) => ToolIcons.el(name);
 
     function Seg({ items, value, onChange, className }) {
       return html`
@@ -4969,8 +4963,11 @@
               <${React.Fragment}>
                 <div className="th-row1">
                   <div className="th-transport">
-                    <button type="button" className="lang-seg th-seg th-play"
-                      onClick=${() => setPlaying((p) => !p)}>${playing ? T.pause : T.play}</button>
+                    <button type="button" className="tool-btn th-play"
+                      onClick=${() => setPlaying((p) => !p)}>
+                      <${Icon} name=${playing ? 'pause' : 'play'} />
+                      <span>${playing ? T.pause : T.play}</span>
+                    </button>
                     <${Seg} items=${[{ id: 'day', label: T.day }, { id: 'year', label: T.year }]}
                       value=${view} onChange=${setView} />
                   </div>
@@ -4981,19 +4978,27 @@
                     value=${ci} onChange=${setCi} format=${(v) => v.toFixed(0) + ' %'} />
                   <div className="th-stage-btns">
                     <button type="button"
-                      className=${'lang-seg th-seg' + (flash ? ' th-fire' : '')}
-                      onClick=${onTreat}>${T.treat}</button>
-                    <button type="button"
-                      className=${'lang-seg th-seg' + (leak ? ' active' : '')}
-                      aria-pressed=${leak ? 'true' : 'false'}
-                      onClick=${() => setLeak((v) => !v)}>${T.leak}</button>
-                    <button type="button"
-                      className=${'lang-seg th-seg' + (over ? ' active' : '')}
-                      aria-pressed=${over ? 'true' : 'false'}
-                      onClick=${() => setOver((v) => !v)}>${T.over}</button>
+                      className=${'tool-btn th-treat' + (flash ? ' th-fire' : '')}
+                      onClick=${onTreat}>
+                      <${Icon} name="reset" />
+                      <span>${T.treat}</span>
+                    </button>
+                    <div className="th-faults">
+                      <button type="button"
+                        className=${'lang-seg th-seg' + (leak ? ' active' : '')}
+                        aria-pressed=${leak ? 'true' : 'false'}
+                        onClick=${() => setLeak((v) => !v)}>${T.leak}</button>
+                      <button type="button"
+                        className=${'lang-seg th-seg' + (over ? ' active' : '')}
+                        aria-pressed=${over ? 'true' : 'false'}
+                        onClick=${() => setOver((v) => !v)}>${T.over}</button>
+                    </div>
                   </div>
-                  <button type="button" className="lang-seg th-seg th-export"
-                    disabled=${!(sim && sim.ready)} onClick=${onExport}>${T.export}</button>
+                  <button type="button" className="tool-btn th-export"
+                    disabled=${!(sim && sim.ready)} onClick=${onExport}>
+                    <${Icon} name="download" />
+                    <span>${T.export}</span>
+                  </button>
                 </div>
 
                 <${LiveCanvas} sim=${sim} view=${view} moist=${moistRef.current}

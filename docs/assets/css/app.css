@@ -139,6 +139,67 @@ html[data-skin="grey"][data-skin="grey"][data-skin="grey"] {
   --tool-sig-info: var(--accent);
 }
 
+/* === SCROLLBARS ===
+   The head bootstrap on every page mirrors the polarity onto
+   `element.style.colorScheme`, and theme.js keeps it in sync on a switch, so
+   light and dark already get a scrollbar of the right polarity from the first
+   paint. Two things are still wrong without the rules below.
+
+   Grey is the case that needs naming. It IS data-theme="dark", so it inherits
+   the browser's dark scrollbar, and that scrollbar is built for a near-black
+   page: on #55595f the track comes out darker than the page and the thumb
+   nearly black. That is the wrong lightness direction and the opposite of what
+   this skin says everywhere else, namely that surfaces are the same grey and
+   structure is the outline drawn on top. The thumb is therefore named in the
+   hairline grey (#9aa1a6, the value of --tool-hairline and
+   --pico-muted-border-color here), which is the weight a separator carries in
+   this skin.
+
+   In light and dark the polarity is right but the thumb is achromatic, and
+   next to a cool slate page a neutral grey strip reads as foreign. Each thumb
+   is therefore derived from that skin's own background: same hue, lightness
+   moved away from the page (up in dark, down in light). Tinted, not coloured:
+   the accent stays reserved for the data.
+
+   The track is `transparent` rather than a colour, and that is a fix, not a
+   default. A painted track is an opaque strip the full height of the scroll
+   container, so on anything with a border-radius (the log panel, the popovers)
+   it squares off the rounded corner. Transparent lets the element's own
+   clipped background show through, and it means the track needs no per-surface
+   value: a panel in --tool-subtle gets the right backdrop for free.
+
+   Each rule names the root AND its descendants. scrollbar-color inherits, but
+   a scroll container that establishes its own scrollbar does not always take
+   the inherited value in Chromium, so naming the descendants is what actually
+   reaches the log panel and the popovers.
+
+   Literal hex rather than var(): these sit on the root element, where the tool
+   ladder is declared in the same block, and the cascade order inside one
+   declaration list is not something to rely on.
+
+   The grey attribute is tripled for the same reason as the ladder block above,
+   so that it wins regardless of where it sits in the file. Untripled its
+   descendant half is 0-1-1, exactly tying the data-theme="dark" one, and the
+   tie is currently resolved only by this block coming later: moving either
+   rule would silently put the dark thumb on the grey page. Tripled it is
+   0-3-1 and the order stops mattering.
+   No ::-webkit-scrollbar pseudo-elements anywhere: one mechanism per element,
+   or Firefox and Chromium would disagree on the same panel. */
+html[data-theme="dark"],
+html[data-theme="dark"] * {
+  scrollbar-color: #50607c transparent;
+}
+
+html[data-theme="light"],
+html[data-theme="light"] * {
+  scrollbar-color: #829db6 transparent;
+}
+
+html[data-skin="grey"][data-skin="grey"][data-skin="grey"],
+html[data-skin="grey"][data-skin="grey"][data-skin="grey"] * {
+  scrollbar-color: #9aa1a6 transparent;
+}
+
 /* === SEGMENTED CONTROL (settings switchers, incl. the theme switcher) === */
 .lang-seg {
   font-size: 0.72rem;
@@ -387,3 +448,86 @@ html.lang-vt::view-transition-new(root) {
   color: var(--tool-faint);
   line-height: 1.7;
 }
+
+/* === TABS (choose a VIEW) ===
+   The house pattern for choosing a VIEW, as opposed to .lang-seg above, which
+   chooses a SETTING. The distinction is the point: as a segmented control the
+   tab switch would look exactly like the half dozen settings under it.
+   Underlined tabs say "these are the sections" instead.
+   The strip carries the baseline and the active tab overpaints it thicker, so
+   the underline must sit ON the strip's line, hence the negative bottom margin
+   on the buttons.
+   Shared here rather than per page: this block stood three times, byte for
+   byte, in levels.html, moisture.html and thermal.html. */
+.tabstrip {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--tool-hairline);
+  /* A line of air under the strip, for every tab at once. Each tab keeps its
+     own margin on top of this for whatever else it needs; putting the common
+     part here is what stops the four from drifting apart. */
+  margin-bottom: 20px;
+}
+.tabstrip > button {
+  margin: 0 0 -1px;
+  padding: 4px 2px 6px;
+  width: auto;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--tool-label);
+  cursor: pointer;
+}
+/* Pico redefines colour and border on button:is(:hover,:active,:focus); both
+   have to be taken back explicitly or the tab grows a blue box. */
+.tabstrip > button:hover:not(.active),
+.tabstrip > button:focus:not(.active) {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--tool-hairline);
+  color: var(--tool-emph);
+}
+.tabstrip > button.active,
+.tabstrip > button.active:hover,
+.tabstrip > button.active:focus {
+  background: transparent;
+  color: var(--pico-primary);
+  border-bottom-color: var(--pico-primary);
+  font-weight: 600;
+}
+.tabstrip > button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* === ACTION BUTTONS ===
+   Ported from alber.me/design-conventions.html, not imported: these pages are
+   self-contained and offline by rule, so the rule body is a copy. Values are
+   that page's exactly, including the 1.5px border and the radius 8, because a
+   button that is nearly the site button is worse than either.
+
+   The convention that comes with it: an icon marks a button that PERFORMS AN
+   ACTION on something (play, run a treatment, export), while choices, filters
+   and tabs stay bare. A row where every button has a picture is wallpaper.
+
+   width: auto and margin: 0 are load-bearing: Pico gives button[type=button] a
+   bottom margin and stretches submit buttons to full width, and either one
+   wrecks a row of buttons. */
+.tool-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 7px; width: auto; margin: 0;
+  padding: 0.4rem 0.9rem;
+  font-family: inherit; font-size: 0.8rem; line-height: 1.35;
+  cursor: pointer;
+  border: 1.5px solid var(--tool-border); border-radius: 8px;
+  background: var(--tool-surface); color: var(--tool-text);
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.tool-btn:hover:not(:disabled) { border-color: var(--tool-note); }
+.tool-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tool-btn svg { flex: 0 0 auto; }
+/* Pure size modifier: it restates no colours, so a variant can never drift
+   from the base. */
+.tool-btn-sm { padding: 0.28rem 0.7rem; font-size: 0.74rem; border-radius: 7px; }
