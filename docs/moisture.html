@@ -1292,7 +1292,13 @@ var MoistureCore = (function () {
        how the two get mixed. */
     var DIF_D0 = 1.34e-13;
     var DIF_K = 0.5;
-    var DIF_EAR = 8140;
+    /* 8074, not 8140: the two published Foss sets must not be crossed. The
+       oil-impregnated pair is D0 = 1.34e-13 with Ea/R = 8074, the dry-paper
+       pair is D0 = 2.62e-13 with Ea/R = 8140. This page models impregnated
+       kraft, so it takes the impregnated pair whole. The mix was worth under
+       4% in D over the operating range, so it never showed; it was wrong
+       about where the numbers come from, which is what this page trades on. */
+    var DIF_EAR = 8074;
     var DIF_T0 = 298;
     function diffusivity(wp, thetaC) {
       return DIF_D0 * Math.exp(DIF_K * wp) *
@@ -2750,7 +2756,7 @@ var MoistureCore = (function () {
       h3: 'Two directions, and they are not equally strong',
       p3: 'Radially there is a diffusion equation through the insulation, with a diffusivity that depends strongly on both temperature and water content. Axially there is no coupling at all: each winding height is an independent column driven by its own oil temperature. That asymmetry shows in the numbers. The axial spread of moisture is well over a percentage point, because the bottom of the tank is much colder than the top and cold paper holds more water. The radial spread is a tenth of that or less, because the oil is too small a buffer to hold the paper surface away from equilibrium for long. Both spreads are printed under the map rather than left to the colours.',
       h4: 'Why drying the oil does so little',
-      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 100-to-1 split while the paper refills it. It is modelled as a fixed-throughput circuit, pulling the oil towards a few ppm with a time constant of about 100 min set by how fast it turns the oil volume over; the duration only decides how long it runs. The oil is down within hours and stays there, the paper answers over days, and the reading is back where it was within a day of switching off.',
+      p4: 'At around 2.5% moisture the solid insulation holds roughly 37 kg of water; the oil at 30 ppm holds well under a kilogram. A drying plant works on the oil, so it is emptying the small end of a 60-to-1 split while the paper refills it. It is modelled as a fixed-throughput circuit, pulling the oil towards a few ppm with a time constant of about 100 min set by how fast it turns the oil volume over; the duration only decides how long it runs. The oil is down within hours and stays there, the paper answers over days, and the reading is back where it was within a day of switching off.',
       h5: 'How it is solved',
       p6: 'The paper is solved implicitly. An explicit scheme on this grid would be limited to a couple of minutes per step at the hot, wet corner; the implicit solve is unconditionally stable and costs one tridiagonal sweep per winding height. The oil balance is advanced explicitly after it, which is accurate as long as the step stays bounded, and the code bounds it.',
       h6: 'What is not modelled, and which numbers are chosen',
@@ -2766,7 +2772,7 @@ var MoistureCore = (function () {
       h3: 'Zwei Richtungen, und sie sind nicht gleich stark',
       p3: 'Radial steht eine Diffusionsgleichung durch die Isolation, mit einer Diffusionskonstante, die stark von Temperatur und Wassergehalt abhängt. Axial gibt es überhaupt keine Kopplung: jede Wickelhöhe ist eine eigene Säule, getrieben von ihrer eigenen Öltemperatur. Diese Unsymmetrie zeigt sich in den Zahlen. Die axiale Spanne der Feuchte liegt deutlich über einem Prozentpunkt, weil es unten im Kessel viel kälter ist als oben und kaltes Papier mehr Wasser hält. Die radiale Spanne ist ein Zehntel davon oder weniger, weil das Öl ein zu kleiner Puffer ist, um die Papieroberfläche länger aus dem Gleichgewicht zu halten. Beide Spannen stehen als Zahl unter der Karte und nicht nur in den Farben.',
       h4: 'Warum eine Öltrocknung so wenig bringt',
-      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 100 zu 1, während das Papier nachliefert. Sie ist als Kreislauf mit fester Förderleistung modelliert und zieht das Öl mit einer Zeitkonstante von etwa 100 min auf wenige ppm; die Dauer entscheidet nur, wie lange sie läuft. Das Öl ist binnen Stunden unten und bleibt dort, das Papier antwortet über Tage, und einen Tag nach dem Abschalten steht die Anzeige wieder da, wo sie war.',
+      p4: 'Bei etwa 2,5% Feuchte hält die feste Isolation rund 37 kg Wasser, das Öl bei 30 ppm deutlich unter einem Kilogramm. Eine Trocknungsanlage arbeitet am Öl, leert also das kleine Ende einer Aufteilung von 60 zu 1, während das Papier nachliefert. Sie ist als Kreislauf mit fester Förderleistung modelliert und zieht das Öl mit einer Zeitkonstante von etwa 100 min auf wenige ppm; die Dauer entscheidet nur, wie lange sie läuft. Das Öl ist binnen Stunden unten und bleibt dort, das Papier antwortet über Tage, und einen Tag nach dem Abschalten steht die Anzeige wieder da, wo sie war.',
       h5: 'Wie gerechnet wird',
       p6: 'Das Papier wird implizit gelöst. Ein explizites Verfahren wäre auf diesem Gitter am heißen, feuchten Ende auf wenige Minuten pro Schritt begrenzt; die implizite Lösung ist unbedingt stabil und kostet einen Tridiagonaldurchlauf pro Wickelhöhe. Die Ölbilanz wird danach explizit nachgezogen, was genau genug ist, solange der Schritt begrenzt bleibt, und der Code begrenzt ihn.',
       h6: 'Was nicht modelliert ist, und welche Zahlen gewählt sind',
