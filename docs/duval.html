@@ -160,7 +160,7 @@
       return [a, rest / 2 + half, rest / 2 - half];
     }
     function ternaryClamp(X, Y, floor) {
-      var c = ternaryComp(X, Y), f = floor == null ? 5e-4 : floor, i;
+      var c = ternaryComp(X, Y), f = floor == null ? SHARE_FLOOR : floor, i;
       for (i = 0; i < 3; i++) c[i] = Math.max(f, c[i]);
       return close(c);
     }
@@ -289,8 +289,16 @@
        exact at the displayed resolution. */
     var QUAD_R = 4.5, QUAD_H = 0.035;
 
+    /* A gas typed in as 0 ppm has no logarithm: ilr() would mix -Infinity
+       with +Infinity, every node would come back as NaN, and NaN falls through
+       zoneOf() into DT. Such a share is lifted to the same floor the dragged
+       point is clamped to, 0.05 percent, which reads as "below detection"
+       and moves the point by less than a pixel. */
+    var SHARE_FLOOR = 5e-4;
+
     function zoneProbs(comp, sigmas) {
-      var y0 = ilr(comp), L = chol2(ilrCov(sigmas));
+      var c = close(comp.map(function (v) { return Math.max(SHARE_FLOOR, v); }));
+      var y0 = ilr(c), L = chol2(ilrCov(sigmas));
       var tally = {}, i, j, u, v, q, w, wsum = 0, k;
       for (k = 0; k < ZONES.length; k++) tally[ZONES[k]] = 0;
       var m = Math.ceil(QUAD_R / QUAD_H), rr = QUAD_R * QUAD_R, n = 0;
